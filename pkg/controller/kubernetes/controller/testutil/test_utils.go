@@ -33,15 +33,20 @@ package testutil
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"reflect"
 	"sync"
+	"testing"
 	"time"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -50,10 +55,14 @@ import (
 	corev1 "k8s.io/client-go/applyconfigurations/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/tools/cache"
 	ref "k8s.io/client-go/tools/reference"
+	utilnode "k8s.io/component-helpers/node/topology"
 	"k8s.io/klog/v2"
+)
 
-	utilnode "github.com/openyurtio/openyurt/pkg/controller/kubernetes/util/node"
+var (
+	keyFunc = cache.DeletionHandlingMetaNamespaceKeyFunc
 )
 
 // FakeNodeHandler is a fake implementation of NodesInterface and NodeInterface. It
@@ -84,6 +93,17 @@ type FakeNodeHandler struct {
 type FakeLegacyHandler struct {
 	v1core.CoreV1Interface
 	n *FakeNodeHandler
+}
+
+// GetUpdatedNodesCopy returns a slice of Nodes with updates applied.
+func (m *FakeNodeHandler) GetUpdatedNodesCopy() []*v1.Node {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	updatedNodesCopy := make([]*v1.Node, len(m.UpdatedNodes), len(m.UpdatedNodes))
+	for i, ptr := range m.UpdatedNodes {
+		updatedNodesCopy[i] = ptr
+	}
+	return updatedNodesCopy
 }
 
 // Core returns fake CoreInterface.
@@ -117,10 +137,25 @@ func (m *FakeNodeHandler) ApplyStatus(ctx context.Context, node *corev1.NodeAppl
 
 // Create adds a new Node to the fake store.
 func (m *FakeNodeHandler) Create(_ context.Context, node *v1.Node, _ metav1.CreateOptions) (*v1.Node, error) {
-	// OpenYurt Authors:
-	// We make this function empty, because currently we don't use it.
-	// And the original code will import "k8s.io/kubernetes/pkg/apis/core".
-	return nil, nil
+	m.lock.Lock()
+	defer func() {
+		m.RequestCount++
+		m.lock.Unlock()
+	}()
+	for _, n := range m.Existing {
+		if n.Name == node.Name {
+			return nil, apierrors.NewAlreadyExists(schema.GroupResource{
+				Group:    "",
+				Resource: "nodes",
+			}, node.Name)
+		}
+	}
+	if m.CreateHook == nil || m.CreateHook(m, node) {
+		nodeCopy := *node
+		m.CreatedNodes = append(m.CreatedNodes, &nodeCopy)
+		return node, nil
+	}
+	return nil, errors.New("create error")
 }
 
 // Get returns a Node from the fake store.
@@ -482,4 +517,28 @@ func GetZones(nodeHandler *FakeNodeHandler) []string {
 // CreateZoneID returns a single zoneID for a given region and zone.
 func CreateZoneID(region, zone string) string {
 	return region + ":\x00:" + zone
+}
+
+// GetKey is a helper function used by controllers unit tests to get the
+// key for a given kubernetes resource.
+func GetKey(obj interface{}, t *testing.T) string {
+	tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+	if ok {
+		// if tombstone , try getting the value from tombstone.Obj
+		obj = tombstone.Obj
+	}
+	val := reflect.ValueOf(obj).Elem()
+	name := val.FieldByName("Name").String()
+	kind := val.FieldByName("Kind").String()
+	// Note kind is not always set in the tests, so ignoring that for now
+	if len(name) == 0 || len(kind) == 0 {
+		t.Errorf("Unexpected object %v", obj)
+	}
+
+	key, err := keyFunc(obj)
+	if err != nil {
+		t.Errorf("Unexpected error getting key for %v %v: %v", kind, name, err)
+		return ""
+	}
+	return key
 }

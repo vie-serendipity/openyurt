@@ -20,6 +20,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	cmconfig "k8s.io/controller-manager/config"
 	nodelifecycleconfig "k8s.io/kube-controller-manager/config/v1alpha1"
+
+	nodeipamconfig "github.com/openyurtio/openyurt/pkg/controller/nodeipam/config"
+	vsagconfig "github.com/openyurtio/openyurt/pkg/controller/vsag/config"
 )
 
 // YurtControllerManagerConfiguration contains elements describing yurt-controller manager.
@@ -32,4 +35,12 @@ type YurtControllerManagerConfiguration struct {
 	// NodeLifecycleControllerConfiguration holds configuration for
 	// NodeLifecycleController related features.
 	NodeLifecycleController nodelifecycleconfig.NodeLifecycleControllerConfiguration
+
+	// NodeIPAMControllerConfiguration holds configuration for
+	// NodeIPAMController related features.
+	NodeIPAMController nodeipamconfig.NodeIPAMControllerConfiguration
+
+	// VsagControllerConfiguration holds configuration for
+	// VsagController related features.
+	VsagController vsagconfig.VsagControllerConfiguration
 }

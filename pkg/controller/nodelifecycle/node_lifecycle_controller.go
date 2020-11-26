@@ -773,6 +773,19 @@ func (nc *Controller) monitorNodeHealth() error {
 	if err != nil {
 		return err
 	}
+
+	// xiyuan added: for cdn , the vc nodes always keep ready and do not send heartbeat
+	// nodes of this type need to skip monitoring
+	var newNodeSlice []*v1.Node
+	for j := range nodes {
+		if nodes[j].Annotations != nil && nodes[j].Annotations[nodeutil.AnnotationKeyVirtualClusterNode] == "true" {
+			klog.V(5).Infof("Skip monitoring node: %v in virtual cluster", nodes[j].Name)
+		} else {
+			newNodeSlice = append(newNodeSlice, nodes[j])
+		}
+	}
+	nodes = newNodeSlice
+
 	added, deleted, newZoneRepresentatives := nc.classifyNodes(nodes)
 
 	for i := range newZoneRepresentatives {

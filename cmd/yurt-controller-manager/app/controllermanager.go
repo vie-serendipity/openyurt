@@ -32,6 +32,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -79,7 +80,7 @@ the core control loops shipped with openyurt. In applications of robotics and
 automation, a control loop is a non-terminating loop that regulates the state of
 the system. In openyurt, a controller is a control loop that watches the shared
 state of the cluster through the apiserver and makes changes attempting to move the
-current state towards the desired state. now only nodelifecycle controller is present.`,
+current state towards the desired state. now nodelifecycle, nodeipam, vsag controllers are present.`,
 		PersistentPreRunE: func(*cobra.Command, []string) error {
 			// silence client-go warnings.
 			// kube-controller-manager generically watches APIs (including deprecated ones),
@@ -196,7 +197,13 @@ func Run(c *config.CompletedConfig, stopCh <-chan struct{}) error {
 		var clientBuilder clientbuilder.ControllerClientBuilder
 
 		clientBuilder = rootClientBuilder
-		controllerContext, err := CreateControllerContext(c, rootClientBuilder, clientBuilder, ctx.Done())
+
+		appsconfig := restclient.CopyConfig(c.Kubeconfig)
+		// crd api doesn't support protobuf
+		appsconfig.ContentConfig.ContentType = runtime.ContentTypeJSON
+		appsRootClientBuilder := SimpleControllerAppsClientBuilder{ClientConfig: appsconfig}
+		appsClientBuilder := appsRootClientBuilder
+		controllerContext, err := CreateControllerContext(c, rootClientBuilder, clientBuilder, appsRootClientBuilder, appsClientBuilder, ctx.Done())
 		if err != nil {
 			klog.Fatalf("error building controller context: %v", err)
 		}
@@ -265,6 +272,9 @@ type ControllerContext struct {
 	// YurtInformerFactory gives access to yurt informers for the controller.
 	YurtInformerFactory yurtinformers.SharedInformerFactory
 
+	// AppsClientBuilder will provide a apps client for this controller to use
+	AppsClientBuilder ControllerAppsClientBuilder
+
 	// ComponentConfig provides access to init options for a given controller
 	ComponentConfig yurtctrlmgrconfig.YurtControllerManagerConfiguration
 
@@ -313,13 +323,15 @@ func NewControllerInitializers() map[string]InitFunc {
 	controllers["yurtcsrapprover"] = startYurtCSRApproverController
 	controllers["daemonpodupdater"] = startDaemonPodUpdaterController
 	controllers["servicetopologycontroller"] = startServiceTopologyController
+	controllers["nodeipam"] = startNodeIpamController
+	controllers["vsag"] = startVsagController
 	return controllers
 }
 
 // CreateControllerContext creates a context struct containing references to resources needed by the
 // controllers such as the cloud provider and clientBuilder. rootClientBuilder is only used for
 // the shared-informers client and token controller.
-func CreateControllerContext(s *config.CompletedConfig, rootClientBuilder, clientBuilder clientbuilder.ControllerClientBuilder, stop <-chan struct{}) (ControllerContext, error) {
+func CreateControllerContext(s *config.CompletedConfig, rootClientBuilder, clientBuilder clientbuilder.ControllerClientBuilder, appsRootClientBuilder, appsClientBuilder ControllerAppsClientBuilder, stop <-chan struct{}) (ControllerContext, error) {
 	versionedClient := rootClientBuilder.ClientOrDie("shared-informers")
 	kubeConfig := rootClientBuilder.ConfigOrDie("yurt-informers")
 	yurtClient := yurtclientset.NewForConfigOrDie(kubeConfig)
@@ -335,6 +347,7 @@ func CreateControllerContext(s *config.CompletedConfig, rootClientBuilder, clien
 		ClientBuilder:       clientBuilder,
 		InformerFactory:     sharedInformers,
 		YurtInformerFactory: yurtInformers,
+		AppsClientBuilder:   appsClientBuilder,
 		ComponentConfig:     s.ComponentConfig,
 		Stop:                stop,
 		InformersStarted:    make(chan struct{}),

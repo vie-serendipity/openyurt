@@ -6,14 +6,16 @@ require (
 	github.com/BurntSushi/toml v0.4.1 // indirect
 	github.com/Microsoft/go-winio v0.4.15
 	github.com/aliyun/alibaba-cloud-sdk-go v1.61.579
+	github.com/cilium/cilium v1.6.12
 	github.com/davecgh/go-spew v1.1.1
 	github.com/daviddengcn/go-colortext v1.0.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/emicklei/go-restful v2.12.0+incompatible // indirect
 	github.com/evanphx/json-patch v4.11.0+incompatible
 	github.com/fsnotify/fsnotify v1.4.10-0.20200417215612-7f4cf4dd2b52 // indirect
+	github.com/google/go-cmp v0.5.5
 	github.com/google/uuid v1.1.2
-	github.com/gorilla/mux v1.7.4
+	github.com/gorilla/mux v1.8.0
 	github.com/lithammer/dedent v1.1.0
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/onsi/ginkgo/v2 v2.1.4
@@ -27,18 +29,19 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/vishvananda/netlink v1.1.1-0.20200603190939-5a869a71f0cb
 	golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8
+	gomodules.xyz/jsonpatch/v2 v2.1.0
 	google.golang.org/grpc v1.40.0
 	gopkg.in/cheggaaa/pb.v1 v1.0.25
 	gopkg.in/square/go-jose.v2 v2.2.2
-	k8s.io/api v0.22.3
-	k8s.io/apimachinery v0.22.3
+	k8s.io/api v0.23.1
+	k8s.io/apimachinery v0.23.1
 	k8s.io/apiserver v0.22.3
-	k8s.io/client-go v0.22.3
+	k8s.io/client-go v0.23.1
 	k8s.io/cluster-bootstrap v0.22.3
 	k8s.io/component-base v0.22.3
-	k8s.io/component-helpers v0.22.3
+	k8s.io/component-helpers v0.23.1
 	k8s.io/controller-manager v0.22.3
-	k8s.io/klog/v2 v2.9.0
+	k8s.io/klog/v2 v2.30.0
 	k8s.io/kube-controller-manager v0.22.3
 	k8s.io/kubelet v0.22.3
 	k8s.io/system-validators v1.6.0
@@ -48,6 +51,11 @@ require (
 )
 
 replace (
+	github.com/evanphx/json-patch => github.com/evanphx/json-patch v4.11.0+incompatible
+	k8s.io/api => k8s.io/api v0.22.3
+	k8s.io/apimachinery => k8s.io/apimachinery v0.22.3
+	k8s.io/client-go => k8s.io/client-go v0.22.3
+	k8s.io/component-helpers => k8s.io/component-helpers v0.23.1
 	k8s.io/klog/v2 => k8s.io/klog/v2 v2.9.0
 	sigs.k8s.io/apiserver-network-proxy => github.com/openyurtio/apiserver-network-proxy v1.18.8
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client => sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.0.22

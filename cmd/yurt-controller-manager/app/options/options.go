@@ -42,6 +42,8 @@ import (
 	utilpointer "k8s.io/utils/pointer"
 
 	yurtcontrollerconfig "github.com/openyurtio/openyurt/cmd/yurt-controller-manager/app/config"
+	nodeipamconfig "github.com/openyurtio/openyurt/pkg/controller/nodeipam/config"
+	vsagconfig "github.com/openyurtio/openyurt/pkg/controller/vsag/config"
 	"github.com/openyurtio/openyurt/pkg/projectinfo"
 )
 
@@ -54,6 +56,8 @@ const (
 type YurtControllerManagerOptions struct {
 	Generic                 *cmoptions.GenericControllerManagerConfigurationOptions
 	NodeLifecycleController *NodeLifecycleControllerOptions
+	NodeIpamController      *NodeIPAMControllerOptions
+	VsagController          *VsagControllerOptions
 	Master                  string
 	Kubeconfig              string
 	Version                 bool
@@ -91,6 +95,19 @@ func NewYurtControllerManagerOptions() (*YurtControllerManagerOptions, error) {
 				NodeStartupGracePeriod: metav1.Duration{Duration: 60 * time.Second},
 			},
 		},
+		NodeIpamController: &NodeIPAMControllerOptions{
+			NodeIPAMControllerConfiguration: &nodeipamconfig.NodeIPAMControllerConfiguration{
+				NodeCIDRMaskSize: 24,
+				LegacyIpam:       false,
+			},
+		},
+		VsagController: &VsagControllerOptions{
+			VsagControllerConfiguration: &vsagconfig.VsagControllerConfiguration{
+				ConcurrentVsagWorkers: 4,
+				HostAkCredSecretName:  "ecm.sag.ak",
+				CloudConfigFile:       "/etc/kubernetes/config/cloud-config.json",
+			},
+		},
 	}
 
 	return &s, nil
@@ -101,6 +118,8 @@ func (s *YurtControllerManagerOptions) Flags(allControllers []string, disabledBy
 	fss := cliflag.NamedFlagSets{}
 	s.Generic.AddFlags(&fss, allControllers, disabledByDefaultControllers)
 	s.NodeLifecycleController.AddFlags(fss.FlagSet("nodelifecycle controller"))
+	s.NodeIpamController.AddFlags(fss.FlagSet("nodeipam controller"))
+	s.VsagController.AddFlags(fss.FlagSet("vsag controller"))
 
 	fs := fss.FlagSet("misc")
 	fs.StringVar(&s.Master, "master", s.Master, "The address of the Kubernetes API server (overrides any value in kubeconfig).")
@@ -121,6 +140,14 @@ func (s *YurtControllerManagerOptions) ApplyTo(c *yurtcontrollerconfig.Config) e
 		return err
 	}
 
+	if err := s.NodeIpamController.ApplyTo(&c.ComponentConfig.NodeIPAMController); err != nil {
+		return err
+	}
+
+	if err := s.VsagController.ApplyTo(&c.ComponentConfig.VsagController); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -130,6 +157,8 @@ func (s *YurtControllerManagerOptions) Validate(allControllers []string, disable
 
 	errs = append(errs, s.Generic.Validate(allControllers, disabledByDefaultControllers)...)
 	errs = append(errs, s.NodeLifecycleController.Validate()...)
+	errs = append(errs, s.NodeIpamController.Validate()...)
+	errs = append(errs, s.VsagController.Validate()...)
 
 	// TODO: validate component config, master and kubeconfig
 

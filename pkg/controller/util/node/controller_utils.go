@@ -37,12 +37,19 @@ import (
 	"github.com/openyurtio/openyurt/pkg/controller/kubernetes/controller"
 	ctlnode "github.com/openyurtio/openyurt/pkg/controller/kubernetes/controller/util/node"
 	nodepkg "github.com/openyurtio/openyurt/pkg/controller/kubernetes/util/node"
-	"github.com/openyurtio/openyurt/pkg/projectinfo"
+	"github.com/openyurtio/openyurt/pkg/controller/util"
+	"github.com/openyurtio/yurt-app-manager-api/pkg/yurtappmanager/apis/apps/v1alpha1"
 )
 
 var (
 	// AnnotationKeyNodeAutonomy is an annotation key for node autonomy.
-	AnnotationKeyNodeAutonomy = projectinfo.GetAutonomyAnnotation()
+	AnnotationKeyNodeAutonomy = "node.beta.alibabacloud.com/autonomy"
+
+	// NodeLabelEdgeWorker indicates if the node is an edge node
+	NodeLabelEdgeWorker = "alibabacloud.com/is-edge-worker"
+
+	// AnnotationKeyVirtualClusterNode is an internal key for esk, value is 'true' of 'false'
+	AnnotationKeyVirtualClusterNode = "node.beta.alibabacloud.com/is-vc-node"
 )
 
 // DeletePods will delete all pods from master running on given node,
@@ -356,4 +363,19 @@ func UpdatePodCondition(status *v1.PodStatus, condition *v1.PodCondition) bool {
 	status.Conditions[conditionIndex] = *condition
 	// Return true if one of the fields have changed.
 	return !isEqual
+}
+
+func IsCloudNode(node *v1.Node) bool {
+	if node.Labels == nil || node.Labels[NodeLabelEdgeWorker] != "true" {
+		return true
+	}
+	return false
+}
+
+func IsEdgeDefaultNodepool(nodepool *v1alpha1.NodePool) bool {
+	if nodepool.Annotations != nil && nodepool.Annotations[util.NodePoolIsEdgeDefaultAnnotation] == "true" &&
+		nodepool.Spec.Type == v1alpha1.Edge {
+		return true
+	}
+	return false
 }
