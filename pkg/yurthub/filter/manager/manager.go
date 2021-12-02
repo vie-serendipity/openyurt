@@ -30,6 +30,7 @@ import (
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter/discardcloudservice"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter/hostnetworkpropagation"
+	"github.com/openyurtio/openyurt/pkg/yurthub/filter/imagecustomization"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter/inclusterconfig"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter/initializer"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter/masterservice"
@@ -59,6 +60,7 @@ func NewFilterManager(options *options.YurtHubOptions,
 	if options.WorkingMode == string(util.WorkingModeCloud) {
 		options.DisabledResourceFilters = append(options.DisabledResourceFilters, filter.DisabledInCloudMode...)
 	}
+
 	filters := filter.NewFilters(options.DisabledResourceFilters)
 	registerAllFilters(filters)
 
@@ -72,7 +74,7 @@ func NewFilterManager(options *options.YurtHubOptions,
 		}
 	}
 
-	objFilters, err := createObjectFilters(filters, sharedFactory, nodePoolFactory, proxiedClient, options.NodeName, options.NodePoolName, mutatedMasterServiceHost, mutatedMasterServicePort)
+	objFilters, err := createObjectFilters(filters, sharedFactory, nodePoolFactory, proxiedClient, options.NodeName, options.NodePoolName, mutatedMasterServiceHost, mutatedMasterServicePort, options.ECSRegion, options.ImageRepoType)
 	if err != nil {
 		return nil, err
 	}
@@ -117,14 +119,15 @@ func createObjectFilters(filters *filter.Filters,
 	sharedFactory informers.SharedInformerFactory,
 	nodePoolFactory dynamicinformer.DynamicSharedInformerFactory,
 	proxiedClient kubernetes.Interface,
-	nodeName, nodePoolName, mutatedMasterServiceHost, mutatedMasterServicePort string) ([]filter.ObjectFilter, error) {
+	nodeName, nodePoolName, mutatedMasterServiceHost, mutatedMasterServicePort, region, imageRepoType string) ([]filter.ObjectFilter, error) {
 	if filters == nil {
 		return nil, nil
 	}
 
 	genericInitializer := initializer.New(sharedFactory, nodePoolFactory, proxiedClient, nodeName, nodePoolName, mutatedMasterServiceHost, mutatedMasterServicePort)
+	extraInitializer := initializer.NewExtraInitializer(region, imageRepoType)
 	initializerChain := filter.Initializers{}
-	initializerChain = append(initializerChain, genericInitializer)
+	initializerChain = append(initializerChain, genericInitializer, extraInitializer)
 	return filters.NewFromFilters(initializerChain)
 }
 
@@ -138,4 +141,5 @@ func registerAllFilters(filters *filter.Filters) {
 	nodeportisolation.Register(filters)
 	hostnetworkpropagation.Register(filters)
 	mutetunnelnodes.Register(filters)
+	imagecustomization.Register(filters)
 }

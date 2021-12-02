@@ -32,6 +32,7 @@ import (
 
 	"github.com/openyurtio/openyurt/pkg/projectinfo"
 	"github.com/openyurtio/openyurt/pkg/yurthub/certificate"
+	"github.com/openyurtio/openyurt/pkg/yurthub/filter/imagecustomization"
 	"github.com/openyurtio/openyurt/pkg/yurthub/storage/disk"
 	"github.com/openyurtio/openyurt/pkg/yurthub/util"
 )
@@ -77,6 +78,8 @@ type YurtHubOptions struct {
 	EnableResourceFilter      bool
 	DisabledResourceFilters   []string
 	WorkingMode               string
+	ECSRegion                 string
+	ImageRepoType             string
 	KubeletHealthGracePeriod  time.Duration
 	EnableNodePool            bool
 	MinRequestTimeout         time.Duration
@@ -120,6 +123,7 @@ func NewYurtHubOptions() *YurtHubOptions {
 		WorkingMode:               string(util.WorkingModeEdge),
 		KubeletHealthGracePeriod:  time.Second * 40,
 		EnableNodePool:            true,
+		ImageRepoType:             imagecustomization.PrivateImageRepo,
 		MinRequestTimeout:         time.Second * 1800,
 		CACertHashes:              make([]string, 0),
 		UnsafeSkipCAVerification:  true,
@@ -220,6 +224,8 @@ func (o *YurtHubOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&o.CoordinatorStoragePrefix, "coordinator-storage-prefix", o.CoordinatorStoragePrefix, "Yurt-Coordinator etcd storage prefix, same as etcd-prefix of Kube-APIServer")
 	fs.StringVar(&o.CoordinatorStorageAddr, "coordinator-storage-addr", o.CoordinatorStorageAddr, "Address of Yurt-Coordinator etcd, in the format host:port")
 	bindFlags(&o.LeaderElection, fs)
+	fs.StringVar(&o.ECSRegion, "ecs-region", o.ECSRegion, "the registry region of system component pods. If it doesn't set, YurtHub will not do the modification.")
+	fs.StringVar(&o.ImageRepoType, "image-repo-type", o.ImageRepoType, "the registry type of system component pods: private or public.")
 }
 
 // bindFlags binds the LeaderElectionConfiguration struct fields to a flagset

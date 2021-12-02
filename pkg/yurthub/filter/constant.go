@@ -50,11 +50,12 @@ const (
 	// DiscardServiceAnnotation is used for specifying discard LB service or not.
 	DiscardServiceAnnotation = "svc.openyurt.io/discard"
 
+	// MuteTunnelNodesFilterName filter is used to comment /etc/edge/tunnel-nodes settings in Corefile of coredns.
+	MuteTunnelNodesFilterName = "mutetunnelnodes"
+
 	// ImageCustomizationFilterName filter is used to mutate the image in the system component pod(like kube-proxy)
 	// in order to allow users to configure the image.
 	ImageCustomizationFilterName = "imagecustomization"
-	// MuteTunnelNodesFilterName filter is used to comment /etc/edge/tunnel-nodes settings in Corefile of coredns.
-	MuteTunnelNodesFilterName = "mutetunnelnodes"
 )
 
 var (
@@ -70,5 +71,6 @@ var (
 		NodePortIsolationFilterName:      "kube-proxy",
 		HostNetworkPropagationFilterName: "kubelet",
 		MuteTunnelNodesFilterName:        "kubelet",
+		ImageCustomizationFilterName:     "kubelet",
 	}
 )
