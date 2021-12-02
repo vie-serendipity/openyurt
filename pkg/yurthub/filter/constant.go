@@ -33,6 +33,10 @@ const (
 	// If end users want to use specified LB service at the edge side,
 	// End users should add annotation["openyurt.io/skip-discard"]="true" for LB service.
 	SkipDiscardServiceAnnotation = "openyurt.io/skip-discard"
+
+	// ImageCustomizationFilterName filter is used to mutate the image in the system component pod(like kube-proxy)
+	// in order to allow users to configure the image.
+	ImageCustomizationFilterName = "imagecustomization"
 )
 
 var (
@@ -44,5 +48,6 @@ var (
 		MasterServiceFilterName:       "kubelet",
 		DiscardCloudServiceFilterName: "kube-proxy",
 		ServiceTopologyFilterName:     "kube-proxy, coredns, nginx-ingress-controller",
+		ImageCustomizationFilterName:  "kubelet",
 	}
 )
