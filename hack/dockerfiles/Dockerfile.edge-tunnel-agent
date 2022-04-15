@@ -1,0 +1,13 @@
+# multi-arch image building for edge-tunnel-agent
+
+FROM --platform=${BUILDPLATFORM} golang:1.17.1 as builder
+ADD . /build
+ARG TARGETOS TARGETARCH GIT_VERSION
+WORKDIR /build/
+RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} make build WHAT=cmd/yurt-tunnel-agent ARCH=${TARGETARCH} PROJECT_PREFIX=edge- LABEL_PREFIX=alibabacloud.com GIT_VERSION=${GIT_VERSION}
+
+FROM --platform=${TARGETPLATFORM} registry.cn-hangzhou.aliyuncs.com/acs/alpine:3.13-update
+ARG TARGETOS TARGETARCH
+RUN apk add ca-certificates bash libc6-compat && update-ca-certificates && rm /var/cache/apk/*
+COPY --from=builder /build/_output/local/bin/${TARGETOS}/${TARGETARCH}/edge-tunnel-agent /usr/local/bin/edge-tunnel-agent
+ENTRYPOINT ["/usr/local/bin/edge-tunnel-agent"]

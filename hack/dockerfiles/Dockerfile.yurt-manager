@@ -1,0 +1,13 @@
+# multi-arch image building for yurt-manager
+
+FROM --platform=${BUILDPLATFORM} golang:1.18 as builder
+ADD . /build
+ARG TARGETOS TARGETARCH GIT_VERSION
+WORKDIR /build/
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} LABEL_PREFIX=alibabacloud.com GIT_VERSION=${GIT_VERSION} make build WHAT=cmd/yurt-manager
+
+FROM --platform=${TARGETPLATFORM} registry.cn-hangzhou.aliyuncs.com/acs/alpine:3.16-update
+ARG TARGETOS TARGETARCH
+RUN apk add ca-certificates bash libc6-compat iptables ip6tables conntrack-tools curl && update-ca-certificates && rm /var/cache/apk/*
+COPY --from=builder /build/_output/local/bin/${TARGETOS}/${TARGETARCH}/yurt-manager /usr/local/bin/yurt-manager
+ENTRYPOINT ["/usr/local/bin/yurt-manager"]
