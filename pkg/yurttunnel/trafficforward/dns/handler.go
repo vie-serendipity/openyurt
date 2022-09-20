@@ -44,25 +44,6 @@ func (dnsctl *coreDNSRecordController) addNode(obj interface{}) {
 	dnsctl.enqueue(node, NodeAdd)
 }
 
-func (dnsctl *coreDNSRecordController) updateNode(oldObj, newObj interface{}) {
-	oldNode, ok := oldObj.(*corev1.Node)
-	if !ok {
-		return
-	}
-	newNode, ok := newObj.(*corev1.Node)
-	if !ok {
-		return
-	}
-
-	oldIsEdgeNode, newIsEdgeNode := isEdgeNode(oldNode), isEdgeNode(newNode)
-	if oldIsEdgeNode == newIsEdgeNode {
-		return
-	}
-
-	klog.V(2).Infof("enqueue node update event for %v, will update dns record", newNode.Name)
-	dnsctl.enqueue(newNode, NodeUpdate)
-}
-
 func (dnsctl *coreDNSRecordController) deleteNode(obj interface{}) {
 	node, ok := obj.(*corev1.Node)
 	if !ok {
@@ -150,6 +131,72 @@ func (dnsctl *coreDNSRecordController) deleteService(obj interface{}) {
 	// do nothing
 }
 
+func (dnsctl *coreDNSRecordController) addTunnelAgentPod(obj interface{}) {
+	pod, ok := obj.(*corev1.Pod)
+	if !ok {
+		return
+	}
+
+	if len(pod.Spec.NodeName) == 0 {
+		klog.V(2).Infof("the tunnel agent pod %v is not scheduled to the specified node", pod.Name)
+		return
+	}
+
+	if pod.DeletionTimestamp != nil {
+		dnsctl.deleteTunnelAgentPod(pod)
+		return
+	}
+	klog.V(2).Infof("enqueue tunnel agent pod add event for %v", pod.Name)
+	dnsctl.enqueue(pod, PodAdd)
+}
+
+func (dnsctl *coreDNSRecordController) updateTunnelAgentPod(oldObj, newObj interface{}) {
+	oldPod, ok := oldObj.(*corev1.Pod)
+	if !ok {
+		return
+	}
+	newPod, ok := newObj.(*corev1.Pod)
+	if !ok {
+		return
+	}
+
+	if len(newPod.Spec.NodeName) == 0 {
+		klog.V(2).Infof("the tunnel agent pod %v is not scheduled to the specified node", newPod.Name)
+		return
+	}
+
+	if oldPod.Spec.NodeName == newPod.Spec.NodeName {
+		return
+	}
+
+	klog.V(2).Infof("enqueue tunnel agent pod update event for %v, will update dns record", newPod.Name)
+	dnsctl.enqueue(newPod, PodUpdate)
+}
+
+func (dnsctl *coreDNSRecordController) deleteTunnelAgentPod(obj interface{}) {
+	pod, ok := obj.(*corev1.Pod)
+	if !ok {
+		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+		if !ok {
+			utilruntime.HandleError(fmt.Errorf("can not get object from tombstone %#v", obj))
+			return
+		}
+		pod, ok = tombstone.Obj.(*corev1.Pod)
+		if !ok {
+			utilruntime.HandleError(fmt.Errorf("tombstone contained object is not a node %#v", obj))
+			return
+		}
+	}
+
+	if len(pod.Spec.NodeName) == 0 {
+		klog.V(2).Infof("the tunnel agent pod %v is not in node", pod.Name)
+		return
+	}
+
+	klog.V(2).Infof("enqueue node delete event for %v", pod.Name)
+	dnsctl.enqueue(pod, PodDelete)
+}
+
 func (dnsctl *coreDNSRecordController) onConfigMapAdd(cm *corev1.ConfigMap) error {
 	return dnsctl.syncTunnelServerServiceAsWhole()
 }
@@ -164,40 +211,7 @@ func (dnsctl *coreDNSRecordController) onConfigMapDelete(cm *corev1.ConfigMap) e
 
 func (dnsctl *coreDNSRecordController) onNodeAdd(node *corev1.Node) error {
 	klog.V(2).Infof("adding node dns record for %v", node.Name)
-	return dnsctl.addOrUpdateNode(node)
-}
-
-func (dnsctl *coreDNSRecordController) onNodeUpdate(node *corev1.Node) error {
-	klog.V(2).Infof("updating node dns record for %v", node.Name)
-	return dnsctl.addOrUpdateNode(node)
-}
-
-func (dnsctl *coreDNSRecordController) addOrUpdateNode(node *corev1.Node) error {
-	ip, err := getNodeHostIP(node)
-	if err != nil {
-		return err
-	}
-	if isEdgeNode(node) {
-		ip, err = dnsctl.getTunnelServerIP(true)
-		if err != nil {
-			return err
-		}
-	}
-
-	records, err := dnsctl.getCurrentDNSRecords()
-	if err != nil {
-		return err
-	}
-
-	updatedRecords, changed, err := addOrUpdateRecord(records, formatDNSRecord(ip, node.Name))
-	if err != nil {
-		return err
-	}
-	if !changed {
-		return nil
-	}
-
-	return dnsctl.updateDNSRecords(updatedRecords)
+	return dnsctl.updateRecordWithAddNode(node)
 }
 
 func (dnsctl *coreDNSRecordController) onNodeDelete(node *corev1.Node) error {
@@ -218,6 +232,28 @@ func (dnsctl *coreDNSRecordController) onNodeDelete(node *corev1.Node) error {
 	return dnsctl.updateDNSRecords(mergedRecords)
 }
 
+func (dnsctl *coreDNSRecordController) updateRecordWithAddNode(node *corev1.Node) error {
+	ip, err := getNodeHostIP(node)
+	if err != nil {
+		return err
+	}
+
+	records, err := dnsctl.getCurrentDNSRecords()
+	if err != nil {
+		return err
+	}
+
+	updatedRecords, changed, err := addOrUpdateRecord(records, formatDNSRecord(ip, node.Name))
+	if err != nil {
+		return err
+	}
+	if !changed {
+		return nil
+	}
+
+	return dnsctl.updateDNSRecords(updatedRecords)
+}
+
 func (dnsctl *coreDNSRecordController) getCurrentDNSRecords() ([]string, error) {
 	cm, err := dnsctl.kubeClient.CoreV1().ConfigMaps(constants.YurttunnelServerServiceNs).
 		Get(context.Background(), yurttunnelDNSRecordConfigMapName, metav1.GetOptions{})
@@ -234,13 +270,78 @@ func (dnsctl *coreDNSRecordController) getCurrentDNSRecords() ([]string, error) 
 }
 
 func (dnsctl *coreDNSRecordController) onServiceAdd(svc *corev1.Service) error {
-	return dnsctl.syncDNSRecordAsWhole()
+	err := dnsctl.syncDNSRecordAsWhole()
+	if err != nil {
+		return err
+	}
+	return dnsctl.syncTunnelServerServiceAsWhole()
 }
-
 func (dnsctl *coreDNSRecordController) onServiceUpdate(svc *corev1.Service) error {
 	return nil
 }
-
 func (dnsctl *coreDNSRecordController) onServiceDelete(svc *corev1.Service) error {
 	return nil
+}
+
+func (dnsctl *coreDNSRecordController) onPodAdd(pod *corev1.Pod) error {
+	klog.V(2).Infof("add node dns record for %v", pod.Spec.NodeName)
+	return dnsctl.updateRecordWithAddOrUpdatePod(pod)
+}
+
+func (dnsctl *coreDNSRecordController) onPodUpdate(pod *corev1.Pod) error {
+	klog.V(2).Infof("update node dns record for %v", pod.Spec.NodeName)
+	return dnsctl.updateRecordWithAddOrUpdatePod(pod)
+}
+
+func (dnsctl *coreDNSRecordController) onPodDelete(pod *corev1.Pod) error {
+	klog.V(2).Infof("delete node dns record for %v", pod.Spec.NodeName)
+	return dnsctl.updateRecordWithDeletePod(pod)
+}
+
+func (dnsctl *coreDNSRecordController) updateRecordWithAddOrUpdatePod(pod *corev1.Pod) error {
+
+	ip, err := dnsctl.getTunnelServerIP(true)
+	if err != nil {
+		return err
+	}
+	records, err := dnsctl.getCurrentDNSRecords()
+	if err != nil {
+		return err
+	}
+
+	updatedRecords, changed, err := addOrUpdateRecord(records, formatDNSRecord(ip, pod.Spec.NodeName))
+	if err != nil {
+		return err
+	}
+	if !changed {
+		return nil
+	}
+
+	return dnsctl.updateDNSRecords(updatedRecords)
+}
+
+func (dnsctl *coreDNSRecordController) updateRecordWithDeletePod(pod *corev1.Pod) error {
+	node, err := dnsctl.kubeClient.CoreV1().Nodes().Get(context.TODO(), pod.Spec.NodeName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get the node %v of edge tunnel agent pod %v, error: %v", pod.Spec.NodeName, pod.Name, err)
+	}
+
+	ip, err := getNodeHostIP(node)
+	if err != nil {
+		return err
+	}
+
+	records, err := dnsctl.getCurrentDNSRecords()
+	if err != nil {
+		return err
+	}
+	updatedRecords, changed, err := addOrUpdateRecord(records, formatDNSRecord(ip, node.Name))
+	if err != nil {
+		return err
+	}
+	if !changed {
+		return nil
+	}
+
+	return dnsctl.updateDNSRecords(updatedRecords)
 }

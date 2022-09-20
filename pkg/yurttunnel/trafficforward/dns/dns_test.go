@@ -397,6 +397,18 @@ func TestSyncDNSRecordAsWhole(t *testing.T) {
 						},
 					},
 				},
+				&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "edge-tunnel-agent",
+						Namespace: constants.YurtTunnelAgentPodNs,
+						Labels: map[string]string{
+							constants.TunnelAgentLabelKey: constants.TunnelAgentLableValue,
+						},
+					},
+					Spec: corev1.PodSpec{
+						NodeName: "node1",
+					},
+				},
 				&corev1.Node{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node2",
@@ -423,7 +435,7 @@ func TestSyncDNSRecordAsWhole(t *testing.T) {
 			),
 			records: []string{
 				formatDNSRecord(clusterIP, "node1"),
-				formatDNSRecord(clusterIP, "node2"),
+				formatDNSRecord("192.168.1.3", "node2"),
 			},
 		},
 		"have cloud nodes only": {
@@ -536,9 +548,21 @@ func TestSyncDNSRecordAsWhole(t *testing.T) {
 						Addresses: []corev1.NodeAddress{
 							{
 								Type:    corev1.NodeInternalIP,
-								Address: "192.168.1.3",
+								Address: "192.168.1.4",
 							},
 						},
+					},
+				},
+				&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "edge-tunnel-agent",
+						Namespace: constants.YurtTunnelAgentPodNs,
+						Labels: map[string]string{
+							constants.TunnelAgentLabelKey: constants.TunnelAgentLableValue,
+						},
+					},
+					Spec: corev1.PodSpec{
+						NodeName: "node3",
 					},
 				},
 				&corev1.Node{
@@ -552,7 +576,7 @@ func TestSyncDNSRecordAsWhole(t *testing.T) {
 						Addresses: []corev1.NodeAddress{
 							{
 								Type:    corev1.NodeExternalIP,
-								Address: "192.168.1.4",
+								Address: "192.168.1.5",
 							},
 						},
 					},
@@ -569,7 +593,7 @@ func TestSyncDNSRecordAsWhole(t *testing.T) {
 				formatDNSRecord("192.168.1.2", "node1"),
 				formatDNSRecord("192.168.1.3", "node2"),
 				formatDNSRecord(clusterIP, "node3"),
-				formatDNSRecord(clusterIP, "node4"),
+				formatDNSRecord("192.168.1.5", "node4"),
 			},
 		},
 	}

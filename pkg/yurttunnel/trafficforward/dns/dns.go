@@ -77,9 +77,11 @@ type coreDNSRecordController struct {
 	kubeClient           clientset.Interface
 	sharedInformerFactor informers.SharedInformerFactory
 	nodeLister           corelister.NodeLister
+	podLister            corelister.PodLister
 	nodeListerSynced     cache.InformerSynced
 	svcInformerSynced    cache.InformerSynced
 	cmInformerSynced     cache.InformerSynced
+	poInformerSynced     cache.InformerSynced
 	queue                workqueue.RateLimitingInterface
 	tunnelServerIP       string
 	syncPeriod           int
@@ -105,7 +107,6 @@ func NewCoreDNSRecordController(client clientset.Interface,
 	nodeInformer := informerFactory.Core().V1().Nodes()
 	nodeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    dnsctl.addNode,
-		UpdateFunc: dnsctl.updateNode,
 		DeleteFunc: dnsctl.deleteNode,
 	})
 	dnsctl.nodeLister = nodeInformer.Lister()
@@ -126,6 +127,15 @@ func NewCoreDNSRecordController(client clientset.Interface,
 		DeleteFunc: dnsctl.deleteConfigMap,
 	})
 	dnsctl.cmInformerSynced = cmInformer.HasSynced
+
+	poInformer := informerFactory.Core().V1().Pods()
+	poInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    dnsctl.addTunnelAgentPod,
+		UpdateFunc: dnsctl.updateTunnelAgentPod,
+		DeleteFunc: dnsctl.deleteTunnelAgentPod,
+	})
+	dnsctl.podLister = poInformer.Lister()
+	dnsctl.poInformerSynced = poInformer.Informer().HasSynced
 
 	// override syncPeriod when the specified value is too small
 	if dnsctl.syncPeriod < minSyncPeriod {
@@ -151,7 +161,7 @@ func (dnsctl *coreDNSRecordController) Run(stopCh <-chan struct{}) {
 		klog.Fatalf("error creating tunnel-dns-controller lock, %v", err)
 	}
 
-	leaderelection.RunOrDie(context.TODO(), leaderelection.LeaderElectionConfig{
+	leaderelection.RunOrDie(context.Background(), leaderelection.LeaderElectionConfig{
 		Lock:          rl,
 		LeaseDuration: metav1.Duration{Duration: time.Second * time.Duration(15)}.Duration,
 		RenewDeadline: metav1.Duration{Duration: time.Second * time.Duration(10)}.Duration,
@@ -178,7 +188,7 @@ func (dnsctl *coreDNSRecordController) run(stopCh <-chan struct{}) {
 	defer klog.Infof("shutting down tunnel dns controller")
 
 	if !cache.WaitForNamedCacheSync("tunnel-dns-controller", stopCh,
-		dnsctl.nodeListerSynced, dnsctl.svcInformerSynced, dnsctl.cmInformerSynced) {
+		dnsctl.nodeListerSynced, dnsctl.svcInformerSynced, dnsctl.cmInformerSynced, dnsctl.poInformerSynced) {
 		return
 	}
 
@@ -237,8 +247,6 @@ func (dnsctl *coreDNSRecordController) dispatch(event *Event) error {
 	switch event.Type {
 	case NodeAdd:
 		return dnsctl.onNodeAdd(event.Obj.(*corev1.Node))
-	case NodeUpdate:
-		return dnsctl.onNodeUpdate(event.Obj.(*corev1.Node))
 	case NodeDelete:
 		return dnsctl.onNodeDelete(event.Obj.(*corev1.Node))
 	case ServiceAdd:
@@ -253,6 +261,12 @@ func (dnsctl *coreDNSRecordController) dispatch(event *Event) error {
 		return dnsctl.onConfigMapUpdate(event.Obj.(*corev1.ConfigMap))
 	case ConfigMapDelete:
 		return dnsctl.onConfigMapDelete(event.Obj.(*corev1.ConfigMap))
+	case PodAdd:
+		return dnsctl.onPodAdd(event.Obj.(*corev1.Pod))
+	case PodUpdate:
+		return dnsctl.onPodUpdate(event.Obj.(*corev1.Pod))
+	case PodDelete:
+		return dnsctl.onPodDelete(event.Obj.(*corev1.Pod))
 	default:
 		return nil
 	}
@@ -324,13 +338,19 @@ func (dnsctl *coreDNSRecordController) syncDNSRecordAsWhole() error {
 		return err
 	}
 
+	normalEdgeNodes, err := dnsctl.listNodesWithTunnelAgent()
+	if err != nil {
+		klog.Errorf("failed to sync dns record as whole due to list nodes with tunnel agent, %v", err)
+		return err
+	}
+
 	records := make([]string, 0, len(nodes))
-	for i := range nodes {
-		ip, node := tunnelServerIP, nodes[i]
-		if !isEdgeNode(node) {
+	for _, node := range nodes {
+		ip := tunnelServerIP
+		if _, ok := normalEdgeNodes[node.Name]; !ok {
 			ip, err = getNodeHostIP(node)
 			if err != nil {
-				klog.Warningf("failed to parse node address for %v, %v", node.Name, err)
+				klog.Errorf("failed to parse node address for %v, %v", node.Name, err)
 				continue
 			}
 		}
@@ -477,4 +497,21 @@ func resolveServicePorts(svc *corev1.Service, ports []string, portMappings map[s
 	}
 
 	return changed, updatedSvcPorts
+}
+
+func (dnsctl *coreDNSRecordController) listNodesWithTunnelAgent() (map[string]struct{}, error) {
+	nodes := make(map[string]struct{})
+	selector := labels.SelectorFromSet(labels.Set(map[string]string{constants.TunnelAgentLabelKey: constants.TunnelAgentLableValue}))
+	podList, err := dnsctl.podLister.Pods(constants.YurtTunnelAgentPodNs).List(selector)
+	if err != nil {
+		return nodes, fmt.Errorf("failed to list pod in %v with label %v:%v , %w",
+			constants.YurtTunnelAgentPodNs, constants.TunnelAgentLabelKey, constants.TunnelAgentLableValue, err)
+	}
+	for _, tunnelAgent := range podList {
+		if len(tunnelAgent.Spec.NodeName) == 0 {
+			continue
+		}
+		nodes[tunnelAgent.Spec.NodeName] = struct{}{}
+	}
+	return nodes, nil
 }
