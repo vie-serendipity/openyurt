@@ -226,6 +226,11 @@ func (vc *Controller) handleNodepoolUpdate(ctx context.Context, np *appsv1alpha1
 		return nil
 	}
 
+	edgeNodeHostCIDRBlock, err := vc.getHostCIDRBlock(np)
+	if err != nil {
+		return fmt.Errorf("failed to get edge node host network segment from nodepool %s: %v", np.Name, err)
+	}
+
 	podCidrs, err := vc.getPodCidrs(np)
 	if err != nil {
 		return fmt.Errorf("failed to get pod cidrs from nodepool %s: %v", np.Name, err)
@@ -355,7 +360,7 @@ func (vc *Controller) handleNodepoolUpdate(ctx context.Context, np *appsv1alpha1
 	klog.Infof("bound sag %s to user %s's ccn %s for nodepool %s", sagId, vc.uID, userCcnId, np.Name)
 
 	// add edge cidr to sag, execute on sag creation since this annotation can not be modified
-	if updateErr = cloudClient.SagResourceClient().AddOfflineCIDRs(sagId, sagDesc, podCidrs); updateErr != nil {
+	if updateErr = cloudClient.SagResourceClient().AddOfflineCIDRs(sagId, sagDesc, podCidrs, edgeNodeHostCIDRBlock); updateErr != nil {
 		return fmt.Errorf("failed to add offline cidrs %v to sag %s: %v", podCidrs, sagId, updateErr)
 	}
 	klog.Infof("added sag %s offline cidr %v for nodepool %s", sagId, podCidrs, np.Name)
@@ -708,6 +713,30 @@ func (vc *Controller) getSagBandwidth(np *appsv1alpha1.NodePool) (int, error) {
 		return bandwidth, fmt.Errorf("bandwidth should be multiples of 5")
 	}
 	return bandwidth, nil
+}
+
+// getHostCIDRBlock  set the edge node host cidr to vsag cidr
+func (vc *Controller) getHostCIDRBlock(np *appsv1alpha1.NodePool) ([]string, error) {
+	if np == nil || np.Annotations == nil {
+		return nil, fmt.Errorf("empty node host CIDR block from nodepool: %v", np)
+	}
+	nodeHostCidrStr := np.Annotations[util.EdgeNodeHostCIDRBlock]
+	if nodeHostCidrStr == "" {
+		return nil, fmt.Errorf("empty node host cidr block from nodepool: %s", np.Name)
+	}
+
+	nodeHostCIDR := strings.Split(nodeHostCidrStr, ",")
+	// validate pod cidr format
+	for _, hostCidr := range nodeHostCIDR {
+		ip, mask, err := net.ParseCIDR(hostCidr)
+		if err != nil {
+			return nil, err
+		}
+		if ip.String() != mask.IP.String() {
+			return nil, fmt.Errorf("cidr %s is not valid", hostCidr)
+		}
+	}
+	return nodeHostCIDR, nil
 }
 
 func (vc *Controller) getPodCidrs(np *appsv1alpha1.NodePool) ([]string, error) {

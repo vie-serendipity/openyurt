@@ -33,6 +33,8 @@ const (
 	// pod cidr in format of: "192.64.1.0/24,192.64.128.0/24", splited by ","
 	NodePoolPodCIDRAnnotation = "nodepool.openyurt.io/pod-cidrs"
 
+	EdgeNodeHostCIDRBlock = "nodepool.openyurt.io/node-host-cidr-block"
+
 	NodePoolCIDRFinalizer = "nodepool.openyurt.io/cidrs-allocated"
 )
 

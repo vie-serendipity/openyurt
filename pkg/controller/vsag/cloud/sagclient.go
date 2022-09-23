@@ -263,7 +263,7 @@ func (s *SagClient) RevokeCCN(sagId, ccnId string) error {
 	return nil
 }
 
-func (s *SagClient) AddOfflineCIDRs(sagId, sagDesc string, cidrs []string) error {
+func (s *SagClient) AddOfflineCIDRs(sagId, sagDesc string, cidrs []string, hostCidrs []string) error {
 	req := smartag.CreateModifySmartAccessGatewayRequest()
 	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
@@ -274,6 +274,9 @@ func (s *SagClient) AddOfflineCIDRs(sagId, sagDesc string, cidrs []string) error
 	if cidrs == nil || len(cidrs) == 0 {
 		return fmt.Errorf("added offline cidrs is empty")
 	}
+
+	// joint two cidrs
+	cidrs = append(cidrs, hostCidrs...)
 	req.CidrBlock = strings.Join(cidrs, ",")
 	req.RoutingStrategy = "static"
 
