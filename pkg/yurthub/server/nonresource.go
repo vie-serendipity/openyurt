@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 	"k8s.io/apiserver/pkg/endpoints/handlers/responsewriters"
@@ -41,6 +42,7 @@ var nonResourceReqPaths = []string{
 type NonResourceHandler func(kubeClient *kubernetes.Clientset, sw cachemanager.StorageWrapper, path string) http.Handler
 
 func wrapNonResourceHandler(proxyHandler http.Handler, config *config.YurtHubConfiguration, restMgr *rest.RestConfigManager) http.Handler {
+	go prepareNonResourceInfo(restMgr, config.StorageWrapper)
 	wrapMux := mux.NewRouter()
 	// register handler for non resource requests
 	for i := range nonResourceReqPaths {
@@ -102,4 +104,43 @@ func writeRawJSON(output []byte, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(output)
+}
+
+func prepareNonResourceInfo(restMgr *rest.RestConfigManager, sw cachemanager.StorageWrapper) {
+	tick := time.NewTicker(100 * time.Millisecond)
+	defer tick.Stop()
+	// if non resource data exist, exit prepare directly
+	for _, path := range nonResourceReqPaths {
+		key := fmt.Sprintf("non-reosurce-info%s", path)
+		if _, err := sw.GetRaw(key); err == nil {
+			klog.Infof("non resource cache exist, skip preparation")
+			return
+		}
+	}
+
+	for {
+		select {
+		case <-tick.C:
+			restCfg := restMgr.GetRestConfig(true)
+			if restCfg == nil {
+				break
+			}
+
+			kubeClient, err := kubernetes.NewForConfig(restCfg)
+			if err != nil {
+				break
+			}
+
+			for _, path := range nonResourceReqPaths {
+				key := fmt.Sprintf("non-reosurce-info%s", path)
+				if nonResourceData, err := kubeClient.RESTClient().Get().AbsPath(path).Do(context.TODO()).Raw(); err != nil {
+					continue
+				} else {
+					klog.Infof("non resource data(%s) is prepared for %s", string(nonResourceData), key)
+					sw.UpdateRaw(key, nonResourceData)
+				}
+			}
+			return
+		}
+	}
 }
