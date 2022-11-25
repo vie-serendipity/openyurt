@@ -4,7 +4,6 @@ go 1.16
 
 require (
 	github.com/BurntSushi/toml v0.4.1 // indirect
-	github.com/Microsoft/go-winio v0.4.15
 	github.com/aliyun/alibaba-cloud-sdk-go v1.61.579
 	github.com/cilium/cilium v1.6.12
 	github.com/davecgh/go-spew v1.1.1
@@ -15,8 +14,7 @@ require (
 	github.com/fsnotify/fsnotify v1.4.10-0.20200417215612-7f4cf4dd2b52 // indirect
 	github.com/google/go-cmp v0.5.5
 	github.com/google/uuid v1.1.2
-	github.com/gorilla/mux v1.8.0
-	github.com/lithammer/dedent v1.1.0
+	github.com/gorilla/mux v1.7.4
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/onsi/ginkgo/v2 v2.1.4
 	github.com/onsi/gomega v1.19.0
@@ -43,8 +41,6 @@ require (
 	k8s.io/controller-manager v0.22.3
 	k8s.io/klog/v2 v2.30.0
 	k8s.io/kube-controller-manager v0.22.3
-	k8s.io/kubelet v0.22.3
-	k8s.io/system-validators v1.6.0
 	k8s.io/utils v0.0.0-20210930125809-cb0fa318a74b
 	sigs.k8s.io/apiserver-network-proxy v0.0.15
 	sigs.k8s.io/yaml v1.3.0 // indirect
