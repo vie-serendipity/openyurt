@@ -20,7 +20,6 @@ type EventType string
 
 const (
 	NodeAdd         EventType = "NODE_ADD"
-	NodeUpdate      EventType = "NODE_UPDATE"
 	NodeDelete      EventType = "NODE_DELETE"
 	ServiceAdd      EventType = "SERVICE_ADD"
 	ServiceUpdate   EventType = "SERVICE_UPDATE"
@@ -28,6 +27,9 @@ const (
 	ConfigMapAdd    EventType = "CONFIGMAP_ADD"
 	ConfigMapUpdate EventType = "CONFIGMAP_UPDATE"
 	ConfigMapDelete EventType = "CONFIGMAP_DELETE"
+	PodAdd          EventType = "Pod_ADD"
+	PodUpdate       EventType = "Pod_UPDATE"
+	PodDelete       EventType = "Pod_DELETE"
 )
 
 type Event struct {

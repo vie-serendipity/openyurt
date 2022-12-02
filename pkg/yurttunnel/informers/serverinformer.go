@@ -45,6 +45,9 @@ func RegisterInformersForTunnelServer(informerFactory informers.SharedInformerFa
 
 	// add endpoints informers
 	informerFactory.InformerFor(&corev1.Endpoints{}, newEndPointsInformer)
+
+	// add pod informers
+	informerFactory.InformerFor(&corev1.Pod{}, newPodInformer)
 }
 
 // newServiceInformer creates a shared index informers that returns services related to yurttunnel
@@ -74,4 +77,13 @@ func newEndPointsInformer(cs clientset.Interface, resyncPeriod time.Duration) ca
 		options.FieldSelector = selector
 	}
 	return coreinformers.NewFilteredEndpointsInformer(cs, constants.YurttunnelEndpointsNs, resyncPeriod, nil, tweakListOptions)
+}
+
+// newPodInformer creates a shared index informers that returns only interested pods
+func newPodInformer(cs clientset.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	selector := fmt.Sprintf("%v=%v", constants.TunnelAgentLabelKey, constants.TunnelAgentLableValue)
+	tweakListOptions := func(options *metav1.ListOptions) {
+		options.LabelSelector = selector
+	}
+	return coreinformers.NewFilteredPodInformer(cs, constants.YurtTunnelAgentPodNs, resyncPeriod, nil, tweakListOptions)
 }

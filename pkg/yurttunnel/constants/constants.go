@@ -36,6 +36,9 @@ const (
 	YurtTunnelProxyClientCSRCN          = "tunnel-proxy-client"
 	YurtTunnelCSROrg                    = "openyurt:yurttunnel"
 	YurtTunnelAgentCSRCN                = "tunnel-agent-client"
+	YurtTunnelAgentPodNs                = "kube-system"
+	TunnelAgentLabelKey                 = "k8s-app"
+	TunnelAgentLableValue               = "edge-tunnel-agent"
 
 	// yurttunnel PKI related constants
 	YurttunnelCAFile                 = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"

@@ -82,7 +82,7 @@ func TestAddNode(t *testing.T) {
 			),
 			records: []string{
 				formatDNSRecord(clusterIP, "node2"),
-				formatDNSRecord(clusterIP, "node1"),
+				formatDNSRecord("192.168.1.2", "node1"),
 			},
 		},
 		"add a cloud node with default tunnel server ip": {
@@ -166,7 +166,8 @@ func TestAddNode(t *testing.T) {
 				},
 			),
 			records: []string{
-				formatDNSRecord(clusterIP, "node1"),
+				"",
+				formatDNSRecord("192.168.1.2", "node1"),
 			},
 		},
 	}
@@ -183,230 +184,6 @@ func TestAddNode(t *testing.T) {
 			}
 
 			dnsCtl.addNode(tt.node)
-			go func() {
-				for {
-					time.Sleep(100 * time.Millisecond)
-					if dnsCtl.queue.Len() == 0 {
-						dnsCtl.queue.ShutDown()
-					}
-				}
-			}()
-			dnsCtl.worker()
-			cm, resErr := tt.kubeClient.CoreV1().ConfigMaps(constants.YurttunnelServerServiceNs).Get(context.TODO(), yurttunnelDNSRecordConfigMapName, metav1.GetOptions{})
-			if resErr != nil {
-				t.Errorf("failed to get configmap, %v", resErr)
-			}
-			cmRecords := strings.Split(cm.Data[constants.YurttunnelDNSRecordNodeDataKey], "\n")
-
-			sort.Strings(tt.records)
-			if !reflect.DeepEqual(cmRecords, tt.records) {
-				t.Errorf("expect to get records %v, but got %v", tt.records, cmRecords)
-			}
-		})
-	}
-}
-
-func TestUpdateNode(t *testing.T) {
-	clusterIP := "1.2.3.4"
-	testcases := map[string]struct {
-		oldNode    *corev1.Node
-		newNode    *corev1.Node
-		kubeClient *fake.Clientset
-		records    []string
-	}{
-		"update a edge node to cloud node": {
-			oldNode: &corev1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "node1",
-					Labels: map[string]string{
-						"openyurt.io/is-edge-worker": "true",
-					},
-				},
-				Status: corev1.NodeStatus{
-					Addresses: []corev1.NodeAddress{
-						{
-							Type:    corev1.NodeInternalIP,
-							Address: "192.168.1.2",
-						},
-					},
-				},
-			},
-			newNode: &corev1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "node1",
-					Labels: map[string]string{
-						"openyurt.io/is-edge-worker": "false",
-					},
-				},
-				Status: corev1.NodeStatus{
-					Addresses: []corev1.NodeAddress{
-						{
-							Type:    corev1.NodeInternalIP,
-							Address: "192.168.1.2",
-						},
-					},
-				},
-			},
-			kubeClient: fake.NewSimpleClientset(
-				&corev1.Service{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      constants.YurttunnelServerInternalServiceName,
-						Namespace: constants.YurttunnelServerServiceNs,
-					},
-					Spec: corev1.ServiceSpec{
-						ClusterIP: clusterIP,
-					},
-				},
-				&corev1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      yurttunnelDNSRecordConfigMapName,
-						Namespace: constants.YurttunnelServerServiceNs,
-					},
-					Data: map[string]string{
-						constants.YurttunnelDNSRecordNodeDataKey: strings.Join([]string{
-							formatDNSRecord(clusterIP, "node1"),
-							formatDNSRecord(clusterIP, "node2")},
-							"\n"),
-					},
-				},
-			),
-			records: []string{
-				formatDNSRecord("192.168.1.2", "node1"),
-				formatDNSRecord(clusterIP, "node2"),
-			},
-		},
-		"update a cloud node to edge node": {
-			oldNode: &corev1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "node1",
-					Labels: map[string]string{
-						"openyurt.io/is-edge-worker": "false",
-					},
-				},
-				Status: corev1.NodeStatus{
-					Addresses: []corev1.NodeAddress{
-						{
-							Type:    corev1.NodeInternalIP,
-							Address: "192.168.1.2",
-						},
-					},
-				},
-			},
-			newNode: &corev1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "node1",
-					Labels: map[string]string{
-						"openyurt.io/is-edge-worker": "true",
-					},
-				},
-				Status: corev1.NodeStatus{
-					Addresses: []corev1.NodeAddress{
-						{
-							Type:    corev1.NodeInternalIP,
-							Address: "192.168.1.2",
-						},
-					},
-				},
-			},
-			kubeClient: fake.NewSimpleClientset(
-				&corev1.Service{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      constants.YurttunnelServerInternalServiceName,
-						Namespace: constants.YurttunnelServerServiceNs,
-					},
-					Spec: corev1.ServiceSpec{
-						ClusterIP: clusterIP,
-					},
-				},
-				&corev1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      yurttunnelDNSRecordConfigMapName,
-						Namespace: constants.YurttunnelServerServiceNs,
-					},
-					Data: map[string]string{
-						constants.YurttunnelDNSRecordNodeDataKey: strings.Join([]string{
-							formatDNSRecord("192.168.1.2", "node1"),
-							formatDNSRecord(clusterIP, "node2")},
-							"\n"),
-					},
-				},
-			),
-			records: []string{
-				formatDNSRecord(clusterIP, "node1"),
-				formatDNSRecord(clusterIP, "node2"),
-			},
-		},
-		"update node ip of a edge node": {
-			oldNode: &corev1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "node1",
-					Labels: map[string]string{
-						"openyurt.io/is-edge-worker": "true",
-					},
-				},
-				Status: corev1.NodeStatus{
-					Addresses: []corev1.NodeAddress{
-						{
-							Type:    corev1.NodeInternalIP,
-							Address: "192.168.1.2",
-						},
-					},
-				},
-			},
-			newNode: &corev1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "node1",
-					Labels: map[string]string{
-						"openyurt.io/is-edge-worker": "true",
-					},
-				},
-				Status: corev1.NodeStatus{
-					Addresses: []corev1.NodeAddress{
-						{
-							Type:    corev1.NodeInternalIP,
-							Address: "192.168.1.3",
-						},
-					},
-				},
-			},
-			kubeClient: fake.NewSimpleClientset(
-				&corev1.Service{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      constants.YurttunnelServerInternalServiceName,
-						Namespace: constants.YurttunnelServerServiceNs,
-					},
-					Spec: corev1.ServiceSpec{
-						ClusterIP: clusterIP,
-					},
-				},
-				&corev1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      yurttunnelDNSRecordConfigMapName,
-						Namespace: constants.YurttunnelServerServiceNs,
-					},
-					Data: map[string]string{
-						constants.YurttunnelDNSRecordNodeDataKey: strings.Join([]string{
-							formatDNSRecord(clusterIP, "node1"),
-							formatDNSRecord(clusterIP, "node2")},
-							"\n"),
-					},
-				},
-			),
-			records: []string{
-				formatDNSRecord(clusterIP, "node1"),
-				formatDNSRecord(clusterIP, "node2"),
-			},
-		},
-	}
-
-	for k, tt := range testcases {
-		t.Run(k, func(t *testing.T) {
-			dnsCtl := &coreDNSRecordController{
-				kubeClient: tt.kubeClient,
-				queue:      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "tunnel-dns"),
-			}
-
-			dnsCtl.updateNode(tt.oldNode, tt.newNode)
 			go func() {
 				for {
 					time.Sleep(100 * time.Millisecond)
@@ -1074,6 +851,18 @@ func TestAddService(t *testing.T) {
 								Address: "192.168.1.2",
 							},
 						},
+					},
+				},
+				&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "edge-tunnel-agent",
+						Namespace: constants.YurtTunnelAgentPodNs,
+						Labels: map[string]string{
+							constants.TunnelAgentLabelKey: constants.TunnelAgentLableValue,
+						},
+					},
+					Spec: corev1.PodSpec{
+						NodeName: "node1",
 					},
 				},
 				&corev1.Node{
