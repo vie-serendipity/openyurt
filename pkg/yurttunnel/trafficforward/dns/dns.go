@@ -502,7 +502,7 @@ func resolveServicePorts(svc *corev1.Service, ports []string, portMappings map[s
 func (dnsctl *coreDNSRecordController) listNodesWithTunnelAgent() (map[string]struct{}, error) {
 	nodes := make(map[string]struct{})
 	selector := labels.SelectorFromSet(labels.Set(map[string]string{constants.TunnelAgentLabelKey: constants.TunnelAgentLableValue}))
-	podList, err := dnsctl.podLister.Pods(constants.YurtTunnelAgentPodNs).List(selector)
+	podList, err := dnsctl.podLister.List(selector)
 	if err != nil {
 		return nodes, fmt.Errorf("failed to list pod in %v with label %v:%v , %w",
 			constants.YurtTunnelAgentPodNs, constants.TunnelAgentLabelKey, constants.TunnelAgentLableValue, err)
