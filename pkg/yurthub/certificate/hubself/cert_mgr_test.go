@@ -224,7 +224,7 @@ func Test_yurtHubCertManager_createBootstrapConfFile(t *testing.T) {
 		t.Fatalf("Unable to create the test file %q: %v", testCAFile, err)
 	}
 	type fields struct {
-		remoteServers         []*url.URL
+		healthyServer         *url.URL
 		hubCertOrganizations  []string
 		bootstrapConfStore    storage.Store
 		hubClientCertManager  certificate.Manager
@@ -249,13 +249,13 @@ func Test_yurtHubCertManager_createBootstrapConfFile(t *testing.T) {
 		wantErr bool
 	}{
 		{"illegal remote server", fields{
-			remoteServers: []*url.URL{{}},
+			healthyServer: nil,
 		}, args{}, true},
 		{"ca file not exist", fields{
-			remoteServers: []*url.URL{testUrl},
+			healthyServer: testUrl,
 		}, args{}, true},
 		{"success", fields{
-			remoteServers:      []*url.URL{testUrl},
+			healthyServer:      testUrl,
 			bootstrapConfStore: testFakeStore,
 			caFile:             testCAFile,
 		}, args{}, false},
@@ -263,7 +263,7 @@ func Test_yurtHubCertManager_createBootstrapConfFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ycm := &yurtHubCertManager{
-				remoteServers:         tt.fields.remoteServers,
+				healthyServer:         tt.fields.healthyServer,
 				hubCertOrganizations:  tt.fields.hubCertOrganizations,
 				bootstrapConfStore:    tt.fields.bootstrapConfStore,
 				hubClientCertManager:  tt.fields.hubClientCertManager,
@@ -287,7 +287,6 @@ func Test_yurtHubCertManager_createBootstrapConfFile(t *testing.T) {
 
 func Test_yurtHubCertManager_updateBootstrapConfFile(t *testing.T) {
 	type fields struct {
-		remoteServers         []*url.URL
 		hubCertOrganizations  []string
 		bootstrapConfStore    storage.Store
 		hubClientCertManager  certificate.Manager
@@ -316,7 +315,6 @@ func Test_yurtHubCertManager_updateBootstrapConfFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ycm := &yurtHubCertManager{
-				remoteServers:         tt.fields.remoteServers,
 				hubCertOrganizations:  tt.fields.hubCertOrganizations,
 				bootstrapConfStore:    tt.fields.bootstrapConfStore,
 				hubClientCertManager:  tt.fields.hubClientCertManager,

@@ -173,6 +173,7 @@ func (o *YurtHubOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&o.EnableNodePool, "enable-node-pool", o.EnableNodePool, "enable list/watch nodepools resource or not for filters(only used for testing)")
 	fs.DurationVar(&o.MinRequestTimeout, "min-request-timeout", o.MinRequestTimeout, "An optional field indicating at least how long a proxy handler must keep a request open before timing it out. Currently only honored by the local watch request handler(use request parameter timeoutSeconds firstly), which picks a randomized value above this number as the connection timeout, to spread out load.")
 	fs.StringVar(&o.ECSRegion, "ecs-region", o.ECSRegion, "the registry region of system component pods. If it doesn't set, YurtHub will not do the modification.")
+
 }
 
 // verifyDummyIP verify the specified ip is valid or not and set the default ip if empty
