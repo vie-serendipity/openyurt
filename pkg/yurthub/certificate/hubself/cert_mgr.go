@@ -648,7 +648,7 @@ func findHealthyServer(servers []*url.URL) *url.URL {
 	}
 
 	for i := range servers {
-		_, err := net.Dial("tcp", servers[i].Host)
+		_, err := net.DialTimeout("tcp", servers[i].Host, 5*time.Second)
 		if err == nil {
 			return servers[i]
 		}
