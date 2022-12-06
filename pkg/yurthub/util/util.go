@@ -21,11 +21,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -514,4 +516,21 @@ func ParseBearerToken(token string) string {
 	}
 
 	return strings.TrimPrefix(token, "Bearer ")
+}
+
+func FindHealthyServer(servers []*url.URL) *url.URL {
+	if len(servers) == 0 {
+		return nil
+	} else if len(servers) == 1 {
+		return servers[0]
+	}
+
+	for i := range servers {
+		_, err := net.DialTimeout("tcp", servers[i].Host, 5*time.Second)
+		if err == nil {
+			return servers[i]
+		}
+	}
+
+	return servers[0]
 }

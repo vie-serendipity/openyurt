@@ -59,6 +59,8 @@ func (rcm *RestConfigManager) getHubselfRestConfig(needHealthyServer bool) *rest
 			klog.Infof("all of remote servers are unhealthy, so return nil for rest config")
 			return nil
 		}
+	} else {
+		healthyServer = util.FindHealthyServer(rcm.remoteServers)
 	}
 
 	// certificate expired, rest config can not be used to connect remote server,

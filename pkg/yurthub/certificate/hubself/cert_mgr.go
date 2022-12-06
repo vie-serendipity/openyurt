@@ -24,7 +24,6 @@ import (
 	"crypto/x509/pkix"
 	"errors"
 	"fmt"
-	"net"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -100,7 +99,7 @@ func NewYurtHubCertManager(cfg *config.YurtHubConfiguration) (interfaces.YurtCer
 	}
 
 	ycm := &yurtHubCertManager{
-		healthyServer:         findHealthyServer(cfg.RemoteServers),
+		healthyServer:         util.FindHealthyServer(cfg.RemoteServers),
 		hubCertOrganizations:  cfg.YurtHubCertOrganizations,
 		nodeName:              cfg.NodeName,
 		joinToken:             cfg.JoinToken,
@@ -638,21 +637,4 @@ func (ycm *yurtHubCertManager) updateBootstrapConfFile(joinToken string) error {
 	}
 
 	return nil
-}
-
-func findHealthyServer(servers []*url.URL) *url.URL {
-	if len(servers) == 0 {
-		return nil
-	} else if len(servers) == 1 {
-		return servers[0]
-	}
-
-	for i := range servers {
-		_, err := net.DialTimeout("tcp", servers[i].Host, 5*time.Second)
-		if err == nil {
-			return servers[i]
-		}
-	}
-
-	return servers[0]
 }
