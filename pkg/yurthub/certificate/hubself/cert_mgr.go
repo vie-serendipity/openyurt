@@ -24,6 +24,7 @@ import (
 	"crypto/x509/pkix"
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -66,7 +67,7 @@ const (
 )
 
 type yurtHubCertManager struct {
-	remoteServers         []*url.URL
+	healthyServer         *url.URL
 	hubCertOrganizations  []string
 	bootstrapConfStore    storage.Store
 	hubClientCertManager  certificate.Manager
@@ -99,7 +100,7 @@ func NewYurtHubCertManager(cfg *config.YurtHubConfiguration) (interfaces.YurtCer
 	}
 
 	ycm := &yurtHubCertManager{
-		remoteServers:         cfg.RemoteServers,
+		healthyServer:         findHealthyServer(cfg.RemoteServers),
 		hubCertOrganizations:  cfg.YurtHubCertOrganizations,
 		nodeName:              cfg.NodeName,
 		joinToken:             cfg.JoinToken,
@@ -111,6 +112,7 @@ func NewYurtHubCertManager(cfg *config.YurtHubConfiguration) (interfaces.YurtCer
 		stopCh:                make(chan struct{}),
 	}
 
+	ycm.verifyServerAddrOrCleanup(cfg.RemoteServers)
 	return ycm, nil
 }
 
@@ -128,20 +130,20 @@ func removeDirContents(dir string) error {
 	return nil
 }
 
-func (ycm *yurtHubCertManager) verifyServerAddrOrCleanup() {
-	nServer := ycm.remoteServers[0].String()
-
+func (ycm *yurtHubCertManager) verifyServerAddrOrCleanup(servers []*url.URL) {
 	bcf := ycm.getBootstrapConfFile()
 	if existed, _ := util.FileExists(bcf); existed {
 		curKubeConfig, err := util.LoadKubeConfig(bcf)
 		if err == nil && curKubeConfig != nil {
 			oServer := curKubeConfig.Clusters[defaultClusterName].Server
-			if nServer == oServer {
-				klog.Infof("apiServer name %s not changed", oServer)
-				return
-			} else {
-				klog.Infof("config for apiServer %s found, need to recycle for new server %s", oServer, nServer)
+			for i := range servers {
+				if servers[i].String() == oServer {
+					klog.Infof("apiServer name %s not changed", oServer)
+					return
+				}
 			}
+
+			klog.Infof("bootstrap config for apiServer %s found, need to recycle for new server %v", oServer, servers)
 		}
 	}
 
@@ -151,9 +153,6 @@ func (ycm *yurtHubCertManager) verifyServerAddrOrCleanup() {
 
 // Start init certificate manager and certs for hub agent
 func (ycm *yurtHubCertManager) Start() {
-	// 0. verify, cleanup if needed
-	ycm.verifyServerAddrOrCleanup()
-
 	// 1. create ca file for hub certificate manager
 	err := ycm.initCaCert()
 	if err != nil {
@@ -257,7 +256,7 @@ func (ycm *yurtHubCertManager) initCaCert() error {
 		klog.Infof("%s file not exists, so create it", caFile)
 	}
 
-	insecureRestConfig, err := createInsecureRestClientConfig(ycm.remoteServers[0])
+	insecureRestConfig, err := createInsecureRestClientConfig(ycm.healthyServer)
 	if err != nil {
 		klog.Errorf("could not create insecure rest config, %v", err)
 		return err
@@ -419,11 +418,7 @@ func (ycm *yurtHubCertManager) generateCertClientFn(current *tls.Certificate) (c
 	hubConfFile := ycm.getHubConfFile()
 
 	_ = wait.PollInfinite(30*time.Second, func() (bool, error) {
-		healthyServer = ycm.remoteServers[0]
-		if healthyServer == nil {
-			klog.V(3).Infof("all of remote servers are unhealthy, just wait")
-			return false, nil
-		}
+		healthyServer = ycm.healthyServer
 
 		// If we have a valid certificate, use that to fetch CSRs.
 		// Otherwise use the bootstrap conf file.
@@ -579,7 +574,7 @@ func createBootstrapConf(apiServerAddr, caFile, joinToken string) *clientcmdapi.
 
 // createBootstrapConfFile create bootstrap conf file
 func (ycm *yurtHubCertManager) createBootstrapConfFile(joinToken string) error {
-	remoteServer := ycm.remoteServers[0]
+	remoteServer := ycm.healthyServer
 	if remoteServer == nil || len(remoteServer.Host) == 0 {
 		return fmt.Errorf("no healthy server for create bootstrap conf file")
 	}
@@ -643,4 +638,21 @@ func (ycm *yurtHubCertManager) updateBootstrapConfFile(joinToken string) error {
 	}
 
 	return nil
+}
+
+func findHealthyServer(servers []*url.URL) *url.URL {
+	if len(servers) == 0 {
+		return nil
+	} else if len(servers) == 1 {
+		return servers[0]
+	}
+
+	for i := range servers {
+		_, err := net.Dial("tcp", servers[i].Host)
+		if err == nil {
+			return servers[i]
+		}
+	}
+
+	return servers[0]
 }
