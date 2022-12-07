@@ -193,7 +193,7 @@ func NewVsagController(
 				vc.enqueueNodepool(newNp)
 			}
 			if !cmp.Equal(oldNp.Annotations, newNp.Annotations, cmp.Transformer("omit", func(annotations map[string]string) map[string]string {
-				return map[string]string{util.NodePoolSagBandwidthAnnotation: annotations[util.NodePoolSagBandwidthAnnotation]}
+				return map[string]string{util.NodePoolSagBandwidthAnnotation: annotations[util.NodePoolSagBandwidthAnnotation], util.EdgeNodeHostCIDRBlock: annotations[util.EdgeNodeHostCIDRBlock]}
 			})) {
 				vc.enqueueNodepool(newNp)
 			}

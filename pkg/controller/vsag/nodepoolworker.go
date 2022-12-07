@@ -359,7 +359,6 @@ func (vc *Controller) handleNodepoolUpdate(ctx context.Context, np *appsv1alpha1
 	}
 	klog.Infof("bound sag %s to user %s's ccn %s for nodepool %s", sagId, vc.uID, userCcnId, np.Name)
 
-	// add edge cidr to sag, execute on sag creation since this annotation can not be modified
 	if updateErr = cloudClient.SagResourceClient().AddOfflineCIDRs(sagId, sagDesc, podCidrs, edgeNodeHostCIDRBlock); updateErr != nil {
 		return fmt.Errorf("failed to add offline cidrs %v to sag %s: %v", podCidrs, sagId, updateErr)
 	}
