@@ -28,7 +28,7 @@ type extraInitializer struct {
 	region string
 }
 
-// New creates an filterInitializer object
+// NewExtraInitializer creates an filterInitializer object
 func NewExtraInitializer(region string) *extraInitializer {
 	return &extraInitializer{
 		region: region,
