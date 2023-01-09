@@ -27,6 +27,7 @@ import (
 	"github.com/openyurtio/openyurt/pkg/yurthub/cachemanager"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter/discardcloudservice"
+	"github.com/openyurtio/openyurt/pkg/yurthub/filter/imagecustomization"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter/initializer"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter/masterservice"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter/servicetopology"
@@ -66,7 +67,7 @@ func NewFilterManager(options *options.YurtHubOptions,
 		}
 	}
 
-	runners, err := createFilterRunners(filters, sharedFactory, yurtSharedFactory, storageWrapper, util.WorkingMode(options.WorkingMode), options.NodeName, mutatedMasterServiceHost, mutatedMasterServicePort)
+	runners, err := createFilterRunners(filters, sharedFactory, yurtSharedFactory, storageWrapper, util.WorkingMode(options.WorkingMode), options.NodeName, mutatedMasterServiceHost, mutatedMasterServicePort, options.ECSRegion)
 	if err != nil {
 		return nil, err
 	}
@@ -102,14 +103,15 @@ func createFilterRunners(filters *filter.Filters,
 	yurtSharedFactory yurtinformers.SharedInformerFactory,
 	storageWrapper cachemanager.StorageWrapper,
 	workingMode util.WorkingMode,
-	nodeName, mutatedMasterServiceHost, mutatedMasterServicePort string) ([]filter.Runner, error) {
+	nodeName, mutatedMasterServiceHost, mutatedMasterServicePort, region string) ([]filter.Runner, error) {
 	if filters == nil {
 		return nil, nil
 	}
 
 	genericInitializer := initializer.New(sharedFactory, yurtSharedFactory, storageWrapper, nodeName, mutatedMasterServiceHost, mutatedMasterServicePort, workingMode)
+	extraInitializer := initializer.NewExtraInitializer(region)
 	initializerChain := filter.FilterInitializers{}
-	initializerChain = append(initializerChain, genericInitializer)
+	initializerChain = append(initializerChain, genericInitializer, extraInitializer)
 	return filters.NewFromFilters(initializerChain)
 }
 
@@ -119,4 +121,5 @@ func registerAllFilters(filters *filter.Filters, sm *serializer.SerializerManage
 	servicetopology.Register(filters, sm)
 	masterservice.Register(filters, sm)
 	discardcloudservice.Register(filters, sm)
+	imagecustomization.Register(filters, sm)
 }
