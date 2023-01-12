@@ -23,7 +23,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -35,7 +36,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	fakerest "k8s.io/client-go/rest/fake"
 
-	"github.com/openyurtio/openyurt/cmd/yurthub/app/config"
 	"github.com/openyurtio/openyurt/pkg/yurthub/cachemanager"
 	"github.com/openyurtio/openyurt/pkg/yurthub/healthchecker"
 	"github.com/openyurtio/openyurt/pkg/yurthub/kubernetes/rest"
@@ -51,13 +51,10 @@ func TestLocalCacheHandler(t *testing.T) {
 	}
 
 	sw := cachemanager.NewStorageWrapper(dStorage)
-	u, _ := url.Parse("https://10.10.10.113:6443")
+	//u, _ := url.Parse("https://10.10.10.113:6443")
 	fakeHealthChecker := healthchecker.NewFakeChecker(false, nil)
-	cfg := &config.YurtHubConfiguration{
-		RemoteServers: []*url.URL{u},
-	}
 
-	rcm, err := rest.NewRestConfigManager(cfg, nil, fakeHealthChecker)
+	rcm, err := rest.NewRestConfigManager(nil, fakeHealthChecker)
 	if err != nil {
 		t.Fatal(err)
 	}
