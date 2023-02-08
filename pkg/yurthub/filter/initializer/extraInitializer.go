@@ -35,7 +35,7 @@ func NewExtraInitializer(region string) *extraInitializer {
 	}
 }
 
-func (ei *extraInitializer) Initialize(ins filter.Runner) error {
+func (ei *extraInitializer) Initialize(ins filter.ObjectFilter) error {
 	if wants, ok := ins.(WantsImageRegion); ok {
 		if err := wants.SetImageRegion(ei.region); err != nil {
 			return err
