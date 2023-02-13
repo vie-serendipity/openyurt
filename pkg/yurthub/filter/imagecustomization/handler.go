@@ -17,6 +17,7 @@ limitations under the License.
 package imagecustomization
 
 import (
+	"fmt"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -92,6 +93,17 @@ func (fh *imageCustomizationFilterHandler) replaceImageRegion(image string) stri
 		res := strings.Replace(image, oldStr, newStr, -1)
 		klog.V(2).Infof("mutate pod image: %s into region image: %s", image, res)
 		return res
+	}
+
+	// change image: registry-{{.Region}}.ack.aliyuncs.com
+	// to registry-{{.Region}}-vpc.ack.aliyuncs.com
+	if strings.Contains(image, ".ack.aliyuncs.com") {
+		if strings.HasPrefix(s[0], "registry-") && !strings.HasSuffix(s[0], "-vpc") {
+			newPrefix := fmt.Sprintf("registry-%s-vpc", fh.region)
+			res := strings.Replace(image, s[0], newPrefix, -1)
+			klog.V(2).Infof("mutate pod image: %s into region image: %s", image, res)
+			return res
+		}
 	}
 	return image
 }

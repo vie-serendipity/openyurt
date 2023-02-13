@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -29,7 +28,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/openyurtio/openyurt/cmd/yurthub/app/config"
 	"github.com/openyurtio/openyurt/pkg/controller/daemonpodupdater"
 	"github.com/openyurtio/openyurt/pkg/yurthub/cachemanager"
 	"github.com/openyurtio/openyurt/pkg/yurthub/healthchecker"
@@ -155,13 +153,9 @@ func TestUpdatePod(t *testing.T) {
 }
 
 func TestHealthyCheck(t *testing.T) {
-	u, _ := url.Parse("https://10.10.10.113:6443")
 	fakeHealthchecker := healthchecker.NewFakeChecker(false, nil)
-	cfg := &config.YurtHubConfiguration{
-		RemoteServers: []*url.URL{u},
-	}
 
-	rcm, err := rest.NewRestConfigManager(cfg, nil, fakeHealthchecker)
+	rcm, err := rest.NewRestConfigManager(nil, fakeHealthchecker)
 	if err != nil {
 		t.Fatal(err)
 	}
