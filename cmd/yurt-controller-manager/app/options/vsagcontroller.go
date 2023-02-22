@@ -52,9 +52,10 @@ func (o *VsagControllerOptions) ApplyTo(cfg *vsagconfig.VsagControllerConfigurat
 	cfg.HostAkCredSecretName = o.HostAkCredSecretName
 	cfg.CloudConfigFile = o.CloudConfigFile
 	// edge node works in internet
-	cfg.VsagCoreImage = strings.Replace(o.VsagCoreImage, "registry-vpc", "registry", -1)
-	cfg.VsagSideCarImage = strings.Replace(o.VsagSideCarImage, "registry-vpc", "registry", -1)
-	cfg.VsagHelperImage = strings.Replace(o.VsagHelperImage, "registry-vpc", "registry", -1)
+	cfg.VsagCoreImage = convertVpcImageToPublicImage(o.VsagCoreImage)
+	cfg.VsagSideCarImage = convertVpcImageToPublicImage(o.VsagSideCarImage)
+	cfg.VsagHelperImage = convertVpcImageToPublicImage(o.VsagHelperImage)
+
 	cfg.ConcurrentVsagWorkers = o.ConcurrentVsagWorkers
 
 	return nil
@@ -68,4 +69,14 @@ func (o *VsagControllerOptions) Validate() []error {
 
 	errs := []error{}
 	return errs
+}
+
+func convertVpcImageToPublicImage(image string) string {
+	if strings.Contains(image, "registry-vpc") {
+		return strings.Replace(image, "registry-vpc", "registry", -1)
+	}
+	if strings.Contains(image, "-vpc.ack.aliyuncs") {
+		return strings.Replace(image, "-vpc.ack.aliyuncs", ".ack.aliyuncs", -1)
+	}
+	return image
 }
