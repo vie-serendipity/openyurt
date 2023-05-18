@@ -497,8 +497,8 @@ github.com/onsi/gomega v1.19.0/go.mod h1:LY+I3pBVzYsTBU1AnDwOSxaYi9WoWiqgwooUqq9
 github.com/opencontainers/selinux v1.10.0 h1:rAiKF8hTcgLI3w0DHm6i0ylVVcOrlgR1kK99DRLDhyU=
 github.com/opencontainers/selinux v1.10.0/go.mod h1:2i0OySw99QjzBBQByd1Gr9gSjvuho1lHsJxIJ3gGbJI=
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
-github.com/openyurtio/apiserver-network-proxy v1.18.8 h1:xXqaP8DAOvCHD7DNIqtBOhuWxCnwULLc1PqOMoJ7UeI=
-github.com/openyurtio/apiserver-network-proxy v1.18.8/go.mod h1:X5Au3jBNIgYL2uK0IHeNGnZqlUlVSCFQhi/npPgkKRg=
+github.com/openyurtio/apiserver-network-proxy v0.1.0 h1:uJI6LeAHmkQL0zV1+NIbgRsx2ayzsPfMA2bd1gROypc=
+github.com/openyurtio/apiserver-network-proxy v0.1.0/go.mod h1:X5Au3jBNIgYL2uK0IHeNGnZqlUlVSCFQhi/npPgkKRg=
 github.com/openyurtio/yurt-app-manager-api v0.18.8 h1:VyA1hZMu61aRttqWNKGXp5ct6pNELGct4NCm6xkqEmc=
 github.com/openyurtio/yurt-app-manager-api v0.18.8/go.mod h1:brjCZScD7rNyjD+FVpuqLrXPZFLKGdFP801KMARUtbc=
 github.com/pascaldekloe/goe v0.0.0-20180627143212-57f6aae5913c/go.mod h1:lzWF7FIEvWOWxwDKqyGYQf6ZUaNfKdP144TG7ZOy1lc=

@@ -54,6 +54,6 @@ replace (
 	k8s.io/client-go => k8s.io/client-go v0.22.3
 	k8s.io/component-helpers => k8s.io/component-helpers v0.23.1
 	k8s.io/klog/v2 => k8s.io/klog/v2 v2.9.0
-	sigs.k8s.io/apiserver-network-proxy => github.com/openyurtio/apiserver-network-proxy v1.18.8
+	sigs.k8s.io/apiserver-network-proxy => github.com/openyurtio/apiserver-network-proxy v0.1.0
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client => sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.0.22
 )
