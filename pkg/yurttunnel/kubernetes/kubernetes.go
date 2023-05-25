@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -33,16 +34,30 @@ import (
 // CreateClientSet creates a clientset based on the given kubeConfig. If the
 // kubeConfig is empty, it will creates the clientset based on the in-cluster
 // config
-func CreateClientSet(kubeConfig string) (*kubernetes.Clientset, error) {
-
-	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
-	if err != nil {
-		return nil, err
+func CreateClientSet(masterUrl, kubeConfig string) (*kubernetes.Clientset, error) {
+	var cfg *rest.Config
+	var err error
+	if len(masterUrl) != 0 {
+		cfg, err = rest.InClusterConfig()
+		if err != nil {
+			return nil, err
+		}
+		if !strings.HasPrefix(masterUrl, "https://") {
+			masterUrl = fmt.Sprintf("https://%s", masterUrl)
+		}
+		cfg.Host = masterUrl
+	} else {
+		cfg, err = clientcmd.BuildConfigFromFlags("", kubeConfig)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return kubernetes.NewForConfig(config)
+
+	klog.Infof("tunnel server rest config: %#+v", cfg)
+	return kubernetes.NewForConfig(cfg)
 }
 
-// CreateClientSet creates a clientset based on the given kubeconfig
+// CreateClientSetKubeConfig creates a clientset based on the given kubeconfig
 func CreateClientSetKubeConfig(kubeConfig string) (*kubernetes.Clientset, error) {
 	var (
 		cfg *rest.Config
