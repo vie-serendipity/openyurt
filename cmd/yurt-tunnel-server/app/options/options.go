@@ -40,6 +40,7 @@ import (
 // ServerOptions has the information that required by the yurttunel-server
 type ServerOptions struct {
 	KubeConfig             string
+	MasterUrl              string
 	BindAddr               string
 	InsecureBindAddr       string
 	CertDNSNames           string
@@ -93,6 +94,7 @@ func (o *ServerOptions) Validate() error {
 func (o *ServerOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&o.Version, "version", o.Version, fmt.Sprintf("print the version information of the %s.", projectinfo.GetServerName()))
 	fs.StringVar(&o.KubeConfig, "kube-config", o.KubeConfig, "path to the kubeconfig file.")
+	fs.StringVar(&o.MasterUrl, "master-url", o.MasterUrl, "kube-apiserver address(https://{ip:port}) that connected by tunnel server.")
 	fs.StringVar(&o.BindAddr, "bind-address", o.BindAddr, fmt.Sprintf("the ip address on which the %s will listen for --secure-port or --tunnel-agent-connect-port port.", projectinfo.GetServerName()))
 	fs.StringVar(&o.InsecureBindAddr, "insecure-bind-address", o.InsecureBindAddr, fmt.Sprintf("the ip address on which the %s will listen for --insecure-port port.", projectinfo.GetServerName()))
 	fs.StringVar(&o.CertDNSNames, "cert-dns-names", o.CertDNSNames, "DNS names that will be added into server's certificate. (e.g., dns1,dns2)")
@@ -159,7 +161,7 @@ func (o *ServerOptions) Config() (*config.Config, error) {
 	// based on the in-cluster config if the kubeconfig is empty. As
 	// yurttunnel-server will run on the cloud, the in-cluster config should
 	// be available.
-	cfg.Client, err = kubeutil.CreateClientSet(o.KubeConfig)
+	cfg.Client, err = kubeutil.CreateClientSet(o.MasterUrl, o.KubeConfig)
 	if err != nil {
 		return nil, err
 	}
