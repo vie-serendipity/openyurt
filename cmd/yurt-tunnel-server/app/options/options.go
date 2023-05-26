@@ -64,7 +64,7 @@ type ServerOptions struct {
 func NewServerOptions() *ServerOptions {
 	o := &ServerOptions{
 		BindAddr:               "0.0.0.0",
-		EnableIptables:         true,
+		EnableIptables:         false,
 		EnableDNSController:    true,
 		IptablesSyncPeriod:     60,
 		DNSSyncPeriod:          1800,
