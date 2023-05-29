@@ -22,11 +22,10 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func TestRuntimeObjectFilter(t *testing.T) {
+func TestFilter(t *testing.T) {
 	testcases := map[string]struct {
 		region    string
 		inputObj  runtime.Object
@@ -158,10 +157,13 @@ func TestRuntimeObjectFilter(t *testing.T) {
 		},
 	}
 
+	stopCh := make(<-chan struct{})
 	for k, tc := range testcases {
 		t.Run(k, func(t *testing.T) {
-			h := NewImageCustomizationFilterHandler(tc.region)
-			obj, _ := h.RuntimeObjectFilter(tc.inputObj)
+			h := &imageCustomizationFilter{
+				region: tc.region,
+			}
+			obj := h.Filter(tc.inputObj, stopCh)
 			if !reflect.DeepEqual(obj, tc.expectObj) {
 				t.Errorf("expect obj:\n %v, \nbut got %v\n", tc.expectObj, obj)
 			}

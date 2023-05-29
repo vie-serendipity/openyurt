@@ -154,7 +154,7 @@ func (rp *RemoteProxy) modifyResponse(resp *http.Response) error {
 
 		// filter response data
 		if rp.filterManager != nil {
-			if ok, runner := rp.filterManager.FindRunner(req); ok {
+			if runner, ok := rp.filterManager.FindResponseFilter(req); ok {
 				wrapBody, needUncompressed := util.NewGZipReaderCloser(resp.Header, resp.Body, req, "filter")
 				size, filterRc, err := runner.Filter(req, wrapBody, rp.stopCh)
 				if err != nil {
