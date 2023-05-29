@@ -233,18 +233,17 @@ func registerInformers(informerFactory informers.SharedInformerFactory,
 	serviceTopologyFilterEnabled bool,
 	nodePoolName, nodeName string,
 	tenantNs string) {
-	// skip construct node/nodePool informers if service topology filter disabled
-	if serviceTopologyFilterEnabled {
-		if workingMode == util.WorkingModeCloud {
-			newNodeInformer := func(client kubernetes.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-				tweakListOptions := func(options *metav1.ListOptions) {
-					options.FieldSelector = fields.Set{"metadata.name": nodeName}.String()
-				}
-				return coreinformers.NewFilteredNodeInformer(client, resyncPeriod, nil, tweakListOptions)
-			}
-			informerFactory.InformerFor(&corev1.Node{}, newNodeInformer)
-		}
 
+	newNodeInformer := func(client kubernetes.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+		tweakListOptions := func(options *metav1.ListOptions) {
+			options.FieldSelector = fields.Set{"metadata.name": nodeName}.String()
+		}
+		return coreinformers.NewFilteredNodeInformer(client, resyncPeriod, nil, tweakListOptions)
+	}
+	informerFactory.InformerFor(&corev1.Node{}, newNodeInformer)
+
+	// skip construct nodePool informers if service topology filter disabled
+	if serviceTopologyFilterEnabled {
 		if len(nodePoolName) != 0 {
 			newNodePoolInformer := func(client yurtclientset.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
 				tweakListOptions := func(options *metav1.ListOptions) {

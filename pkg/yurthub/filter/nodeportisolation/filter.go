@@ -27,10 +27,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	"github.com/openyurtio/openyurt/pkg/yurthub/cachemanager"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter"
-	"github.com/openyurtio/openyurt/pkg/yurthub/storage"
-	"github.com/openyurtio/openyurt/pkg/yurthub/storage/disk"
 	"github.com/openyurtio/openyurt/pkg/yurthub/util"
 	nodepoolv1alpha1 "github.com/openyurtio/yurt-app-manager-api/pkg/yurtappmanager/apis/apps/v1alpha1"
 )
@@ -80,77 +77,9 @@ func (nif *nodePortIsolationFilter) SetWorkingMode(mode util.WorkingMode) error 
 }
 
 func (nif *nodePortIsolationFilter) SetSharedInformerFactory(factory informers.SharedInformerFactory) error {
-	if nif.workingMode == util.WorkingModeCloud {
-		klog.Infof("prepare list/watch to sync node(%s) for cloud working mode", nif.nodeName)
-		nif.nodeSynced = factory.Core().V1().Nodes().Informer().HasSynced
-		nif.nodeGetter = factory.Core().V1().Nodes().Lister().Get
-	}
-
-	return nil
-}
-
-func (nif *nodePortIsolationFilter) SetStorageWrapper(s cachemanager.StorageWrapper) error {
-	if s.Name() != disk.StorageName {
-		return fmt.Errorf("nodePortIsolationFilter can only support disk storage currently, cannot use %s", s.Name())
-	}
-
-	if len(nif.nodeName) == 0 {
-		return fmt.Errorf("node name for nodePortIsolationFilter is not set")
-	}
-
-	// hub agent will list/watch node from kube-apiserver when hub agent work as cloud mode
-	if nif.workingMode == util.WorkingModeCloud {
-		return nil
-	}
-	klog.Infof("prepare local disk storage to sync node(%s) for edge working mode", nif.nodeName)
-
-	nodeKey, err := s.KeyFunc(storage.KeyBuildInfo{
-		Component: "kubelet",
-		Name:      nif.nodeName,
-		Resources: "nodes",
-		Group:     "",
-		Version:   "v1",
-	})
-	if err != nil {
-		return fmt.Errorf("failed to get node key for %s, %v", nif.nodeName, err)
-	}
-	nif.nodeSynced = func() bool {
-		obj, err := s.Get(nodeKey)
-		if err != nil || obj == nil {
-			return false
-		}
-
-		if _, ok := obj.(*v1.Node); !ok {
-			return false
-		}
-
-		return true
-	}
-
-	nif.nodeGetter = func(name string) (*v1.Node, error) {
-		key, err := s.KeyFunc(storage.KeyBuildInfo{
-			Component: "kubelet",
-			Name:      name,
-			Resources: "nodes",
-			Group:     "",
-			Version:   "v1",
-		})
-		if err != nil {
-			return nil, fmt.Errorf("nodeGetter failed to get node key for %s, %v", name, err)
-		}
-		obj, err := s.Get(key)
-		if err != nil {
-			return nil, err
-		} else if obj == nil {
-			return nil, fmt.Errorf("node(%s) is not ready", name)
-		}
-
-		if node, ok := obj.(*v1.Node); ok {
-			return node, nil
-		}
-
-		return nil, fmt.Errorf("node(%s) is not found", name)
-	}
+	klog.Infof("prepare list/watch to sync node(%s) for node port isolation filter", nif.nodeName)
+	nif.nodeSynced = factory.Core().V1().Nodes().Informer().HasSynced
+	nif.nodeGetter = factory.Core().V1().Nodes().Lister().Get
 
 	return nil
 }
