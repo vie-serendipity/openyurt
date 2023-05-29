@@ -17,8 +17,6 @@ limitations under the License.
 package servicetopology
 
 import (
-	"fmt"
-
 	v1 "k8s.io/api/core/v1"
 	discovery "k8s.io/api/discovery/v1"
 	discoveryV1beta1 "k8s.io/api/discovery/v1beta1"
@@ -29,7 +27,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	"github.com/openyurtio/openyurt/pkg/yurthub/cachemanager"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter"
 	"github.com/openyurtio/openyurt/pkg/yurthub/util"
 	nodepoolv1alpha1 "github.com/openyurtio/yurt-app-manager-api/pkg/yurtappmanager/apis/apps/v1alpha1"
@@ -92,11 +89,9 @@ func (stf *serviceTopologyFilter) SetSharedInformerFactory(factory informers.Sha
 	stf.serviceLister = factory.Core().V1().Services().Lister()
 	stf.serviceSynced = factory.Core().V1().Services().Informer().HasSynced
 
-	if stf.workingMode == util.WorkingModeCloud {
-		klog.Infof("prepare list/watch to sync node(%s) for cloud working mode", stf.nodeName)
-		stf.nodeSynced = factory.Core().V1().Nodes().Informer().HasSynced
-		stf.nodeGetter = factory.Core().V1().Nodes().Lister().Get
-	}
+	klog.Infof("prepare list/watch to sync node(%s) for service topology filter", stf.nodeName)
+	stf.nodeSynced = factory.Core().V1().Nodes().Informer().HasSynced
+	stf.nodeGetter = factory.Core().V1().Nodes().Lister().Get
 
 	return nil
 }
@@ -110,49 +105,6 @@ func (stf *serviceTopologyFilter) SetYurtSharedInformerFactory(yurtFactory yurti
 
 func (stf *serviceTopologyFilter) SetNodeName(nodeName string) error {
 	stf.nodeName = nodeName
-
-	return nil
-}
-
-func (stf *serviceTopologyFilter) SetStorageWrapper(s cachemanager.StorageWrapper) error {
-	if len(stf.nodeName) == 0 {
-		return fmt.Errorf("node name for serviceTopologyFilter is not ready")
-	}
-
-	// hub agent will list/watch node from kube-apiserver when hub agent work as cloud mode
-	if stf.workingMode == util.WorkingModeCloud {
-		return nil
-	}
-	klog.Infof("prepare local disk storage to sync node(%s) for edge working mode", stf.nodeName)
-
-	nodeKey := fmt.Sprintf("kubelet/nodes/%s", stf.nodeName)
-	stf.nodeSynced = func() bool {
-		obj, err := s.Get(nodeKey)
-		if err != nil || obj == nil {
-			return false
-		}
-
-		if _, ok := obj.(*v1.Node); !ok {
-			return false
-		}
-
-		return true
-	}
-
-	stf.nodeGetter = func(name string) (*v1.Node, error) {
-		obj, err := s.Get(fmt.Sprintf("kubelet/nodes/%s", name))
-		if err != nil {
-			return nil, err
-		} else if obj == nil {
-			return nil, fmt.Errorf("node(%s) is not ready", name)
-		}
-
-		if node, ok := obj.(*v1.Node); ok {
-			return node, nil
-		}
-
-		return nil, fmt.Errorf("node(%s) is not found", name)
-	}
 
 	return nil
 }
