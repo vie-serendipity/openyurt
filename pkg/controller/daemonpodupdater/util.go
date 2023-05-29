@@ -73,7 +73,7 @@ func IsDaemonsetPodLatest(ds *appsv1.DaemonSet, pod *corev1.Pod) bool {
 	klog.V(5).Infof("daemonset %v revision hash is %v", ds.Name, hash)
 	klog.V(5).Infof("daemonset %v generation is %v", ds.Name, generation)
 
-	templateMatches := generation != nil && pod.Labels[extensions.DaemonSetTemplateGenerationKey] == fmt.Sprint(generation)
+	templateMatches := generation != nil && pod.Labels[extensions.DaemonSetTemplateGenerationKey] == fmt.Sprint(*generation)
 	hashMatches := len(hash) > 0 && pod.Labels[extensions.DefaultDaemonSetUniqueLabelKey] == hash
 	return hashMatches || templateMatches
 }
@@ -139,11 +139,11 @@ func SetPodUpgradeCondition(clientset client.Interface, ds *appsv1.DaemonSet, po
 }
 
 // checkPrerequisites checks that daemonset meets two conditions
-// 1. annotation "apps.openyurt.io/update-strategy"="auto" or "ota"
+// 1. annotation "apps.openyurt.io/update-strategy"="AdvancedRollingUpdate" or "OTA"
 // 2. update strategy is "OnDelete"
 func checkPrerequisites(ds *appsv1.DaemonSet) bool {
 	v, ok := ds.Annotations[UpdateAnnotation]
-	if !ok || (v != AutoUpdate && v != OTAUpdate) {
+	if !ok || (v != AutoUpdate && v != OTAUpdate && v != AdvancedRollingUpdate) {
 		return false
 	}
 	return ds.Spec.UpdateStrategy.Type == appsv1.OnDeleteDaemonSetStrategyType
