@@ -17,18 +17,21 @@ limitations under the License.
 package servicetopology
 
 import (
+	"context"
+
 	v1 "k8s.io/api/core/v1"
 	discovery "k8s.io/api/discovery/v1"
 	discoveryV1beta1 "k8s.io/api/discovery/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
 	listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter"
-	"github.com/openyurtio/openyurt/pkg/yurthub/util"
 	nodepoolv1alpha1 "github.com/openyurtio/yurt-app-manager-api/pkg/yurtappmanager/apis/apps/v1alpha1"
 	yurtinformers "github.com/openyurtio/yurt-app-manager-api/pkg/yurtappmanager/client/informers/externalversions"
 	appslisters "github.com/openyurtio/yurt-app-manager-api/pkg/yurtappmanager/client/listers/apps/v1alpha1"
@@ -53,9 +56,7 @@ func Register(filters *filter.Filters) {
 }
 
 func NewFilter() *serviceTopologyFilter {
-	return &serviceTopologyFilter{
-		workingMode: util.WorkingModeEdge,
-	}
+	return &serviceTopologyFilter{}
 }
 
 type serviceTopologyFilter struct {
@@ -63,10 +64,9 @@ type serviceTopologyFilter struct {
 	serviceSynced  cache.InformerSynced
 	nodePoolLister appslisters.NodePoolLister
 	nodePoolSynced cache.InformerSynced
-	nodeGetter     filter.NodeGetter
-	nodeSynced     cache.InformerSynced
+	nodePoolName   string
 	nodeName       string
-	workingMode    util.WorkingMode
+	client         kubernetes.Interface
 }
 
 func (stf *serviceTopologyFilter) Name() string {
@@ -80,18 +80,9 @@ func (stf *serviceTopologyFilter) SupportedResourceAndVerbs() map[string]sets.St
 	}
 }
 
-func (stf *serviceTopologyFilter) SetWorkingMode(mode util.WorkingMode) error {
-	stf.workingMode = mode
-	return nil
-}
-
 func (stf *serviceTopologyFilter) SetSharedInformerFactory(factory informers.SharedInformerFactory) error {
 	stf.serviceLister = factory.Core().V1().Services().Lister()
 	stf.serviceSynced = factory.Core().V1().Services().Informer().HasSynced
-
-	klog.Infof("prepare list/watch to sync node(%s) for service topology filter", stf.nodeName)
-	stf.nodeSynced = factory.Core().V1().Nodes().Informer().HasSynced
-	stf.nodeGetter = factory.Core().V1().Nodes().Lister().Get
 
 	return nil
 }
@@ -109,8 +100,32 @@ func (stf *serviceTopologyFilter) SetNodeName(nodeName string) error {
 	return nil
 }
 
+func (stf *serviceTopologyFilter) SetNodePoolName(poolName string) error {
+	stf.nodePoolName = poolName
+	return nil
+}
+
+func (stf *serviceTopologyFilter) SetKubeClient(client kubernetes.Interface) error {
+	stf.client = client
+	return nil
+}
+
+func (stf *serviceTopologyFilter) resolveNodePoolName() string {
+	if len(stf.nodePoolName) != 0 {
+		return stf.nodePoolName
+	}
+
+	node, err := stf.client.CoreV1().Nodes().Get(context.Background(), stf.nodeName, metav1.GetOptions{})
+	if err != nil {
+		klog.Warningf("failed to get node(%s) in serviceTopologyFilter filter, %v", stf.nodeName, err)
+		return stf.nodePoolName
+	}
+	stf.nodePoolName = node.Labels[nodepoolv1alpha1.LabelDesiredNodePool]
+	return stf.nodePoolName
+}
+
 func (stf *serviceTopologyFilter) Filter(obj runtime.Object, stopCh <-chan struct{}) runtime.Object {
-	if ok := cache.WaitForCacheSync(stopCh, stf.nodeSynced, stf.serviceSynced, stf.nodePoolSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, stf.serviceSynced, stf.nodePoolSynced); !ok {
 		return obj
 	}
 
@@ -207,14 +222,8 @@ func (stf *serviceTopologyFilter) nodeTopologyHandler(obj runtime.Object) runtim
 }
 
 func (stf *serviceTopologyFilter) nodePoolTopologyHandler(obj runtime.Object) runtime.Object {
-	currentNode, err := stf.nodeGetter(stf.nodeName)
-	if err != nil {
-		klog.Warningf("skip serviceTopologyFilterHandler, failed to get current node %s, err: %v", stf.nodeName, err)
-		return obj
-	}
-
-	nodePoolName, ok := currentNode.Labels[nodepoolv1alpha1.LabelCurrentNodePool]
-	if !ok || len(nodePoolName) == 0 {
+	nodePoolName := stf.resolveNodePoolName()
+	if len(nodePoolName) == 0 {
 		klog.Infof("node(%s) is not added into node pool, so fall into node topology", stf.nodeName)
 		return stf.nodeTopologyHandler(obj)
 	}
