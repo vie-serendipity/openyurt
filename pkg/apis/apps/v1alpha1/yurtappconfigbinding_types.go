@@ -18,27 +18,29 @@ package v1alpha1
 
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-// ImageItem specifies the corresponding container and the claimed image.
-type ImageItem struct {
+// ImageReplacement specifies the corresponding container and the claimed image.
+type ImageReplacement struct {
 	ContainerName string `json:"containerName"`
 	// ImageClaim represents the image name which is used by container above.
 	ImageClaim string `json:"imageClaim"`
 }
 
-// EnvItem specifies the corresponding container and
-type EnvItem struct {
+// EnvReplacement specifies the corresponding container and
+type EnvReplacement struct {
 	ContainerName string `json:"containerName"`
 	// EnvClaim represents the detailed enviroment variables that container contains.
 	EnvClaim map[string]string `json:"envClaim"`
 }
 
-type PersistentVolumeClaimItem struct {
+type PersistentVolumeClaimReplacement struct {
 	ContainerName string `json:"containerName"`
-	PVCSource     string `json:"pvcSource"`
-	PVCTarget     string `json:"pvcTarget"`
+	// PVCSource represents volume name.
+	PVCSource string `json:"pvcSource"`
+	// PVCTarget represents the PVC corresponding to the volume above.
+	PVCTarget string `json:"pvcTarget"`
 }
 
-type ConfigMapItem struct {
+type ConfigMapReplacement struct {
 	// ContainerName represents name of the container.
 	ContainerName string `json:"containerName"`
 	// ConfigMapSource represents volume name.
@@ -47,22 +49,32 @@ type ConfigMapItem struct {
 	ConfigMapTarget string `json:"configMapTarget"`
 }
 
-// Item represents configuration to be injected.
+type SecretReplacement struct {
+	// ContainerName represents name of the container.
+	ContainerName string `json:"containerName"`
+	// SecretSource represents volume name.
+	SecretSource string `json:"secretClaim"`
+	// SecretTarget represents the Secret corresponding to the volume above.
+	SecretTarget string `json:"secretTarget"`
+}
+
+// Replacement represents configuration to be injected.
 // Only one of its members may be specified.
-type Item struct {
-	Image                 *ImageItem                 `json:"image"`
-	ConfigMap             *ConfigMapItem             `configMap:"configMap"`
-	Env                   *EnvItem                   `json:"env"`
-	PersistentVolumeClaim *PersistentVolumeClaimItem `json:"persistentVolumeClaim"`
-	Replicas              *int                       `json:"replicas"`
-	UpgradeStrategy       *string                    `json:"upgradeStrategy"`
+type Replacement struct {
+	Image                 *ImageReplacement                 `json:"image"`
+	ConfigMap             *ConfigMapReplacement             `json:"configMap"`
+	Secret                *SecretReplacement                `json:"secret"`
+	Env                   *EnvReplacement                   `json:"env"`
+	PersistentVolumeClaim *PersistentVolumeClaimReplacement `json:"persistentVolumeClaim"`
+	Replicas              *int                              `json:"replicas"`
+	UpgradeStrategy       *string                           `json:"upgradeStrategy"`
 }
 
 type Subject struct {
 	metav1.TypeMeta `json:",inline"`
 	// Name is the name of YurtAppSet or YurtAppDaemon
 	Name string `json:"name"`
-	// Pools represent names of nodepool that items will be injected into.
+	// Pools represent names of nodepool that replacements will be injected into.
 	Pools []string `json:"pools"`
 }
 
@@ -75,5 +87,5 @@ type YurtAppConfigBinding struct {
 	// Describe the object to which this binding belongs
 	Subject Subject `json:"subject"`
 	// Describe detailed configuration to be injected of the subject above.
-	Items []Item `json:"items"`
+	Replacements []Replacement `json:"replacements"`
 }
