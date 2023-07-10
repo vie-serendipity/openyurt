@@ -57,6 +57,10 @@ func NewFilterManager(options *options.YurtHubOptions,
 	if options.WorkingMode == string(util.WorkingModeCloud) {
 		options.DisabledResourceFilters = append(options.DisabledResourceFilters, filter.DisabledInCloudMode...)
 	}
+	if len(options.ECSRegion) == 0 {
+		options.DisabledResourceFilters = append(options.DisabledResourceFilters, filter.ImageCustomizationFilterName)
+	}
+
 	filters := filter.NewFilters(options.DisabledResourceFilters)
 	registerAllFilters(filters)
 
