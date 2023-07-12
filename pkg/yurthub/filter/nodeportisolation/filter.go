@@ -17,18 +17,18 @@ limitations under the License.
 package nodeportisolation
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/informers"
-	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter"
-	"github.com/openyurtio/openyurt/pkg/yurthub/util"
 	nodepoolv1alpha1 "github.com/openyurtio/yurt-app-manager-api/pkg/yurtappmanager/apis/apps/v1alpha1"
 )
 
@@ -45,10 +45,8 @@ func Register(filters *filter.Filters) {
 
 type nodePortIsolationFilter struct {
 	nodePoolName string
-	workingMode  util.WorkingMode
-	nodeGetter   filter.NodeGetter
-	nodeSynced   cache.InformerSynced
 	nodeName     string
+	client       kubernetes.Interface
 }
 
 func (nif *nodePortIsolationFilter) Name() string {
@@ -71,24 +69,12 @@ func (nif *nodePortIsolationFilter) SetNodeName(nodeName string) error {
 	return nil
 }
 
-func (nif *nodePortIsolationFilter) SetWorkingMode(mode util.WorkingMode) error {
-	nif.workingMode = mode
-	return nil
-}
-
-func (nif *nodePortIsolationFilter) SetSharedInformerFactory(factory informers.SharedInformerFactory) error {
-	klog.Infof("prepare list/watch to sync node(%s) for node port isolation filter", nif.nodeName)
-	nif.nodeSynced = factory.Core().V1().Nodes().Informer().HasSynced
-	nif.nodeGetter = factory.Core().V1().Nodes().Lister().Get
-
+func (nif *nodePortIsolationFilter) SetKubeClient(client kubernetes.Interface) error {
+	nif.client = client
 	return nil
 }
 
 func (nif *nodePortIsolationFilter) Filter(obj runtime.Object, stopCh <-chan struct{}) runtime.Object {
-	if ok := cache.WaitForCacheSync(stopCh, nif.nodeSynced); !ok {
-		return obj
-	}
-
 	switch v := obj.(type) {
 	case *v1.ServiceList:
 		var svcNew []v1.Service
@@ -108,16 +94,7 @@ func (nif *nodePortIsolationFilter) Filter(obj runtime.Object, stopCh <-chan str
 }
 
 func (nif *nodePortIsolationFilter) isolateNodePortService(svc *v1.Service) *v1.Service {
-	nodePoolName := nif.nodePoolName
-	if len(nodePoolName) == 0 {
-		node, err := nif.nodeGetter(nif.nodeName)
-		if err != nil {
-			klog.Warningf("skip isolateNodePortService filter, failed to get node(%s), %v", nif.nodeName, err)
-			return svc
-		}
-		nodePoolName = node.Labels[nodepoolv1alpha1.LabelCurrentNodePool]
-	}
-
+	nodePoolName := nif.resolveNodePoolName()
 	// node is not located in NodePool, keep the NodePort service the same as native K8s
 	if len(nodePoolName) == 0 {
 		return svc
@@ -130,13 +107,27 @@ func (nif *nodePortIsolationFilter) isolateNodePortService(svc *v1.Service) *v1.
 			if nodePoolConf.Len() != 0 && isNodePoolEnabled(nodePoolConf, nodePoolName) {
 				return svc
 			} else {
-				klog.V(2).Infof("nodePort service(%s) is disabled in nodePool(%s) by nodePortIsolationFilter", nsName, nodePoolName)
+				klog.V(2).Infof("service(%s) is disabled in nodePool(%s) by nodePortIsolationFilter", nsName, nodePoolName)
 				return nil
 			}
 		}
 	}
 
 	return svc
+}
+
+func (nif *nodePortIsolationFilter) resolveNodePoolName() string {
+	if len(nif.nodePoolName) != 0 {
+		return nif.nodePoolName
+	}
+
+	node, err := nif.client.CoreV1().Nodes().Get(context.Background(), nif.nodeName, metav1.GetOptions{})
+	if err != nil {
+		klog.Warningf("skip isolateNodePortService filter, failed to get node(%s), %v", nif.nodeName, err)
+		return nif.nodePoolName
+	}
+	nif.nodePoolName = node.Labels[nodepoolv1alpha1.LabelDesiredNodePool]
+	return nif.nodePoolName
 }
 
 func getNodePoolConfiguration(v string) sets.String {
