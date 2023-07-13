@@ -107,13 +107,12 @@ func Complete(options *options.YurtHubOptions) (*YurtHubConfiguration, error) {
 	serializerManager := serializer.NewSerializerManager()
 	restMapperManager := meta.NewRESTMapperManager(storageManager)
 
-	workingMode := util.WorkingMode(options.WorkingMode)
 	proxiedClient, sharedFactory, yurtSharedFactory, err := createSharedInformers(fmt.Sprintf("http://%s:%d", options.YurtHubProxyHost, options.YurtHubProxyPort), options.EnableNodePool)
 	if err != nil {
 		return nil, err
 	}
 	tenantNs := util.ParseTenantNsFromOrgs(options.YurtHubCertOrganizations)
-	registerInformers(sharedFactory, yurtSharedFactory, workingMode, serviceTopologyFilterEnabled(options), options.NodePoolName, options.NodeName, tenantNs)
+	registerInformers(sharedFactory, yurtSharedFactory, serviceTopologyFilterEnabled(options), options.NodePoolName, tenantNs)
 	filterManager, err := manager.NewFilterManager(options, sharedFactory, yurtSharedFactory, proxiedClient, serializerManager, us[0].Host)
 	if err != nil {
 		klog.Errorf("could not create filter manager, %v", err)
@@ -131,7 +130,7 @@ func Complete(options *options.YurtHubOptions) (*YurtHubConfiguration, error) {
 		HeartbeatIntervalSeconds:  options.HeartbeatIntervalSeconds,
 		MaxRequestInFlight:        options.MaxRequestInFlight,
 		EnableProfiling:           options.EnableProfiling,
-		WorkingMode:               workingMode,
+		WorkingMode:               util.WorkingMode(options.WorkingMode),
 		StorageWrapper:            storageWrapper,
 		SerializerManager:         serializerManager,
 		RESTMapperManager:         restMapperManager,
@@ -229,18 +228,9 @@ func createSharedInformers(proxyAddr string, enableNodePool bool) (kubernetes.In
 // registerInformers reconstruct node/nodePool/configmap informers
 func registerInformers(informerFactory informers.SharedInformerFactory,
 	yurtInformerFactory yurtinformers.SharedInformerFactory,
-	workingMode util.WorkingMode,
 	serviceTopologyFilterEnabled bool,
-	nodePoolName, nodeName string,
+	nodePoolName string,
 	tenantNs string) {
-
-	newNodeInformer := func(client kubernetes.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-		tweakListOptions := func(options *metav1.ListOptions) {
-			options.FieldSelector = fields.Set{"metadata.name": nodeName}.String()
-		}
-		return coreinformers.NewFilteredNodeInformer(client, resyncPeriod, nil, tweakListOptions)
-	}
-	informerFactory.InformerFor(&corev1.Node{}, newNodeInformer)
 
 	// skip construct nodePool informers if service topology filter disabled
 	if serviceTopologyFilterEnabled {
