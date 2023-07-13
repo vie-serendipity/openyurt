@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"github.com/openyurtio/openyurt/pkg/controller/yurtappconfigurationreplacement"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -64,6 +65,7 @@ func init() {
 	controllerAddFuncs[yurtappset.ControllerName] = []AddControllerFn{yurtappset.Add}
 	controllerAddFuncs[yurtappdaemon.ControllerName] = []AddControllerFn{yurtappdaemon.Add}
 	controllerAddFuncs[platformadmin.ControllerName] = []AddControllerFn{platformadmin.Add}
+	controllerAddFuncs[yurtappconfigurationreplacement.ControllerName] = []AddControllerFn{yurtappconfigurationreplacement.Add}
 }
 
 // If you want to add additional RBAC, enter it here !!! @kadisi

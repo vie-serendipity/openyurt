@@ -254,3 +254,12 @@ func SetDefaultsYurtAppDaemon(obj *YurtAppDaemon) {
 		SetDefaultPodSpec(&obj.Spec.WorkloadTemplate.DeploymentTemplate.Spec.Template.Spec)
 	}
 }
+
+// SetDefaultsYurtAppConfigurationReplacement set default values for YurtAppConfigurationReplacement.
+func SetDefaultsYurtAppConfigurationReplacement(obj *YurtAppConfigurationReplacement) {
+	// example for set default value for YurtAppConfigurationReplacement
+
+	if len(obj.Spec.Default) == 0 {
+		obj.Spec.Default = "set-default-value-0"
+	}
+}
