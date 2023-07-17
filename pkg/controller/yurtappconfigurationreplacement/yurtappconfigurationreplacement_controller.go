@@ -33,11 +33,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-    appconfig "github.com/openyurtio/openyurt/cmd/yurt-manager/app/config"
-	utilclient "github.com/openyurtio/openyurt/pkg/util/client"
-	utildiscovery "github.com/openyurtio/openyurt/pkg/util/discovery"
+	appconfig "github.com/openyurtio/openyurt/cmd/yurt-manager/app/config"
 	appsv1alpha1 "github.com/openyurtio/openyurt/pkg/apis/apps/v1alpha1"
 	"github.com/openyurtio/openyurt/pkg/controller/yurtappconfigurationreplacement/config"
+	utilclient "github.com/openyurtio/openyurt/pkg/util/client"
+	utildiscovery "github.com/openyurtio/openyurt/pkg/util/discovery"
 )
 
 func init() {
@@ -72,18 +72,18 @@ var _ reconcile.Reconciler = &ReconcileYurtAppConfigurationReplacement{}
 // ReconcileYurtAppConfigurationReplacement reconciles a YurtAppConfigurationReplacement object
 type ReconcileYurtAppConfigurationReplacement struct {
 	client.Client
-	scheme   *runtime.Scheme
-	recorder record.EventRecorder
-    Configration config.YurtAppConfigurationReplacementControllerConfiguration
+	scheme       *runtime.Scheme
+	recorder     record.EventRecorder
+	Configration config.YurtAppConfigurationReplacementControllerConfiguration
 }
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(c *appconfig.CompletedConfig, mgr manager.Manager) reconcile.Reconciler {
 	return &ReconcileYurtAppConfigurationReplacement{
-		Client:   utilclient.NewClientFromManager(mgr, ControllerName),
-		scheme:   mgr.GetScheme(),
-		recorder: mgr.GetEventRecorderFor(ControllerName),
-        Configration: c.ComponentConfig.YurtAppConfigurationReplacementController,
+		Client:       utilclient.NewClientFromManager(mgr, ControllerName),
+		scheme:       mgr.GetScheme(),
+		recorder:     mgr.GetEventRecorderFor(ControllerName),
+		//Configration: c.ComponentConfig.YurtAppConfigurationReplacementController,
 	}
 }
 
@@ -132,23 +132,33 @@ func (r *ReconcileYurtAppConfigurationReplacement) Reconcile(_ context.Context, 
 		return reconcile.Result{}, nil
 	}
 
-    // Update Status
-	if instance.Spec.Foo != instance.Status.Foo {
-		instance.Status.Foo = instance.Spec.Foo
-		if err = r.Status().Update(context.TODO(), instance); err != nil {
-			klog.Errorf(Format("Update YurtAppConfigurationReplacement Status %s error %v", klog.KObj(instance), err))
-			return reconcile.Result{Requeue: true}, err
+	// Update Status
+	//if instance.Spec.Foo != instance.Status.Foo {
+	//	instance.Status.Foo = instance.Spec.Foo
+	//	if err = r.Status().Update(context.TODO(), instance); err != nil {
+	//		klog.Errorf(Format("Update YurtAppConfigurationReplacement Status %s error %v", klog.KObj(instance), err))
+	//		return reconcile.Result{Requeue: true}, err
+	//	}
+	//}
+	// Update Instance
+	// Update Deployment
+	pools := []string(nil)
+	for _, replacement := range instance.Replacements {
+		pools = append(pools, replacement.Pools...)
+	}
+	for _, pool := range pools {
+		deployments := v1.DeploymentList{}
+		listOptions := client.MatchingLabels{"apps.openyurt.io/pool-name": pool}
+		r.List(context.TODO(), &deployments, listOptions)
+		for _, deployment := range deployments.Items {
+			deployment.Annotations["modify"] = "modified"
 		}
 	}
 
-    // Update Instance
-	deployments := v1.DeploymentList{}
-	r.List(context.TODO(), deployments, )
 	//if err = r.Update(context.TODO(), instance); err != nil {
 	//	klog.Errorf(Format("Update YurtAppConfigurationReplacement %s error %v", klog.KObj(instance), err))
 	//	return reconcile.Result{Requeue: true}, err
 	//}
-
 
 	return reconcile.Result{}, nil
 }

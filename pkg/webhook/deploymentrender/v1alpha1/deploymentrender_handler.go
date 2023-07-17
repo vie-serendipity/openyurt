@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	v1 "k8s.io/api/apps/v1"
+	clientset "k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -49,7 +50,8 @@ func (webhook *DeploymentRenderHandler) SetupWebhookWithManager(mgr ctrl.Manager
 
 // Cluster implements a validating and defaulting webhook for Cluster.
 type DeploymentRenderHandler struct {
-	Client client.Client
+	Client     client.Client
+	kubeclient clientset.Interface
 }
 
 var _ webhook.CustomDefaulter = &DeploymentRenderHandler{}

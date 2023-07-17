@@ -27,11 +27,16 @@ import (
 )
 
 var (
-	resources = []string{"YurtAppSet", "YurtAppDaemon"}
+	resources      = []string{"YurtAppSet", "YurtAppDaemon"}
+	kindToResource = map[string]interface{}{
+		"YurtAppSet":    v1alpha1.YurtAppSet{},
+		"YurtAppDaemon": v1alpha1.YurtAppDaemon{},
+	}
 )
 
 // Default satisfies the defaulting webhook interface.
 func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime.Object) error {
+
 	deployment, ok := obj.(*v1.Deployment)
 	if !ok {
 		return apierrors.NewBadRequest(fmt.Sprintf("expected a YurtAppConfigurationReplacement but got a %T", obj))
@@ -44,23 +49,33 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 			return nil
 		}
 	}
+
+	// Get YurtAppSet/YurtAppDaemon resource of this deployment
 	app := deployment.OwnerReferences[0]
+	instance = kindToResource["YurtAppSet"]
+	webhook.Client.Get(ctx, client.ObjectKey{
+		Namespace: deployment.Namespace,
+		Name:      app.Name,
+	}, &instance)
+	// Get YurtAppConfigurationReplacement resource of app(1 to 1)
 	var appConfigurationReplacements v1alpha1.YurtAppConfigurationReplacementList
 	listOptions := client.MatchingFields{"subject.Kind": app.Kind, "subject.Name": app.Name, "subject.APIVersion": app.APIVersion}
-	if err := webhook.Client.List(ctx, &appConfigurationReplacements, listOptions); err != nil {
+	if err := webhook.Client.List(ctx, &appConfigurationReplacements, client.InNamespace(deployment.Namespace), listOptions); err != nil {
 		return err
 	}
-	//
-	nodepool := deployment.Labels[""]
 	appConfigurationReplacement := appConfigurationReplacements.Items[0]
+
+	// Get
+	nodepool := deployment.Labels["apps.openyurt.io/pool-name"]
+
 	for _, replacement := range appConfigurationReplacement.Replacements {
 		pools := replacement.Pools
 
 		for _, pool := range pools {
-			// find the corresponding nodepool
 			if pool == nodepool {
-				// implement replacement
+				// Get the corresponding config  of this deployment
 				items := replacement.Items
+				// Implement replacement
 				for _, item := range items {
 					deployment.Spec.Replicas = item.Replicas
 				}
