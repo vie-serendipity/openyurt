@@ -146,6 +146,7 @@ func (r *ReconcileYurtAppConfigurationReplacement) Reconcile(_ context.Context, 
 	for _, replacement := range instance.Replacements {
 		pools = append(pools, replacement.Pools...)
 	}
+	client.Patch()
 	for _, pool := range pools {
 		deployments := v1.DeploymentList{}
 		listOptions := client.MatchingLabels{"apps.openyurt.io/pool-name": pool}
