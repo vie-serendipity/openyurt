@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	"context"
 	"fmt"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -26,10 +27,10 @@ import (
 )
 
 // Default satisfies the defaulting webhook interface.
-func (webhook *YurtAppConfigurationReplacementHandler) Default(ctx context.Context, obj runtime.Object) error {
-	np, ok := obj.(*v1alpha1.YurtAppConfigurationReplacement)
+func (webhook *YurtAppConfigRenderHandler) Default(ctx context.Context, obj runtime.Object) error {
+	np, ok := obj.(*v1alpha1.YurtAppConfigRender)
 	if !ok {
-		return apierrors.NewBadRequest(fmt.Sprintf("expected a YurtAppConfigurationReplacement but got a %T", obj))
+		return apierrors.NewBadRequest(fmt.Sprintf("expected a YurtAppConfigRender but got a %T", obj))
 	}
 
 	v1alpha1.SetDefaultsYurtAppConfigurationReplacement(np)

@@ -26,13 +26,13 @@ method called Hub() to serve as a
 // If this version is storageversion, you only need to uncommand this method
 
 // Hub marks this type as a conversion hub.
-//func (*YurtAppConfigurationReplacement) Hub() {}
+//func (*YurtAppConfigRender) Hub() {}
 
 // NOTE !!!!!!! @kadisi
 // If this version is not storageversion, you need to implement the ConvertTo and ConvertFrom methods
 
 // need import "sigs.k8s.io/controller-runtime/pkg/conversion"
-//func (src *YurtAppConfigurationReplacement) ConvertTo(dstRaw conversion.Hub) error {
+//func (src *YurtAppConfigRender) ConvertTo(dstRaw conversion.Hub) error {
 //	return nil
 //}
 
@@ -40,6 +40,6 @@ method called Hub() to serve as a
 // If this version is not storageversion, you need to implement the ConvertTo and ConvertFrom methods
 
 // need import "sigs.k8s.io/controller-runtime/pkg/conversion"
-//func (dst *YurtAppConfigurationReplacement) ConvertFrom(srcRaw conversion.Hub) error {
+//func (dst *YurtAppConfigRender) ConvertFrom(srcRaw conversion.Hub) error {
 //	return nil
 //}

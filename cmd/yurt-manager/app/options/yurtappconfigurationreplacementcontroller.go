@@ -17,7 +17,7 @@ limitations under the License.
 package options
 
 import (
-	"github.com/openyurtio/openyurt/pkg/controller/yurtappconfigurationreplacement/config"
+	"github.com/openyurtio/openyurt/pkg/controller/yurtappconfigrender/config"
 	"github.com/spf13/pflag"
 )
 
@@ -27,8 +27,7 @@ type YurtAppConfigurationReplacementControllerOptions struct {
 
 func NewYurtAppConfigurationReplacementControllerOptions() *YurtAppConfigurationReplacementControllerOptions {
 	return &YurtAppConfigurationReplacementControllerOptions{
-		&config.YurtAppConfigurationReplacementControllerConfiguration{
-		},
+		&config.YurtAppConfigurationReplacementControllerConfiguration{},
 	}
 }
 

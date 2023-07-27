@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -29,7 +30,7 @@ type ImageItem struct {
 	// in which the Image will be replaced
 	ContainerName string `json:"containerName"`
 	// ImageClaim represents the claimed image name
-	// which is injected into the container above
+	//which is injected into the container above
 	ImageClaim string `json:"imageClaim"`
 }
 
@@ -83,10 +84,33 @@ type Item struct {
 	UpgradeStrategy       *string                    `json:"upgradeStrategy"`
 }
 
-// Replacement describe a set of nodepools and their shared or identical configurations
-type Replacement struct {
+type Operation string
+
+const (
+	Default Operation = "default" // strategic merge patch
+	ADD     Operation = "add"     // json patch
+	REMOVE  Operation = "remove"  // json patch
+	REPLACE Operation = "replace" // json patch
+)
+
+type Patch struct {
+	// type represents the operation
+	// default is strategic merge patch
+	// +optional
+	Type Operation `json:"type"`
+	// Indicates the patch for the template
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Extensions *runtime.RawExtension `json:"extensions"`
+}
+
+// Entry describe a set of nodepools and their shared or identical configurations
+type Entry struct {
 	Pools []string `json:"pools"`
-	Items []Item   `json:"items"`
+	// +optional
+	Items []Item `json:"items"`
+	// Convert Patch struct into json patch operation
+	// +optional
+	Patches []Patch `json:"patches"`
 }
 
 type Subject struct {
@@ -95,25 +119,25 @@ type Subject struct {
 	Name string `json:"name"`
 }
 
-type YurtAppConfigurationReplacement struct {
+type YurtAppConfigRender struct {
 	metav1.TypeMeta `json:",inline"`
 	// Standard object's metadata
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	// Describe the object this replacement belongs
+	// Describe the object this Entries belongs
 	Subject Subject `json:"subject"`
 	// Describe detailed multi-region configuration of the subject above
-	Replacements []Replacement `json:"replacements"`
+	Entries []Entry `json:"entries"`
 }
 
 //+kubebuilder:object:root=true
 
-// YurtAppConfigurationReplacementList contains a list of YurtAppConfigurationReplacement
-type YurtAppConfigurationReplacementList struct {
+// YurtAppConfigRenderList contains a list of YurtAppConfigRender
+type YurtAppConfigRenderList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []YurtAppConfigurationReplacement `json:"items"`
+	Items           []YurtAppConfigRender `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&YurtAppConfigurationReplacement{}, &YurtAppConfigurationReplacementList{})
+	SchemeBuilder.Register(&YurtAppConfigRender{}, &YurtAppConfigRenderList{})
 }

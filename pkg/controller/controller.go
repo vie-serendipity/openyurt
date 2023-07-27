@@ -17,7 +17,6 @@ limitations under the License.
 package controller
 
 import (
-	"github.com/openyurtio/openyurt/pkg/controller/yurtappconfigurationreplacement"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -34,6 +33,7 @@ import (
 	servicetopologyendpoints "github.com/openyurtio/openyurt/pkg/controller/servicetopology/endpoints"
 	servicetopologyendpointslice "github.com/openyurtio/openyurt/pkg/controller/servicetopology/endpointslice"
 	"github.com/openyurtio/openyurt/pkg/controller/util"
+	"github.com/openyurtio/openyurt/pkg/controller/yurtappconfigrender"
 	"github.com/openyurtio/openyurt/pkg/controller/yurtappdaemon"
 	"github.com/openyurtio/openyurt/pkg/controller/yurtappset"
 	yurtcoordinatorcert "github.com/openyurtio/openyurt/pkg/controller/yurtcoordinator/cert"
@@ -65,7 +65,7 @@ func init() {
 	controllerAddFuncs[yurtappset.ControllerName] = []AddControllerFn{yurtappset.Add}
 	controllerAddFuncs[yurtappdaemon.ControllerName] = []AddControllerFn{yurtappdaemon.Add}
 	controllerAddFuncs[platformadmin.ControllerName] = []AddControllerFn{platformadmin.Add}
-	controllerAddFuncs[yurtappconfigurationreplacement.ControllerName] = []AddControllerFn{yurtappconfigurationreplacement.Add}
+	controllerAddFuncs[yurtappconfigrender.ControllerName] = []AddControllerFn{yurtappconfigrender.Add}
 }
 
 // If you want to add additional RBAC, enter it here !!! @kadisi
@@ -80,7 +80,6 @@ func SetupWithManager(c *config.CompletedConfig, m manager.Manager) error {
 			klog.Warningf("Controller %v is disabled", controllerName)
 			continue
 		}
-
 		for _, f := range fns {
 			if err := f(c, m); err != nil {
 				if kindMatchErr, ok := err.(*meta.NoKindMatchError); ok {

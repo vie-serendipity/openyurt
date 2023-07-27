@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	v1 "k8s.io/api/apps/v1"
-	clientset "k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -33,7 +32,7 @@ func (webhook *DeploymentRenderHandler) SetupWebhookWithManager(mgr ctrl.Manager
 	// init
 	webhook.Client = mgr.GetClient()
 
-	gvk, err := apiutil.GVKForObject(&v1alpha1.YurtAppConfigurationReplacement{}, mgr.GetScheme())
+	gvk, err := apiutil.GVKForObject(&v1alpha1.YurtAppConfigRender{}, mgr.GetScheme())
 	if err != nil {
 		return "", "", err
 	}
@@ -45,13 +44,9 @@ func (webhook *DeploymentRenderHandler) SetupWebhookWithManager(mgr ctrl.Manager
 			Complete()
 }
 
-// +kubebuilder:webhook:path=/validate-apps-openyurt-io-yurtappconfigurationreplacement,mutating=false,failurePolicy=fail,sideEffects=None,admissionReviewVersions=v1;v1beta1,groups=apps.openyurt.io,resources=yurtappconfigurationreplacements,verbs=create;update,versions=v1alpha1,name=validate.apps.v1alpha1.yurtappconfigurationreplacement.openyurt.io
-// +kubebuilder:webhook:path=/mutate-apps-openyurt-io-yurtappconfigurationreplacement,mutating=true,failurePolicy=fail,sideEffects=None,admissionReviewVersions=v1;v1beta1,groups=apps.openyurt.io,resources=yurtappconfigurationreplacements,verbs=create;update,versions=v1alpha1,name=mutate.apps.v1alpha1.yurtappconfigurationreplacement.openyurt.io
-
 // Cluster implements a validating and defaulting webhook for Cluster.
 type DeploymentRenderHandler struct {
-	Client     client.Client
-	kubeclient clientset.Interface
+	Client client.Client
 }
 
 var _ webhook.CustomDefaulter = &DeploymentRenderHandler{}

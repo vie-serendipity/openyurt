@@ -15,7 +15,7 @@ spec:
     plural: yurtappconfigurationreplacements
     shortNames:
     - yacr
-    singular: yurtappconfigurationreplacement
+    singular: yurtappconfigrender
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
