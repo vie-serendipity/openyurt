@@ -19,4 +19,3 @@ package config
 // YurtAppConfigurationReplacementControllerConfiguration contains elements describing YurtAppConfigurationReplacementController.
 type YurtAppConfigurationReplacementControllerConfiguration struct {
 }
-

@@ -123,7 +123,7 @@ type YurtAppConfigRender struct {
 	metav1.TypeMeta `json:",inline"`
 	// Standard object's metadata
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	// Describe the object this Entries belongs
+	// Describe the object Entries belongs
 	Subject Subject `json:"subject"`
 	// Describe detailed multi-region configuration of the subject above
 	Entries []Entry `json:"entries"`

@@ -18,13 +18,18 @@ package v1alpha1
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
-	"github.com/openyurtio/openyurt/pkg/apis/apps/v1alpha1"
+	jsonpatch "github.com/evanphx/json-patch"
+
 	v1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/openyurtio/openyurt/pkg/apis/apps/v1alpha1"
 )
 
 var (
@@ -83,21 +88,85 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 				// Get the corresponding config  of this deployment
 				// reference to the volumeSource implementation
 				items := entry.Items
-				replaceItems(items)
+				webhook.replaceItems(deployment, items)
 				// json patch and strategic merge
 				patches := entry.Patches
+
 				// Implement injection
-				updatePatches(patches)
+				webhook.updatePatches(patches)
 			}
 		}
 	}
 	return nil
 }
 
-func updatePatches(patches []v1alpha1.Patch) {
+func (webhook *DeploymentRenderHandler) updatePatches(patches []v1alpha1.Patch) error {
+	for _, patch := range patches {
+		switch patch.Type {
+		case v1alpha1.Default:
+			patchMap := make(map[string]interface{})
+			if err := json.Unmarshal(patch.Extensions.Raw, &patchMap); err != nil {
+				return err
+			}
+			//strategicpatch.StrategicMergePatch(old, patchMap, newObj)
 
+		case v1alpha1.ADD, v1alpha1.REMOVE, v1alpha1.REPLACE:
+			// TODO() json patch
+			// TODO() convert patch yaml into real patch format
+			patchObj, err := jsonpatch.DecodePatch()
+			//jsonSerializer :=json.Serializer{}
+			//runtime.Encode(jsonSerializer, )
+			//patched := patchObj.Apply()
+			//jsonSerializer.Decode(patched, nil, newObj)
+		default:
+
+		}
+	}
+	return nil
 }
 
-func replaceItems(items []v1alpha1.Item) {
+func (webhook *DeploymentRenderHandler) replaceItems(deployment *v1.Deployment, items []v1alpha1.Item) {
+	for _, item := range items {
+		switch {
+		case item.Replicas != nil:
+			deployment.Spec.Replicas = item.Replicas
+		case item.Env != nil:
+			var envVars []corev1.EnvVar
+			for key, val := range item.Env.EnvClaim {
+				envVar := corev1.EnvVar{
+					Name:  key,
+					Value: val,
+				}
+				envVars = append(envVars, envVar)
+			}
+			for _, v := range deployment.Spec.Template.Spec.Containers {
+				if v.Name == item.Env.ContainerName {
+					v.Env = envVars
+				}
+			}
+		case item.UpgradeStrategy != nil:
+			if v1.DeploymentStrategyType(*item.UpgradeStrategy) == v1.RecreateDeploymentStrategyType {
+				if deployment.Spec.Strategy.RollingUpdate != nil {
+					deployment.Spec.Strategy.RollingUpdate = nil
+				}
+				deployment.Spec.Strategy.Type = v1.RecreateDeploymentStrategyType
+			} else if v1.DeploymentStrategyType(*item.UpgradeStrategy) == v1.RollingUpdateDeploymentStrategyType {
+				deployment.Spec.Strategy.Type = v1.RollingUpdateDeploymentStrategyType
+			}
+		case item.ConfigMap != nil:
+			for _, volume := range deployment.Spec.Template.Spec.Volumes {
+				if volume.VolumeSource.ConfigMap != nil {
+				}
+			}
 
+		case item.Image != nil:
+			for _, v := range deployment.Spec.Template.Spec.Containers {
+				if v.Name == item.Image.ContainerName {
+					v.Image = item.Image.ImageClaim
+				}
+			}
+		case item.PersistentVolumeClaim != nil:
+		case item.Secret != nil:
+		}
+	}
 }
