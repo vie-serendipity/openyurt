@@ -124,6 +124,26 @@ rules:
 - apiGroups:
   - apps.openyurt.io
   resources:
+  - YurtAppConfigRenders
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps.openyurt.io
+  resources:
+  - YurtAppConfigRenders/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - apps.openyurt.io
+  resources:
   - nodepools
   verbs:
   - create
@@ -137,26 +157,6 @@ rules:
   - apps.openyurt.io
   resources:
   - nodepools/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - apps.openyurt.io
-  resources:
-  - yurtappconfigurationreplacements
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - apps.openyurt.io
-  resources:
-  - yurtappconfigurationreplacements/status
   verbs:
   - get
   - patch
@@ -525,9 +525,9 @@ webhooks:
     service:
       name: yurt-manager-webhook-service
       namespace: {{ .Release.Namespace }}
-      path: /mutate-apps-openyurt-io-yurtappconfigurationreplacement
+      path: /mutate-apps-openyurt-io-yurtappconfigrender
   failurePolicy: Fail
-  name: mutate.apps.v1alpha1.yurtappconfigurationreplacement.openyurt.io
+  name: mutate.apps.v1alpha1.yurtappconfigrender.openyurt.io
   rules:
   - apiGroups:
     - apps.openyurt.io
@@ -717,9 +717,9 @@ webhooks:
     service:
       name: yurt-manager-webhook-service
       namespace: {{ .Release.Namespace }}
-      path: /validate-apps-openyurt-io-yurtappconfigurationreplacement
+      path: /validate-apps-openyurt-io-yurtappconfigrender
   failurePolicy: Fail
-  name: validate.apps.v1alpha1.yurtappconfigurationreplacement.openyurt.io
+  name: validate.apps.v1alpha1.yurtappconfigrender.openyurt.io
   rules:
   - apiGroups:
     - apps.openyurt.io

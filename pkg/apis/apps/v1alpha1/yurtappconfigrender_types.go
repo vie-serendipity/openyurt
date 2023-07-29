@@ -119,6 +119,10 @@ type Subject struct {
 	Name string `json:"name"`
 }
 
+// +genclient
+// +kubebuilder:object:root=true
+// +kubebuilder:resource:shortName=yacr
+
 type YurtAppConfigRender struct {
 	metav1.TypeMeta `json:",inline"`
 	// Standard object's metadata

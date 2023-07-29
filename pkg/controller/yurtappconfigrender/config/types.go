@@ -16,6 +16,6 @@ limitations under the License.
 
 package config
 
-// YurtAppConfigurationReplacementControllerConfiguration contains elements describing YurtAppConfigurationReplacementController.
-type YurtAppConfigurationReplacementControllerConfiguration struct {
+// YurtAppConfigRenderControllerConfiguration contains elements describing YurtAppConfigRenderController.
+type YurtAppConfigRenderControllerConfiguration struct {
 }

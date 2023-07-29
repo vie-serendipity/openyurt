@@ -68,23 +68,23 @@ func Add(c *appconfig.CompletedConfig, mgr manager.Manager) error {
 	return add(mgr, newReconciler(c, mgr))
 }
 
-var _ reconcile.Reconciler = &ReconcileYurtAppConfigurationReplacement{}
+var _ reconcile.Reconciler = &ReconcileYurtAppConfigRender{}
 
-// ReconcileYurtAppConfigurationReplacement reconciles a YurtAppConfigRender object
-type ReconcileYurtAppConfigurationReplacement struct {
+// ReconcileYurtAppConfigRender reconciles a YurtAppConfigRender object
+type ReconcileYurtAppConfigRender struct {
 	client.Client
 	scheme       *runtime.Scheme
 	recorder     record.EventRecorder
-	Configration config.YurtAppConfigurationReplacementControllerConfiguration
+	Configration config.YurtAppConfigRenderControllerConfiguration
 }
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(c *appconfig.CompletedConfig, mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileYurtAppConfigurationReplacement{
+	return &ReconcileYurtAppConfigRender{
 		Client:   utilclient.NewClientFromManager(mgr, ControllerName),
 		scheme:   mgr.GetScheme(),
 		recorder: mgr.GetEventRecorderFor(ControllerName),
-		//Configration: c.ComponentConfig.YurtAppConfigurationReplacementController,
+		//Configration: c.ComponentConfig.YurtAppConfigRenderController,
 	}
 }
 
@@ -107,12 +107,12 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-// +kubebuilder:rbac:groups=apps.openyurt.io,resources=yurtappconfigurationreplacements,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=apps.openyurt.io,resources=yurtappconfigurationreplacements/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=apps.openyurt.io,resources=YurtAppConfigRenders,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=apps.openyurt.io,resources=YurtAppConfigRenders/status,verbs=get;update;patch
 
 // Reconcile reads that state of the cluster for a YurtAppConfigRender object and makes changes based on the state read
 // and what is in the YurtAppConfigRender.Spec
-func (r *ReconcileYurtAppConfigurationReplacement) Reconcile(_ context.Context, request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileYurtAppConfigRender) Reconcile(_ context.Context, request reconcile.Request) (reconcile.Result, error) {
 
 	// Note !!!!!!!!!!
 	// We strongly recommend use Format() to  encapsulation because Format() can print logs by module
