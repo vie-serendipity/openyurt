@@ -21,12 +21,11 @@ import (
 	"encoding/json"
 	"fmt"
 
-	jsonpatch "github.com/evanphx/json-patch"
-
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/openyurtio/openyurt/pkg/apis/apps/v1alpha1"
@@ -88,45 +87,65 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 				// Get the corresponding config  of this deployment
 				// reference to the volumeSource implementation
 				items := entry.Items
-				webhook.replaceItems(deployment, items)
+				if err := replaceItems(deployment, items); err != nil {
+					return err
+				}
 				// json patch and strategic merge
 				patches := entry.Patches
-
 				// Implement injection
-				webhook.updatePatches(patches)
+				newDeployment := &v1.Deployment{}
+				if err := updatePatches(deployment, patches, newDeployment); err != nil {
+					return err
+				}
 			}
 		}
 	}
 	return nil
 }
 
-func (webhook *DeploymentRenderHandler) updatePatches(patches []v1alpha1.Patch) error {
+func updatePatches(oldObj interface{}, patches []v1alpha1.Patch, newObj interface{}) error {
 	for _, patch := range patches {
+		// go func
+		// SlowStartBatch tools.go
 		switch patch.Type {
 		case v1alpha1.Default:
 			patchMap := make(map[string]interface{})
 			if err := json.Unmarshal(patch.Extensions.Raw, &patchMap); err != nil {
 				return err
 			}
-			//strategicpatch.StrategicMergePatch(old, patchMap, newObj)
 
+			original, err := runtime.DefaultUnstructuredConverter.ToUnstructured(oldObj)
+			if err != nil {
+				return err
+			}
+
+			patchedMap, err := strategicpatch.StrategicMergeMapPatch(original, patchMap, newObj)
+			if err != nil {
+				return err
+			}
+
+			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(patchedMap, newObj); err != nil {
+				return err
+			}
 		case v1alpha1.ADD, v1alpha1.REMOVE, v1alpha1.REPLACE:
 			// TODO() json patch
 			// TODO() convert patch yaml into real patch format
-			patchObj, err := jsonpatch.DecodePatch()
+			return fmt.Errorf("unsupported patch type: %v", patch.Type)
+			//patchObj, err := jsonpatch.DecodePatch()
 			//jsonSerializer :=json.Serializer{}
 			//runtime.Encode(jsonSerializer, )
 			//patched := patchObj.Apply()
 			//jsonSerializer.Decode(patched, nil, newObj)
 		default:
-
+			return fmt.Errorf("unknown patch type: %v", patch.Type)
 		}
 	}
 	return nil
 }
 
-func (webhook *DeploymentRenderHandler) replaceItems(deployment *v1.Deployment, items []v1alpha1.Item) {
+func replaceItems(deployment *v1.Deployment, items []v1alpha1.Item) error {
 	for _, item := range items {
+		// go func
 		switch {
 		case item.Replicas != nil:
 			deployment.Spec.Replicas = item.Replicas
@@ -153,20 +172,34 @@ func (webhook *DeploymentRenderHandler) replaceItems(deployment *v1.Deployment, 
 			} else if v1.DeploymentStrategyType(*item.UpgradeStrategy) == v1.RollingUpdateDeploymentStrategyType {
 				deployment.Spec.Strategy.Type = v1.RollingUpdateDeploymentStrategyType
 			}
-		case item.ConfigMap != nil:
-			for _, volume := range deployment.Spec.Template.Spec.Volumes {
-				if volume.VolumeSource.ConfigMap != nil {
-				}
-			}
-
 		case item.Image != nil:
 			for _, v := range deployment.Spec.Template.Spec.Containers {
 				if v.Name == item.Image.ContainerName {
 					v.Image = item.Image.ImageClaim
 				}
 			}
+			// kustomize
+		case item.ConfigMap != nil:
+			for _, volume := range deployment.Spec.Template.Spec.Volumes {
+				if volume.VolumeSource.ConfigMap != nil && volume.VolumeSource.ConfigMap.Name == item.ConfigMap.ConfigMapSource {
+					volume.VolumeSource.ConfigMap.Name = item.ConfigMap.ConfigMapTarget
+				}
+			}
+
 		case item.PersistentVolumeClaim != nil:
+			for _, volume := range deployment.Spec.Template.Spec.Volumes {
+				if volume.VolumeSource.PersistentVolumeClaim != nil &&
+					volume.VolumeSource.PersistentVolumeClaim.ClaimName == item.PersistentVolumeClaim.PVCSource {
+					volume.VolumeSource.PersistentVolumeClaim.ClaimName = item.PersistentVolumeClaim.PVCTarget
+				}
+			}
 		case item.Secret != nil:
+			for _, volume := range deployment.Spec.Template.Spec.Volumes {
+				if volume.VolumeSource.Secret != nil && volume.VolumeSource.Secret.SecretName == item.Secret.SecretSource {
+					volume.VolumeSource.Secret.SecretName = item.Secret.SecretTarget
+				}
+			}
 		}
 	}
+	return nil
 }
