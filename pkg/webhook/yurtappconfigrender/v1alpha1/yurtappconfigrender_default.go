@@ -33,7 +33,7 @@ func (webhook *YurtAppConfigRenderHandler) Default(ctx context.Context, obj runt
 		return apierrors.NewBadRequest(fmt.Sprintf("expected a YurtAppConfigRender but got a %T", obj))
 	}
 
-	v1alpha1.SetDefaultsYurtAppConfigurationReplacement(np)
+	v1alpha1.SetDefaultsYurtAppConfigRender(np)
 
 	return nil
 }

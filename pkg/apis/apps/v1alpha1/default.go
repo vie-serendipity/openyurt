@@ -255,8 +255,8 @@ func SetDefaultsYurtAppDaemon(obj *YurtAppDaemon) {
 	}
 }
 
-// SetDefaultsYurtAppConfigurationReplacement set default values for YurtAppConfigRender.
-func SetDefaultsYurtAppConfigurationReplacement(obj *YurtAppConfigRender) {
+// SetDefaultsYurtAppConfigRender set default values for YurtAppConfigRender.
+func SetDefaultsYurtAppConfigRender(obj *YurtAppConfigRender) {
 	// example for set default value for YurtAppConfigRender
 
 	//if len(obj.Subject.Default) == 0 {

@@ -11,6 +11,8 @@ spec:
     kind: YurtAppConfigRender
     listKind: YurtAppConfigRenderList
     plural: yurtappconfigrenders
+    shortNames:
+    - yacr
     singular: yurtappconfigrender
   scope: Namespaced
   versions:
