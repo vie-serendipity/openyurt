@@ -133,14 +133,6 @@ func (r *ReconcileYurtAppConfigRender) Reconcile(_ context.Context, request reco
 		return reconcile.Result{}, nil
 	}
 
-	// Update Status
-	//if instance.Spec.Foo != instance.Status.Foo {
-	//	instance.Status.Foo = instance.Spec.Foo
-	//	if err = r.Status().Update(context.TODO(), instance); err != nil {
-	//		klog.Errorf(Format("Update YurtAppConfigRender Status %s error %v", klog.KObj(instance), err))
-	//		return reconcile.Result{Requeue: true}, err
-	//	}
-	//}
 	// Update Instance
 	// Update Deployment
 	pools := []string(nil)
@@ -151,9 +143,11 @@ func (r *ReconcileYurtAppConfigRender) Reconcile(_ context.Context, request reco
 	for _, pool := range pools {
 		deployments := v1.DeploymentList{}
 		listOptions := client.MatchingLabels{"apps.openyurt.io/pool-name": pool}
-		r.List(context.TODO(), &deployments, listOptions)
+		if err := r.List(context.TODO(), &deployments, listOptions); err != nil {
+			return reconcile.Result{}, err
+		}
 		for _, deployment := range deployments.Items {
-			deployment.Annotations["modify"] = "modified"
+			deployment.Annotations["resourceVersion"] = deployment.ResourceVersion
 		}
 	}
 
