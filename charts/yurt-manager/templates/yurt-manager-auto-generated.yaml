@@ -456,6 +456,27 @@ webhooks:
     service:
       name: yurt-manager-webhook-service
       namespace: {{ .Release.Namespace }}
+      path: /mutate-apps-deployment
+  failurePolicy: Fail
+  name: mutate.apps.deployment.openyurt.io
+  rules:
+  - apiGroups:
+    - apps
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - deployments
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: yurt-manager-webhook-service
+      namespace: {{ .Release.Namespace }}
       path: /mutate-raven-openyurt-io-v1alpha1-gateway
   failurePolicy: Fail
   name: mutate.raven.v1alpha1.gateway.openyurt.io
