@@ -107,7 +107,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-// +kubebuilder:rbac:groups=apps.openyurt.io,resources=YurtAppConfigRenders,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=apps.openyurt.io,resources=yurtappconfigrenders,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete

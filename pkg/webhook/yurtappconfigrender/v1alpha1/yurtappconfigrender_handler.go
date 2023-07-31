@@ -44,8 +44,8 @@ func (webhook *YurtAppConfigRenderHandler) SetupWebhookWithManager(mgr ctrl.Mana
 			Complete()
 }
 
-// +kubebuilder:webhook:path=/validate-apps-openyurt-io-yurtappconfigrender,mutating=false,failurePolicy=fail,sideEffects=None,admissionReviewVersions=v1;v1beta1,groups=apps.openyurt.io,resources=yurtappconfigrenders,verbs=create;update,versions=v1alpha1,name=validate.apps.v1alpha1.yurtappconfigrender.openyurt.io
-// +kubebuilder:webhook:path=/mutate-apps-openyurt-io-yurtappconfigrender,mutating=true,failurePolicy=fail,sideEffects=None,admissionReviewVersions=v1;v1beta1,groups=apps.openyurt.io,resources=yurtappconfigrenders,verbs=create;update,versions=v1alpha1,name=mutate.apps.v1alpha1.yurtappconfigrender.openyurt.io
+// +kubebuilder:webhook:path=/validate-apps-openyurt-io-v1alpha1-yurtappconfigrender,mutating=false,failurePolicy=fail,sideEffects=None,admissionReviewVersions=v1;v1beta1,groups=apps.openyurt.io,resources=yurtappconfigrenders,verbs=create;update,versions=v1alpha1,name=validate.apps.v1alpha1.yurtappconfigrender.openyurt.io
+// +kubebuilder:webhook:path=/mutate-apps-openyurt-io-v1alpha1-yurtappconfigrender,mutating=true,failurePolicy=fail,sideEffects=None,admissionReviewVersions=v1;v1beta1,groups=apps.openyurt.io,resources=yurtappconfigrenders,verbs=create;update,versions=v1alpha1,name=mutate.apps.v1alpha1.yurtappconfigrender.openyurt.io
 
 // Cluster implements a validating and defaulting webhook for Cluster.
 type YurtAppConfigRenderHandler struct {

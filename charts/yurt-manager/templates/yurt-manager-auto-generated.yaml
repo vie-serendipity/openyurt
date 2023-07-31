@@ -124,18 +124,6 @@ rules:
 - apiGroups:
   - apps.openyurt.io
   resources:
-  - YurtAppConfigRenders
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - apps.openyurt.io
-  resources:
   - nodepools
   verbs:
   - create
@@ -153,6 +141,18 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - apps.openyurt.io
+  resources:
+  - yurtappconfigrenders
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - apps.openyurt.io
   resources:
@@ -517,7 +517,7 @@ webhooks:
     service:
       name: yurt-manager-webhook-service
       namespace: {{ .Release.Namespace }}
-      path: /mutate-apps-openyurt-io-yurtappconfigrender
+      path: /mutate-apps-openyurt-io-v1alpha1-yurtappconfigrender
   failurePolicy: Fail
   name: mutate.apps.v1alpha1.yurtappconfigrender.openyurt.io
   rules:
@@ -709,7 +709,7 @@ webhooks:
     service:
       name: yurt-manager-webhook-service
       namespace: {{ .Release.Namespace }}
-      path: /validate-apps-openyurt-io-yurtappconfigrender
+      path: /validate-apps-openyurt-io-v1alpha1-yurtappconfigrender
   failurePolicy: Fail
   name: validate.apps.v1alpha1.yurtappconfigrender.openyurt.io
   rules:
