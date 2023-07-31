@@ -136,14 +136,6 @@ rules:
 - apiGroups:
   - apps.openyurt.io
   resources:
-  - YurtAppConfigRenders/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - apps.openyurt.io
-  resources:
   - nodepools
   verbs:
   - create
@@ -537,7 +529,7 @@ webhooks:
     - CREATE
     - UPDATE
     resources:
-    - yurtappconfigurationreplacements
+    - yurtappconfigrenders
   sideEffects: None
 - admissionReviewVersions:
   - v1
@@ -729,7 +721,7 @@ webhooks:
     - CREATE
     - UPDATE
     resources:
-    - yurtappconfigurationreplacements
+    - yurtappconfigrenders
   sideEffects: None
 - admissionReviewVersions:
   - v1
