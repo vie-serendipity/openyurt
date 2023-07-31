@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/aliyun/alibaba-cloud-sdk-go v1.62.156
 	github.com/davecgh/go-spew v1.1.1
+	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
@@ -43,6 +44,7 @@ require (
 	k8s.io/utils v0.0.0-20210930125809-cb0fa318a74b
 	sigs.k8s.io/apiserver-network-proxy v0.0.15
 	sigs.k8s.io/controller-runtime v0.10.3
+	sigs.k8s.io/yaml v1.3.0
 )
 
 require (
@@ -81,7 +83,6 @@ require (
 	github.com/cyphar/filepath-securejoin v0.2.3 // indirect
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/emicklei/go-restful v2.16.0+incompatible // indirect
-	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
 	github.com/fatih/camelcase v1.0.0 // indirect
 	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
@@ -157,7 +158,6 @@ require (
 	k8s.io/kube-openapi v0.0.0-20211115234752-e816edb12b65 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.0.22 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
-	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
 replace (

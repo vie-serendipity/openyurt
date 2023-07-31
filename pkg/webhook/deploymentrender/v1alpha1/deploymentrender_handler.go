@@ -27,6 +27,10 @@ import (
 	"github.com/openyurtio/openyurt/pkg/webhook/util"
 )
 
+const (
+	WebhookName = "deploymentrender"
+)
+
 // SetupWebhookWithManager sets up Cluster webhooks. 	mutate path, validatepath, error
 func (webhook *DeploymentRenderHandler) SetupWebhookWithManager(mgr ctrl.Manager) (string, string, error) {
 	// init
