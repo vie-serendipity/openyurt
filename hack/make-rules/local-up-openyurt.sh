@@ -148,7 +148,7 @@ function cleanup_on_err {
 }
 
 
-trap cleanup_on_err EXIT
+# trap cleanup_on_err EXIT
 
 preflight
 cleanup
