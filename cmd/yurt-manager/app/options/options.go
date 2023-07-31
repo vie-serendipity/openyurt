@@ -25,26 +25,28 @@ import (
 
 // YurtManagerOptions is the main context object for the yurt-manager.
 type YurtManagerOptions struct {
-	Generic                 *GenericOptions
-	NodePoolController      *NodePoolControllerOptions
-	GatewayController       *GatewayControllerOptions
-	YurtStaticSetController *YurtStaticSetControllerOptions
-	YurtAppSetController    *YurtAppSetControllerOptions
-	YurtAppDaemonController *YurtAppDaemonControllerOptions
-	PlatformAdminController *PlatformAdminControllerOptions
+	Generic                       *GenericOptions
+	NodePoolController            *NodePoolControllerOptions
+	GatewayController             *GatewayControllerOptions
+	YurtStaticSetController       *YurtStaticSetControllerOptions
+	YurtAppSetController          *YurtAppSetControllerOptions
+	YurtAppDaemonController       *YurtAppDaemonControllerOptions
+	PlatformAdminController       *PlatformAdminControllerOptions
+	YurtAppConfigRenderController *YurtAppConfigRenderControllerOptions
 }
 
 // NewYurtManagerOptions creates a new YurtManagerOptions with a default config.
 func NewYurtManagerOptions() (*YurtManagerOptions, error) {
 
 	s := YurtManagerOptions{
-		Generic:                 NewGenericOptions(),
-		NodePoolController:      NewNodePoolControllerOptions(),
-		GatewayController:       NewGatewayControllerOptions(),
-		YurtStaticSetController: NewYurtStaticSetControllerOptions(),
-		YurtAppSetController:    NewYurtAppSetControllerOptions(),
-		YurtAppDaemonController: NewYurtAppDaemonControllerOptions(),
-		PlatformAdminController: NewPlatformAdminControllerOptions(),
+		Generic:                       NewGenericOptions(),
+		NodePoolController:            NewNodePoolControllerOptions(),
+		GatewayController:             NewGatewayControllerOptions(),
+		YurtStaticSetController:       NewYurtStaticSetControllerOptions(),
+		YurtAppSetController:          NewYurtAppSetControllerOptions(),
+		YurtAppDaemonController:       NewYurtAppDaemonControllerOptions(),
+		PlatformAdminController:       NewPlatformAdminControllerOptions(),
+		YurtAppConfigRenderController: NewYurtAppConfigRenderControllerOptions(),
 	}
 
 	return &s, nil
@@ -58,6 +60,7 @@ func (y *YurtManagerOptions) Flags() cliflag.NamedFlagSets {
 	y.YurtStaticSetController.AddFlags(fss.FlagSet("yurtstaticset controller"))
 	y.YurtAppDaemonController.AddFlags(fss.FlagSet("yurtappdaemon controller"))
 	y.PlatformAdminController.AddFlags(fss.FlagSet("iot controller"))
+	y.YurtAppConfigRenderController.AddFlags(fss.FlagSet("yurtappconfigrender controller"))
 	// Please Add Other controller flags @kadisi
 
 	return fss
@@ -72,6 +75,7 @@ func (y *YurtManagerOptions) Validate() error {
 	errs = append(errs, y.YurtStaticSetController.Validate()...)
 	errs = append(errs, y.YurtAppDaemonController.Validate()...)
 	errs = append(errs, y.PlatformAdminController.Validate()...)
+	errs = append(errs, y.YurtAppConfigRenderController.Validate()...)
 	return utilerrors.NewAggregate(errs)
 }
 
@@ -90,6 +94,9 @@ func (y *YurtManagerOptions) ApplyTo(c *config.Config) error {
 		return err
 	}
 	if err := y.PlatformAdminController.ApplyTo(&c.ComponentConfig.PlatformAdminController); err != nil {
+		return err
+	}
+	if err := y.YurtAppConfigRenderController.ApplyTo(&c.ComponentConfig.YurtAppConfigRenderController); err != nil {
 		return err
 	}
 	return nil

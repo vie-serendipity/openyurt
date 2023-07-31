@@ -22,6 +22,7 @@ import (
 	nodepoolconfig "github.com/openyurtio/openyurt/pkg/controller/nodepool/config"
 	platformadminconfig "github.com/openyurtio/openyurt/pkg/controller/platformadmin/config"
 	gatewayconfig "github.com/openyurtio/openyurt/pkg/controller/raven/config"
+	yurtappconfigrenderconfig "github.com/openyurtio/openyurt/pkg/controller/yurtappconfigrender/config"
 	yurtappdaemonconfig "github.com/openyurtio/openyurt/pkg/controller/yurtappdaemon/config"
 	yurtappsetconfig "github.com/openyurtio/openyurt/pkg/controller/yurtappset/config"
 	yurtstaticsetconfig "github.com/openyurtio/openyurt/pkg/controller/yurtstaticset/config"
@@ -48,6 +49,9 @@ type YurtManagerConfiguration struct {
 
 	// PlatformAdminControllerConfiguration holds configuration for PlatformAdminController related features.
 	PlatformAdminController platformadminconfig.PlatformAdminControllerConfiguration
+
+	// YurtAppConfigRenderControllerConfiguration holds configuration for YurtAppConfigRenderController related features.
+	YurtAppConfigRenderController yurtappconfigrenderconfig.YurtAppConfigRenderControllerConfiguration
 }
 
 type GenericConfiguration struct {
