@@ -75,13 +75,20 @@ type SecretItem struct {
 // Item represents configuration to be injected.
 // Only one of its members may be specified.
 type Item struct {
-	Image                 *ImageItem                 `json:"image"`
-	ConfigMap             *ConfigMapItem             `json:"configMap"`
-	Secret                *SecretItem                `json:"secret"`
-	Env                   *EnvItem                   `json:"env"`
+	// +optional
+	Image *ImageItem `json:"image"`
+	// +optional
+	ConfigMap *ConfigMapItem `json:"configMap"`
+	// +optional
+	Secret *SecretItem `json:"secret"`
+	// +optional
+	Env *EnvItem `json:"env"`
+	// +optional
 	PersistentVolumeClaim *PersistentVolumeClaimItem `json:"persistentVolumeClaim"`
-	Replicas              *int32                     `json:"replicas"`
-	UpgradeStrategy       *string                    `json:"upgradeStrategy"`
+	// +optional
+	Replicas *int32 `json:"replicas"`
+	// +optional
+	UpgradeStrategy *string `json:"upgradeStrategy"`
 }
 
 type Operation string

@@ -126,14 +126,6 @@ spec:
                         type: object
                       upgradeStrategy:
                         type: string
-                    required:
-                    - configMap
-                    - env
-                    - image
-                    - persistentVolumeClaim
-                    - replicas
-                    - secret
-                    - upgradeStrategy
                     type: object
                   type: array
                 patches:
