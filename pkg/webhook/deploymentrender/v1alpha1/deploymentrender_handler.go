@@ -23,7 +23,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	"github.com/openyurtio/openyurt/pkg/apis/apps/v1alpha1"
 	"github.com/openyurtio/openyurt/pkg/webhook/util"
 )
 
@@ -36,7 +35,7 @@ func (webhook *DeploymentRenderHandler) SetupWebhookWithManager(mgr ctrl.Manager
 	// init
 	webhook.Client = mgr.GetClient()
 
-	gvk, err := apiutil.GVKForObject(&v1alpha1.YurtAppConfigRender{}, mgr.GetScheme())
+	gvk, err := apiutil.GVKForObject(&v1.Deployment{}, mgr.GetScheme())
 	if err != nil {
 		return "", "", err
 	}
