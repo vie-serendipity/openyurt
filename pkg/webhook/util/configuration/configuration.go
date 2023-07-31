@@ -32,7 +32,7 @@ import (
 )
 
 var (
-	deploymentMutatingPath = "/mutate-apps-deployment"
+	deploymentMutatingPath = "/mutate-apps-v1-deployment"
 	deploymentSideEffect   = admissionregistrationv1.SideEffectClassNone
 )
 
