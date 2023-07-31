@@ -48,8 +48,6 @@ func (webhook *DeploymentRenderHandler) SetupWebhookWithManager(mgr ctrl.Manager
 			Complete()
 }
 
-// +kubebuilder:webhook:path=/mutate-apps-deployment,mutating=true,failurePolicy=fail,sideEffects=None,admissionReviewVersions=v1;v1beta1,groups=apps,resources=deployments,verbs=create;update,versions=v1,name=mutate.apps.deployment.openyurt.io
-
 // Cluster implements a validating and defaulting webhook for Cluster.
 type DeploymentRenderHandler struct {
 	Client client.Client
