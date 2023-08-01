@@ -134,7 +134,6 @@ spec:
                     properties:
                       extensions:
                         description: Indicates the patch for the template
-                        type: object
                         x-kubernetes-preserve-unknown-fields: true
                       type:
                         description: type represents the operation default is strategic

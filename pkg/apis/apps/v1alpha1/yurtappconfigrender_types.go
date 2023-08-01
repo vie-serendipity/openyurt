@@ -76,19 +76,19 @@ type SecretItem struct {
 // Only one of its members may be specified.
 type Item struct {
 	// +optional
-	Image *ImageItem `json:"image"`
+	Image *ImageItem `json:"image,omitempty"`
 	// +optional
-	ConfigMap *ConfigMapItem `json:"configMap"`
+	ConfigMap *ConfigMapItem `json:"configMap,omitempty"`
 	// +optional
-	Secret *SecretItem `json:"secret"`
+	Secret *SecretItem `json:"secret,omitempty"`
 	// +optional
-	Env *EnvItem `json:"env"`
+	Env *EnvItem `json:"env,omitempty"`
 	// +optional
-	PersistentVolumeClaim *PersistentVolumeClaimItem `json:"persistentVolumeClaim"`
+	PersistentVolumeClaim *PersistentVolumeClaimItem `json:"persistentVolumeClaim,omitempty"`
 	// +optional
-	Replicas *int32 `json:"replicas"`
+	Replicas *int32 `json:"replicas,omitempty"`
 	// +optional
-	UpgradeStrategy *string `json:"upgradeStrategy"`
+	UpgradeStrategy *string `json:"upgradeStrategy,omitempty"`
 }
 
 type Operation string
@@ -107,6 +107,7 @@ type Patch struct {
 	Type Operation `json:"type"`
 	// Indicates the patch for the template
 	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Schemaless
 	Extensions *runtime.RawExtension `json:"extensions"`
 }
 
@@ -114,10 +115,10 @@ type Patch struct {
 type Entry struct {
 	Pools []string `json:"pools"`
 	// +optional
-	Items []Item `json:"items"`
+	Items []Item `json:"items,omitempty"`
 	// Convert Patch struct into json patch operation
 	// +optional
-	Patches []Patch `json:"patches"`
+	Patches []Patch `json:"patches,omitempty"`
 }
 
 type Subject struct {
