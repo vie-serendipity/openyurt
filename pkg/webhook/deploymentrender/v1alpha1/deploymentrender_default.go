@@ -63,6 +63,7 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 		return nil
 	}
 
+	klog.Info("start to validate deployment")
 	// Get YurtAppSet/YurtAppDaemon resource of this deployment
 	app := deployment.OwnerReferences[0]
 	var instance client.Object
@@ -96,6 +97,7 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 	// Get nodepool of deployment
 	nodepool := deployment.Labels["apps.openyurt.io/pool-name"]
 
+	klog.Info("start to render deployment")
 	for _, entry := range render.Entries {
 		pools := entry.Pools
 		for _, pool := range pools {
