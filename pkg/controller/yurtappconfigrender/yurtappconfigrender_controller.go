@@ -151,9 +151,12 @@ func (r *ReconcileYurtAppConfigRender) Reconcile(_ context.Context, request reco
 		}
 		for _, deployment := range deployments.Items {
 			deployment.Annotations["resourceVersion"] = deployment.ResourceVersion
+			if err := r.Update(context.TODO(), &deployment); err != nil {
+				klog.Info("update deployment failed")
+				return reconcile.Result{}, err
+			}
 		}
 	}
-
 	//if err = r.Update(context.TODO(), instance); err != nil {
 	//	klog.Errorf(Format("Update YurtAppConfigRender %s error %v", klog.KObj(instance), err))
 	//	return reconcile.Result{Requeue: true}, err

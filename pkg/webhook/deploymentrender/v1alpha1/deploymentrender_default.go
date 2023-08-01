@@ -38,6 +38,15 @@ var (
 	resources = []string{"YurtAppSet", "YurtAppDaemon"}
 )
 
+func contain(kind string, resources []string) bool {
+	for _, v := range resources {
+		if kind == v {
+			return true
+		}
+	}
+	return false
+}
+
 // Default satisfies the defaulting webhook interface.
 func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime.Object) error {
 
@@ -48,10 +57,8 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 	if deployment.OwnerReferences == nil {
 		return nil
 	}
-	for _, v := range resources {
-		if deployment.OwnerReferences[0].Kind == v {
-			return nil
-		}
+	if !contain(deployment.OwnerReferences[0].Kind, resources) {
+		return nil
 	}
 
 	// Get YurtAppSet/YurtAppDaemon resource of this deployment
