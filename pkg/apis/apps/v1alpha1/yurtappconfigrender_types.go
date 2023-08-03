@@ -111,6 +111,7 @@ type Patch struct {
 	Extensions *runtime.RawExtension `json:"extensions"`
 }
 
+// Describe detailed multi-region configuration of the subject
 // Entry describe a set of nodepools and their shared or identical configurations
 type Entry struct {
 	Pools []string `json:"pools"`
@@ -121,24 +122,34 @@ type Entry struct {
 	Patches []Patch `json:"patches,omitempty"`
 }
 
+// Describe the object Entries belongs
 type Subject struct {
 	metav1.TypeMeta `json:",inline"`
 	// Name is the name of YurtAppSet or YurtAppDaemon
 	Name string `json:"name"`
 }
 
+// YurtAppConfigRenderStatus defines the observed state of YurtAppConfigRender.
+type YurtAppConfigRenderStatus struct {
+	// ObservedGeneration is the most recent generation observed for this YurtAppConfigRender. It corresponds to the
+	// YurtAppConfigRender's generation, which is updated on mutation by the API Server.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+}
+
 // +genclient
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=yacr
+// +kubebuilder:printcolumn:name="Subject",type="string",JSONPath=".subject.kind",description="The subject kind of this configrender."
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp",description="CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC."
 
 type YurtAppConfigRender struct {
-	metav1.TypeMeta `json:",inline"`
-	// Standard object's metadata
+	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	// Describe the object Entries belongs
-	Subject Subject `json:"subject"`
-	// Describe detailed multi-region configuration of the subject above
-	Entries []Entry `json:"entries"`
+	Subject           Subject                   `json:"subject"`
+	Entries           []Entry                   `json:"entries"`
+	Status            YurtAppConfigRenderStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true

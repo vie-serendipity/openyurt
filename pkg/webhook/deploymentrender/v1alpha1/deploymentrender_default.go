@@ -20,8 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
-	"k8s.io/klog/v2"
+	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	v1 "k8s.io/api/apps/v1"
@@ -29,6 +28,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
@@ -101,10 +101,23 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 	for _, entry := range render.Entries {
 		pools := entry.Pools
 		for _, pool := range pools {
-			if pool == nodepool {
+			if pool == nodepool || pool == "*" {
 				// Get the corresponding config  of this deployment
 				// reference to the volumeSource implementation
 				items := entry.Items
+				// replace {{nodepool}} into real pool name
+				for _, item := range items {
+					if strings.Contains(item.ConfigMap.ConfigMapTarget, "{{nodepool}}") {
+						item.ConfigMap.ConfigMapTarget = strings.ReplaceAll(item.ConfigMap.ConfigMapTarget, "{{nodepool}}", nodepool)
+					}
+					if strings.Contains(item.Secret.SecretTarget, "{{nodepool}}") {
+						item.Secret.SecretTarget = strings.ReplaceAll(item.Secret.SecretTarget, "{{nodepool}}", nodepool)
+					}
+					if strings.Contains(item.PersistentVolumeClaim.PVCTarget, "{{nodepool}}") {
+						item.PersistentVolumeClaim.PVCTarget = strings.ReplaceAll(item.PersistentVolumeClaim.PVCTarget, "{{nodepool}}", nodepool)
+					}
+				}
+				// Replace items
 				if err := replaceItems(deployment, items); err != nil {
 					return err
 				}
@@ -218,6 +231,7 @@ func replaceItems(deployment *v1.Deployment, items []v1alpha1.Item) error {
 				}
 				envVars = append(envVars, envVar)
 			}
+
 			for _, v := range deployment.Spec.Template.Spec.Containers {
 				if v.Name == item.Env.ContainerName {
 					v.Env = envVars
@@ -238,14 +252,21 @@ func replaceItems(deployment *v1.Deployment, items []v1alpha1.Item) error {
 					v.Image = item.Image.ImageClaim
 				}
 			}
-			// kustomize
 		case item.ConfigMap != nil:
+			for _, container := range deployment.Spec.Template.Spec.Containers {
+				for _, env := range container.Env {
+					if env.ValueFrom.ConfigMapKeyRef != nil {
+						if env.ValueFrom.ConfigMapKeyRef.Name == item.ConfigMap.ConfigMapSource {
+							env.ValueFrom.ConfigMapKeyRef.Name = item.ConfigMap.ConfigMapTarget
+						}
+					}
+				}
+			}
 			for _, volume := range deployment.Spec.Template.Spec.Volumes {
 				if volume.VolumeSource.ConfigMap != nil && volume.VolumeSource.ConfigMap.Name == item.ConfigMap.ConfigMapSource {
 					volume.VolumeSource.ConfigMap.Name = item.ConfigMap.ConfigMapTarget
 				}
 			}
-
 		case item.PersistentVolumeClaim != nil:
 			for _, volume := range deployment.Spec.Template.Spec.Volumes {
 				if volume.VolumeSource.PersistentVolumeClaim != nil &&
