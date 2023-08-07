@@ -18,22 +18,17 @@ package v1alpha1
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
-	jsonpatch "github.com/evanphx/json-patch"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/yaml"
 
 	"github.com/openyurtio/openyurt/pkg/apis/apps/v1alpha1"
-	"github.com/openyurtio/openyurt/pkg/webhook/deploymentrender/utils"
 )
 
 var (
@@ -124,93 +119,17 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 				// json patch and strategic merge
 				patches := entry.Patches
 				// Implement injection
-				newDeployment := &v1.Deployment{}
-				if err := updatePatches(deployment, patches, newDeployment); err != nil {
+				dataStruct := v1.Deployment{}
+				pc := PatchControl{
+					patches:     patches,
+					patchObject: deployment,
+					dataStruct:  dataStruct,
+				}
+				if err := pc.updatePatches(); err != nil {
 					return err
 				}
+
 			}
-		}
-	}
-	return nil
-}
-
-func strategicMergePatch(oldObj interface{}, patch v1alpha1.Patch, newObj interface{}) error {
-	patchMap := make(map[string]interface{})
-	if err := json.Unmarshal(patch.Extensions.Raw, &patchMap); err != nil {
-		return err
-	}
-
-	original, err := runtime.DefaultUnstructuredConverter.ToUnstructured(oldObj)
-	if err != nil {
-		return err
-	}
-
-	patchedMap, err := strategicpatch.StrategicMergeMapPatch(original, patchMap, newObj)
-	if err != nil {
-		return err
-	}
-
-	return runtime.DefaultUnstructuredConverter.FromUnstructured(patchedMap, newObj)
-}
-
-// implement json patch
-func jsonMergePatch(oldObj interface{}, patch v1alpha1.Patch, newObj interface{}) error {
-
-	patchMap := make(map[string]interface{})
-	if err := json.Unmarshal(patch.Extensions.Raw, &patchMap); err != nil {
-		return err
-	}
-	// convert patch yaml into path and value
-	flattenedData, err := utils.FlattenYAML(patchMap, "", "/")
-	if err != nil {
-		return err
-	}
-	// convert into json patch format
-	patchOperations := make([]map[string]string, len(flattenedData))
-	for key, value := range flattenedData {
-		patchOperations = append(patchOperations, map[string]string{
-			"Op":    string(patch.Type),
-			"Path":  key,
-			"Value": value.(string),
-		})
-	}
-	patchBytes, err := json.Marshal(patchOperations)
-	if err != nil {
-		return err
-	}
-	patchedData, err := yaml.YAMLToJSON(oldObj.([]byte))
-	if err != nil {
-		return err
-	}
-	// conduct json patch
-	patchObj, err := jsonpatch.DecodePatch(patchBytes)
-	if err != nil {
-		return err
-	}
-	patchedData, err = patchObj.Apply(patchedData)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(patchedData, &newObj)
-}
-
-func updatePatches(oldObj interface{}, patches []v1alpha1.Patch, newObj interface{}) error {
-	for _, patch := range patches {
-		// go func
-		// SlowStartBatch tools.go
-		switch patch.Type {
-		case v1alpha1.Default:
-			if err := strategicMergePatch(oldObj, patch, newObj); err != nil {
-				return err
-			}
-		case v1alpha1.ADD, v1alpha1.REMOVE, v1alpha1.REPLACE:
-
-			if err := jsonMergePatch(oldObj, patch, newObj); err != nil {
-				return nil
-			}
-
-		default:
-			return fmt.Errorf("unknown patch type: %v", patch.Type)
 		}
 	}
 	return nil
