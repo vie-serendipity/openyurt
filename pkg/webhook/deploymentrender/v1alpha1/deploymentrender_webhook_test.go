@@ -155,10 +155,6 @@ var defaultConfigRender = &v1alpha1.YurtAppConfigRender{
 	},
 }
 
-func TestSetupWebhookWithManager(t *testing.T) {
-
-}
-
 func TestDeploymentRenderHandler_Default(t *testing.T) {
 	scheme := runtime.NewScheme()
 	if err := v1alpha1.AddToScheme(scheme); err != nil {
