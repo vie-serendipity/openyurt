@@ -22,7 +22,6 @@ import (
 	"strings"
 
 	v1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
@@ -57,7 +56,6 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 	if !contain(deployment.OwnerReferences[0].Kind, resources) {
 		return nil
 	}
-
 	klog.Info("start to validate deployment")
 	// Get YurtAppSet/YurtAppDaemon resource of this deployment
 	app := deployment.OwnerReferences[0]
@@ -79,8 +77,8 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 
 	// Get YurtAppConfigRender resource of app(1 to 1)
 	var configRenderList v1alpha1.YurtAppConfigRenderList
-	//listOptions := client.MatchingFields{"subject.Kind": app.Kind, "subject.Name": app.Name, "subject.APIVersion": app.APIVersion}
-	if err := webhook.Client.List(ctx, &configRenderList, client.InNamespace(deployment.Namespace)); err != nil {
+	listOptions := client.MatchingFields{"subject.Kind": app.Kind, "subject.Name": app.Name, "subject.APIVersion": app.APIVersion}
+	if err := webhook.Client.List(ctx, &configRenderList, client.InNamespace(deployment.Namespace), listOptions); err != nil {
 		klog.Info("error in listing YurtAppConfigRender")
 		return err
 	}
@@ -102,14 +100,29 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 				items := entry.Items
 				// replace {{nodepool}} into real pool name
 				for _, item := range items {
-					if strings.Contains(item.ConfigMap.ConfigMapTarget, "{{nodepool}}") {
-						item.ConfigMap.ConfigMapTarget = strings.ReplaceAll(item.ConfigMap.ConfigMapTarget, "{{nodepool}}", nodepool)
+					if item.ConfigMap != nil {
+						if strings.Contains(item.ConfigMap.ConfigMapSource, "{{nodepool}}") {
+							item.ConfigMap.ConfigMapSource = strings.ReplaceAll(item.ConfigMap.ConfigMapSource, "{{nodepool}}", nodepool)
+						}
+						if strings.Contains(item.ConfigMap.ConfigMapTarget, "{{nodepool}}") {
+							item.ConfigMap.ConfigMapTarget = strings.ReplaceAll(item.ConfigMap.ConfigMapTarget, "{{nodepool}}", nodepool)
+						}
 					}
-					if strings.Contains(item.Secret.SecretTarget, "{{nodepool}}") {
-						item.Secret.SecretTarget = strings.ReplaceAll(item.Secret.SecretTarget, "{{nodepool}}", nodepool)
+					if item.Secret != nil {
+						if strings.Contains(item.Secret.SecretSource, "{{nodepool}}") {
+							item.Secret.SecretSource = strings.ReplaceAll(item.Secret.SecretSource, "{{nodepool}}", nodepool)
+						}
+						if strings.Contains(item.Secret.SecretTarget, "{{nodepool}}") {
+							item.Secret.SecretTarget = strings.ReplaceAll(item.Secret.SecretTarget, "{{nodepool}}", nodepool)
+						}
 					}
-					if strings.Contains(item.PersistentVolumeClaim.PVCTarget, "{{nodepool}}") {
-						item.PersistentVolumeClaim.PVCTarget = strings.ReplaceAll(item.PersistentVolumeClaim.PVCTarget, "{{nodepool}}", nodepool)
+					if item.PersistentVolumeClaim != nil {
+						if strings.Contains(item.PersistentVolumeClaim.PVCSource, "{{nodepool}}") {
+							item.PersistentVolumeClaim.PVCSource = strings.ReplaceAll(item.PersistentVolumeClaim.PVCSource, "{{nodepool}}", nodepool)
+						}
+						if strings.Contains(item.PersistentVolumeClaim.PVCTarget, "{{nodepool}}") {
+							item.PersistentVolumeClaim.PVCTarget = strings.ReplaceAll(item.PersistentVolumeClaim.PVCTarget, "{{nodepool}}", nodepool)
+						}
 					}
 				}
 				// Replace items
@@ -127,76 +140,6 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 				}
 				if err := pc.updatePatches(); err != nil {
 					return err
-				}
-
-			}
-		}
-	}
-	return nil
-}
-
-func replaceItems(deployment *v1.Deployment, items []v1alpha1.Item) error {
-	for _, item := range items {
-		// go func
-		switch {
-		case item.Replicas != nil:
-			deployment.Spec.Replicas = item.Replicas
-		case item.Env != nil:
-			var envVars []corev1.EnvVar
-			for key, val := range item.Env.EnvClaim {
-				envVar := corev1.EnvVar{
-					Name:  key,
-					Value: val,
-				}
-				envVars = append(envVars, envVar)
-			}
-
-			for _, v := range deployment.Spec.Template.Spec.Containers {
-				if v.Name == item.Env.ContainerName {
-					v.Env = envVars
-				}
-			}
-		case item.UpgradeStrategy != nil:
-			if v1.DeploymentStrategyType(*item.UpgradeStrategy) == v1.RecreateDeploymentStrategyType {
-				if deployment.Spec.Strategy.RollingUpdate != nil {
-					deployment.Spec.Strategy.RollingUpdate = nil
-				}
-				deployment.Spec.Strategy.Type = v1.RecreateDeploymentStrategyType
-			} else if v1.DeploymentStrategyType(*item.UpgradeStrategy) == v1.RollingUpdateDeploymentStrategyType {
-				deployment.Spec.Strategy.Type = v1.RollingUpdateDeploymentStrategyType
-			}
-		case item.Image != nil:
-			for _, v := range deployment.Spec.Template.Spec.Containers {
-				if v.Name == item.Image.ContainerName {
-					v.Image = item.Image.ImageClaim
-				}
-			}
-		case item.ConfigMap != nil:
-			for _, container := range deployment.Spec.Template.Spec.Containers {
-				for _, env := range container.Env {
-					if env.ValueFrom.ConfigMapKeyRef != nil {
-						if env.ValueFrom.ConfigMapKeyRef.Name == item.ConfigMap.ConfigMapSource {
-							env.ValueFrom.ConfigMapKeyRef.Name = item.ConfigMap.ConfigMapTarget
-						}
-					}
-				}
-			}
-			for _, volume := range deployment.Spec.Template.Spec.Volumes {
-				if volume.VolumeSource.ConfigMap != nil && volume.VolumeSource.ConfigMap.Name == item.ConfigMap.ConfigMapSource {
-					volume.VolumeSource.ConfigMap.Name = item.ConfigMap.ConfigMapTarget
-				}
-			}
-		case item.PersistentVolumeClaim != nil:
-			for _, volume := range deployment.Spec.Template.Spec.Volumes {
-				if volume.VolumeSource.PersistentVolumeClaim != nil &&
-					volume.VolumeSource.PersistentVolumeClaim.ClaimName == item.PersistentVolumeClaim.PVCSource {
-					volume.VolumeSource.PersistentVolumeClaim.ClaimName = item.PersistentVolumeClaim.PVCTarget
-				}
-			}
-		case item.Secret != nil:
-			for _, volume := range deployment.Spec.Template.Spec.Volumes {
-				if volume.VolumeSource.Secret != nil && volume.VolumeSource.Secret.SecretName == item.Secret.SecretSource {
-					volume.VolumeSource.Secret.SecretName = item.Secret.SecretTarget
 				}
 			}
 		}

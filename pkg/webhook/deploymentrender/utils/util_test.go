@@ -19,6 +19,8 @@ package utils
 import (
 	"encoding/json"
 	"testing"
+
+	"sigs.k8s.io/yaml"
 )
 
 func TestFlattenYAML(t *testing.T) {
@@ -34,7 +36,9 @@ spec:
     spec:
       containers:
       - name: nginx
-        image: nginx`,
+        image: nginx
+      - hello
+      - world`,
 		},
 		{
 			name: "test2",
@@ -50,7 +54,11 @@ spec:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			patchMap := make(map[string]interface{})
-			if err := json.Unmarshal([]byte(tt.patch), &patchMap); err != nil {
+			data, err := yaml.YAMLToJSON([]byte(tt.patch))
+			if err != nil {
+				t.Fatalf("fail to convert patch from yaml to json: %v", err)
+			}
+			if err := json.Unmarshal(data, &patchMap); err != nil {
 				t.Fatalf("fail to call function Unmarshal: %v", err)
 			}
 			if _, err := FlattenYAML(patchMap, "", "/"); err != nil {

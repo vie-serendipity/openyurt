@@ -17,7 +17,7 @@ limitations under the License.
 package utils
 
 import (
-	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -25,7 +25,8 @@ func FlattenYAML(data map[string]interface{}, parentKey string, sep string) (map
 	flattenedData := make(map[string]interface{})
 	for key, value := range data {
 		newKey := strings.Join([]string{parentKey, key}, sep)
-		if reflect.ValueOf(value).Kind() == reflect.Map {
+		switch value.(type) {
+		case map[string]interface{}:
 			flattenedMap, err := FlattenYAML(value.(map[string]interface{}), newKey, sep)
 			if err != nil {
 				return flattenedData, err
@@ -33,9 +34,25 @@ func FlattenYAML(data map[string]interface{}, parentKey string, sep string) (map
 			for k, v := range flattenedMap {
 				flattenedData[k] = v
 			}
-		} else {
+		case []interface{}:
+			for i, item := range value.([]interface{}) {
+				itemKey := strings.Join([]string{newKey, strconv.Itoa(i)}, sep)
+				if nestedMap, ok := item.(map[string]interface{}); ok {
+					nestedData, err := FlattenYAML(nestedMap, itemKey, sep)
+					if err != nil {
+						return flattenedData, err
+					}
+					for nestedKey, nestedValue := range nestedData {
+						flattenedData[nestedKey] = nestedValue
+					}
+				} else {
+					flattenedData[itemKey] = item
+				}
+			}
+		default:
 			flattenedData[newKey] = value
 		}
+
 	}
 	return flattenedData, nil
 }

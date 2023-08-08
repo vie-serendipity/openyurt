@@ -29,7 +29,7 @@ import (
 
 var initialReplicas int32 = 2
 
-var deployment = &appsv1.Deployment{
+var testPatchDeployment = &appsv1.Deployment{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      "test",
 		Namespace: "default",
@@ -38,9 +38,6 @@ var deployment = &appsv1.Deployment{
 			Kind:       "YurtAppSet",
 			Name:       "yurtappset-patch",
 		}},
-		Labels: map[string]string{
-			"apps.openyurt.io/pool-name": "nodepool-test",
-		},
 	},
 	Status: appsv1.DeploymentStatus{},
 	Spec: appsv1.DeploymentSpec{
@@ -71,46 +68,58 @@ var deployment = &appsv1.Deployment{
 var patchControl = PatchControl{
 	patches: []v1alpha1.Patch{
 		{
-			Type:       v1alpha1.Default,
-			Extensions: &runtime.RawExtension{Raw: []byte(`{"spec":{"Replicas":3,"template":{"spec":{"containers":[{"image":"tomcat:1.18","name":"nginx"}]}}}}`)},
+			Type:       v1alpha1.ADD,
+			Extensions: &runtime.RawExtension{Raw: []byte(`{"spec":{"template":{"spec":{"containers":[{"image":"tomcat:1.18","name":"tomcat"}]}}}}`)},
 		},
 		{
-			Type:       v1alpha1.REPLACE,
-			Extensions: &runtime.RawExtension{Raw: []byte(`{"spec":{"template":{"spec":{"containers":[{"image":"nginx:1.18","name":"nginx"}]}}}}`)},
+			Type:       v1alpha1.Default,
+			Extensions: &runtime.RawExtension{Raw: []byte(`{"spec":{"replicas":3,"template":{"spec":{"containers":[{"image":"nginx:1.18","name":"nginx"}]}}}}`)},
 		},
 	},
-	patchObject: deployment,
+	patchObject: testPatchDeployment,
 	dataStruct:  appsv1.Deployment{},
 }
 
-//func TestStrategicMergePatch(t *testing.T) {
-//	patch := v1alpha1.Patch{
-//		Type:       v1alpha1.Default,
-//		Extensions: &runtime.RawExtension{Raw: []byte(`{"spec":{"template":{"spec":{"containers":[{"image":"nginx:1.18.0","name":"nginx"}]}}}}`)},
-//	}
-//	if err := patchControl.strategicMergePatch(patch); err != nil {
-//		t.Fatalf("fail to call strategicMergePatch")
-//	}
-//}
-//
-//func TestJsonMergePatch(t *testing.T) {
-//	patch := v1alpha1.Patch{
-//		Type:       v1alpha1.Default,
-//		Extensions: &runtime.RawExtension{Raw: []byte(`{"spec":{"template":{"spec":{"containers":[{"image":"nginx:1.18.0","name":"nginx"}]}}}}`)},
-//	}
-//	if err := patchControl.strategicMergePatch(patch); err != nil {
-//		t.Fatalf("fail to call strategicMergePatch")
-//	}
-//}
+func TestStrategicMergePatch(t *testing.T) {
+	patch := v1alpha1.Patch{
+		Type:       v1alpha1.Default,
+		Extensions: &runtime.RawExtension{Raw: []byte(`{"spec":{"replicas":3,"template":{"spec":{"containers":[{"image":"nginx:1.18.0","name":"nginx"}]}}}}`)},
+	}
+	if err := patchControl.strategicMergePatch(patch); err != nil {
+		t.Fatalf("fail to call strategicMergePatch: %v", err)
+	}
+	if *testPatchDeployment.Spec.Replicas != 3 {
+		t.Fatalf("fail to update replicas")
+	}
+}
+
+func TestJsonMergePatch(t *testing.T) {
+	patch := v1alpha1.Patch{
+		Type:       v1alpha1.REPLACE,
+		Extensions: &runtime.RawExtension{Raw: []byte(`{"spec":{"template":{"spec":{"containers":[{"image":"nginx:1.18.0","name":"nginx1"}]}}}}`)},
+	}
+	if err := patchControl.strategicMergePatch(patch); err != nil {
+		t.Fatalf("fail to call strategicMergePatch")
+	}
+	t.Logf("image:%v", testPatchDeployment.Spec.Template.Spec.Containers[0].Name)
+	for _, container := range testPatchDeployment.Spec.Template.Spec.Containers {
+		if container.Name == "nginx" && container.Image != "nginx:1.18.0" {
+			t.Fatalf("fail to update image")
+		}
+	}
+}
 
 func TestUpdatePatches(t *testing.T) {
 	if err := patchControl.updatePatches(); err != nil {
 		t.Fatalf("fail to call updatePatches: %v", err)
 	}
-	if *deployment.Spec.Replicas != 3 {
+	if *testPatchDeployment.Spec.Replicas != 3 {
 		t.Fatalf("fail to update replicas")
 	}
-	if deployment.Spec.Template.Spec.Containers[0].Image != "nginx1.18" {
-		t.Fatalf("fail to update image")
+	t.Logf("image: %v", testPatchDeployment.Spec.Template.Spec.Containers[1].Image)
+	for _, container := range testPatchDeployment.Spec.Template.Spec.Containers {
+		if container.Name == "nginx" && container.Image != "nginx:1.18" {
+			t.Fatalf("fail to update image")
+		}
 	}
 }

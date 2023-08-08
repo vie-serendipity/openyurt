@@ -19,11 +19,12 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
-	"sigs.k8s.io/yaml"
 
 	"github.com/openyurtio/openyurt/pkg/apis/apps/v1alpha1"
 	"github.com/openyurtio/openyurt/pkg/webhook/deploymentrender/utils"
@@ -68,20 +69,20 @@ func (pc *PatchControl) jsonMergePatch(patch v1alpha1.Patch) error {
 		return err
 	}
 	// convert into json patch format
-	patchOperations := make([]map[string]string, len(flattenedData))
+	var patchOperations []string
 	for key, value := range flattenedData {
-
-		patchOperations = append(patchOperations, map[string]string{
-			"Op":    string(patch.Type),
-			"Path":  key,
-			"Value": value.(string),
+		single, err := json.Marshal(map[string]interface{}{
+			"op":    string(patch.Type),
+			"path":  key,
+			"value": value,
 		})
+		if err != nil {
+			return err
+		}
+		patchOperations = append(patchOperations, string(single))
 	}
-	patchBytes, err := json.Marshal(patchOperations)
-	if err != nil {
-		return err
-	}
-	patchedData, err := yaml.YAMLToJSON(pc.patchObject.([]byte))
+	patchBytes := []byte("[" + strings.Join(patchOperations, ",") + "]")
+	patchedData, err := json.Marshal(pc.patchObject.(*appsv1.Deployment))
 	if err != nil {
 		return err
 	}
@@ -99,8 +100,6 @@ func (pc *PatchControl) jsonMergePatch(patch v1alpha1.Patch) error {
 
 func (pc *PatchControl) updatePatches() error {
 	for _, patch := range pc.patches {
-		// go func
-		// SlowStartBatch tools.go
 		switch patch.Type {
 		case v1alpha1.Default:
 			if err := pc.strategicMergePatch(patch); err != nil {
@@ -108,7 +107,7 @@ func (pc *PatchControl) updatePatches() error {
 			}
 		case v1alpha1.ADD, v1alpha1.REMOVE, v1alpha1.REPLACE:
 			if err := pc.jsonMergePatch(patch); err != nil {
-				return nil
+				return err
 			}
 		default:
 			return fmt.Errorf("unknown patch type: %v", patch.Type)
