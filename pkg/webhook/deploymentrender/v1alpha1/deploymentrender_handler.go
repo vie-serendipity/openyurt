@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	v1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -34,6 +35,7 @@ const (
 func (webhook *DeploymentRenderHandler) SetupWebhookWithManager(mgr ctrl.Manager) (string, string, error) {
 	// init
 	webhook.Client = mgr.GetClient()
+	mgr.GetScheme()
 
 	gvk, err := apiutil.GVKForObject(&v1.Deployment{}, mgr.GetScheme())
 	if err != nil {
@@ -50,6 +52,7 @@ func (webhook *DeploymentRenderHandler) SetupWebhookWithManager(mgr ctrl.Manager
 // Cluster implements a validating and defaulting webhook for Cluster.
 type DeploymentRenderHandler struct {
 	Client client.Client
+	Scheme runtime.Scheme
 }
 
 var _ webhook.CustomDefaulter = &DeploymentRenderHandler{}

@@ -86,7 +86,10 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 		var replicas int32
 		yas := instance.(*v1alpha1.YurtAppSet)
 		revision := yas.Status.CurrentRevision
-		deploymentAdapter := adapter.DeploymentAdapter{}
+		deploymentAdapter := adapter.DeploymentAdapter{
+			Client: webhook.Client,
+			Scheme: &webhook.Scheme,
+		}
 		for _, pool := range yas.Spec.Topology.Pools {
 			if pool.Name == nodepool {
 				replicas = *pool.Replicas
