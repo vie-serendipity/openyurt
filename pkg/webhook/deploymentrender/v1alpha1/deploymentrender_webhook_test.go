@@ -39,7 +39,11 @@ var defaultAppSet = &v1alpha1.YurtAppSet{
 		Namespace: "default",
 	},
 	Spec: v1alpha1.YurtAppSetSpec{
-		Topology: v1alpha1.Topology{Pools: []v1alpha1.Pool{{Name: "nodepool-test"}}},
+		Topology: v1alpha1.Topology{
+			Pools: []v1alpha1.Pool{{
+				Name:     "nodepool-test",
+				Replicas: &replica}},
+		},
 		Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "test"}},
 		WorkloadTemplate: v1alpha1.WorkloadTemplate{
 			DeploymentTemplate: &v1alpha1.DeploymentTemplateSpec{

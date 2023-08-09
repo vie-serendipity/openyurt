@@ -88,7 +88,7 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 		revision := yas.Status.CurrentRevision
 		deploymentAdapter := adapter.DeploymentAdapter{
 			Client: webhook.Client,
-			Scheme: &webhook.Scheme,
+			Scheme: webhook.Scheme,
 		}
 		for _, pool := range yas.Spec.Topology.Pools {
 			if pool.Name == nodepool {

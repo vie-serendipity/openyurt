@@ -35,7 +35,7 @@ const (
 func (webhook *DeploymentRenderHandler) SetupWebhookWithManager(mgr ctrl.Manager) (string, string, error) {
 	// init
 	webhook.Client = mgr.GetClient()
-	mgr.GetScheme()
+	webhook.Scheme = mgr.GetScheme()
 
 	gvk, err := apiutil.GVKForObject(&v1.Deployment{}, mgr.GetScheme())
 	if err != nil {
@@ -52,7 +52,7 @@ func (webhook *DeploymentRenderHandler) SetupWebhookWithManager(mgr ctrl.Manager
 // Cluster implements a validating and defaulting webhook for Cluster.
 type DeploymentRenderHandler struct {
 	Client client.Client
-	Scheme runtime.Scheme
+	Scheme *runtime.Scheme
 }
 
 var _ webhook.CustomDefaulter = &DeploymentRenderHandler{}
