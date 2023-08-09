@@ -37,7 +37,7 @@ type DeploymentAdapter struct {
 
 var _ Adapter = &DeploymentAdapter{}
 
-// NewResourceObject creates a empty Deployment object.
+// NewResourceObject creates an empty Deployment object.
 func (a *DeploymentAdapter) NewResourceObject() runtime.Object {
 	return &appsv1.Deployment{}
 }

@@ -16,7 +16,19 @@ spec:
     singular: yurtappconfigrender
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: The subject kind of this configrender.
+      jsonPath: .subject.kind
+      name: Subject
+      type: string
+    - description: CreationTimestamp is a timestamp representing the server time when
+        this object was created. It is not guaranteed to be set in happens-before
+        order across separate operations. Clients may not set this value. It is represented
+        in RFC3339 form and is in UTC.
+      jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         properties:
@@ -25,132 +37,6 @@ spec:
               of an object. Servers should convert recognized schemas to the latest
               internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
-          entries:
-            description: Describe detailed multi-region configuration of the subject
-              above
-            items:
-              description: Entry describe a set of nodepools and their shared or identical
-                configurations
-              properties:
-                items:
-                  items:
-                    description: Item represents configuration to be injected. Only
-                      one of its members may be specified.
-                    properties:
-                      configMap:
-                        description: ConfigMapItem specifies the corresponding containerName
-                          and the claimed configMap
-                        properties:
-                          configMapSource:
-                            description: ConfigMapSource represents configMap name
-                            type: string
-                          configMapTarget:
-                            description: ConfigMapTarget represents the ConfigMap
-                              corresponding to the volume above. ConfigMapTarget supprot
-                              advanced features like wildcard. By naming configMap
-                              as configMapName-{{nodepool}}, all configMap can be
-                              injected at once.
-                            type: string
-                        required:
-                        - configMapSource
-                        - configMapTarget
-                        type: object
-                      env:
-                        description: EnvItem specifies the corresponding container
-                          and the claimed env
-                        properties:
-                          containerName:
-                            description: ContainerName represents name of the container
-                              in which the env will be replaced
-                            type: string
-                          envClaim:
-                            additionalProperties:
-                              type: string
-                            description: EnvClaim represents the detailed environment
-                              variables container contains
-                            type: object
-                        required:
-                        - containerName
-                        - envClaim
-                        type: object
-                      image:
-                        description: ImageItem specifies the corresponding container
-                          and the claimed image
-                        properties:
-                          containerName:
-                            description: ContainerName represents name of the container
-                              in which the Image will be replaced
-                            type: string
-                          imageClaim:
-                            description: ImageClaim represents the claimed image name
-                              which is injected into the container above
-                            type: string
-                        required:
-                        - containerName
-                        - imageClaim
-                        type: object
-                      persistentVolumeClaim:
-                        description: PersistentVolumeClaimItem specifies the corresponding
-                          container and the claimed pvc
-                        properties:
-                          pvcSource:
-                            description: PVCSource represents pvcClaim name.
-                            type: string
-                          pvcTarget:
-                            description: PVCTarget represents the PVC corresponding
-                              to the volume above. PVCTarget supprot advanced features
-                              like wildcard. By naming pvc as pvcName-{{nodepool}},
-                              all pvc can be injected at once.
-                            type: string
-                        required:
-                        - pvcSource
-                        - pvcTarget
-                        type: object
-                      replicas:
-                        format: int32
-                        type: integer
-                      secret:
-                        properties:
-                          secretSource:
-                            description: SecretSource represents secret name.
-                            type: string
-                          secretTarget:
-                            description: SecretTarget represents the Secret corresponding
-                              to the volume above. SecretTarget supprot advanced features
-                              like wildcard. By naming secret as secretName-{{nodepool}},
-                              all secret can be injected at once.
-                            type: string
-                        required:
-                        - secretSource
-                        - secretTarget
-                        type: object
-                      upgradeStrategy:
-                        type: string
-                    type: object
-                  type: array
-                patches:
-                  description: Convert Patch struct into json patch operation
-                  items:
-                    properties:
-                      extensions:
-                        description: Indicates the patch for the template
-                        x-kubernetes-preserve-unknown-fields: true
-                      type:
-                        description: type represents the operation default is strategic
-                          merge patch
-                        type: string
-                    required:
-                    - extensions
-                    type: object
-                  type: array
-                pools:
-                  items:
-                    type: string
-                  type: array
-              required:
-              - pools
-              type: object
-            type: array
           kind:
             description: 'Kind is a string value representing the REST resource this
               object represents. Servers may infer this from the endpoint the client
@@ -158,32 +44,194 @@ spec:
             type: string
           metadata:
             type: object
-          subject:
-            description: Describe the object Entries belongs
+          spec:
             properties:
-              apiVersion:
-                description: 'APIVersion defines the versioned schema of this representation
-                  of an object. Servers should convert recognized schemas to the latest
-                  internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-                type: string
-              kind:
-                description: 'Kind is a string value representing the REST resource
-                  this object represents. Servers may infer this from the endpoint
-                  the client submits requests to. Cannot be updated. In CamelCase.
-                  More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-                type: string
-              name:
-                description: Name is the name of YurtAppSet or YurtAppDaemon
-                type: string
+              entries:
+                items:
+                  description: Describe detailed multi-region configuration of the
+                    subject Entry describe a set of nodepools and their shared or
+                    identical configurations
+                  properties:
+                    items:
+                      items:
+                        description: Item represents configuration to be injected.
+                          Only one of its members may be specified.
+                        properties:
+                          configMap:
+                            description: ConfigMapItem specifies the corresponding
+                              containerName and the claimed configMap
+                            properties:
+                              configMapSource:
+                                description: ConfigMapSource represents configMap
+                                  name
+                                type: string
+                              configMapTarget:
+                                description: ConfigMapTarget represents the ConfigMap
+                                  corresponding to the volume above. ConfigMapTarget
+                                  supprot advanced features like wildcard. By naming
+                                  configMap as configMapName-{{nodepool}}, all configMap
+                                  can be injected at once.
+                                type: string
+                            required:
+                            - configMapSource
+                            - configMapTarget
+                            type: object
+                          env:
+                            description: EnvItem specifies the corresponding container
+                              and the claimed env
+                            properties:
+                              containerName:
+                                description: ContainerName represents name of the
+                                  container in which the env will be replaced
+                                type: string
+                              envClaim:
+                                additionalProperties:
+                                  type: string
+                                description: EnvClaim represents the detailed environment
+                                  variables container contains
+                                type: object
+                            required:
+                            - containerName
+                            - envClaim
+                            type: object
+                          image:
+                            description: ImageItem specifies the corresponding container
+                              and the claimed image
+                            properties:
+                              containerName:
+                                description: ContainerName represents name of the
+                                  container in which the Image will be replaced
+                                type: string
+                              imageClaim:
+                                description: ImageClaim represents the claimed image
+                                  name which is injected into the container above
+                                type: string
+                            required:
+                            - containerName
+                            - imageClaim
+                            type: object
+                          persistentVolumeClaim:
+                            description: PersistentVolumeClaimItem specifies the corresponding
+                              container and the claimed pvc
+                            properties:
+                              pvcSource:
+                                description: PVCSource represents pvcClaim name.
+                                type: string
+                              pvcTarget:
+                                description: PVCTarget represents the PVC corresponding
+                                  to the volume above. PVCTarget supprot advanced
+                                  features like wildcard. By naming pvc as pvcName-{{nodepool}},
+                                  all pvc can be injected at once.
+                                type: string
+                            required:
+                            - pvcSource
+                            - pvcTarget
+                            type: object
+                          replicas:
+                            format: int32
+                            type: integer
+                          secret:
+                            properties:
+                              secretSource:
+                                description: SecretSource represents secret name.
+                                type: string
+                              secretTarget:
+                                description: SecretTarget represents the Secret corresponding
+                                  to the volume above. SecretTarget supprot advanced
+                                  features like wildcard. By naming secret as secretName-{{nodepool}},
+                                  all secret can be injected at once.
+                                type: string
+                            required:
+                            - secretSource
+                            - secretTarget
+                            type: object
+                          upgradeStrategy:
+                            type: string
+                        type: object
+                      type: array
+                    patches:
+                      description: Convert Patch struct into json patch operation
+                      items:
+                        properties:
+                          extensions:
+                            description: Indicates the patch for the template
+                            x-kubernetes-preserve-unknown-fields: true
+                          type:
+                            description: type represents the operation default is
+                              strategic merge patch
+                            type: string
+                        required:
+                        - extensions
+                        type: object
+                      type: array
+                    pools:
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - pools
+                  type: object
+                type: array
+              revisionHistoryLimit:
+                description: Indicates the number of histories to be conserved. If
+                  unspecified, defaults to 10.
+                format: int32
+                type: integer
+              subject:
+                description: Describe the object Entries belongs
+                properties:
+                  apiVersion:
+                    description: 'APIVersion defines the versioned schema of this
+                      representation of an object. Servers should convert recognized
+                      schemas to the latest internal value, and may reject unrecognized
+                      values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+                    type: string
+                  kind:
+                    description: 'Kind is a string value representing the REST resource
+                      this object represents. Servers may infer this from the endpoint
+                      the client submits requests to. Cannot be updated. In CamelCase.
+                      More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                    type: string
+                  name:
+                    description: Name is the name of YurtAppSet or YurtAppDaemon
+                    type: string
+                required:
+                - name
+                type: object
             required:
-            - name
+            - entries
+            - subject
+            type: object
+          status:
+            description: YurtAppConfigRenderStatus defines the observed state of YurtAppConfigRender.
+            properties:
+              collisionCount:
+                description: Count of hash collisions for the YurtAppConfigRender.
+                  The YurtAppConfigRender controller uses this field as a collision
+                  avoidance mechanism when it needs to create the name for the newest
+                  ControllerRevision.
+                format: int32
+                type: integer
+              currentRevision:
+                description: CurrentRevision, if not empty, indicates the current
+                  version of the YurtAppConfigRender.
+                type: string
+              observedGeneration:
+                description: ObservedGeneration is the most recent generation observed
+                  for this YurtAppConfigRender. It corresponds to the YurtAppConfigRender's
+                  generation, which is updated on mutation by the API Server.
+                format: int64
+                type: integer
+            required:
+            - currentRevision
             type: object
         required:
-        - entries
-        - subject
+        - spec
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}
 status:
   acceptedNames:
     kind: ""

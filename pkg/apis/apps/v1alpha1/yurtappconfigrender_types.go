@@ -135,6 +135,24 @@ type YurtAppConfigRenderStatus struct {
 	// YurtAppConfigRender's generation, which is updated on mutation by the API Server.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// Count of hash collisions for the YurtAppConfigRender. The YurtAppConfigRender controller
+	// uses this field as a collision avoidance mechanism when it needs to
+	// create the name for the newest ControllerRevision.
+	// +optional
+	CollisionCount *int32 `json:"collisionCount,omitempty"`
+
+	// CurrentRevision, if not empty, indicates the current version of the YurtAppConfigRender.
+	CurrentRevision string `json:"currentRevision"`
+}
+
+type YurtAppConfigRenderSpec struct {
+	Subject Subject `json:"subject"`
+	Entries []Entry `json:"entries"`
+	// Indicates the number of histories to be conserved.
+	// If unspecified, defaults to 10.
+	// +optional
+	RevisionHistoryLimit *int32 `json:"revisionHistoryLimit,omitempty"`
 }
 
 // +genclient
@@ -147,8 +165,7 @@ type YurtAppConfigRenderStatus struct {
 type YurtAppConfigRender struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Subject           Subject                   `json:"subject"`
-	Entries           []Entry                   `json:"entries"`
+	Spec              YurtAppConfigRenderSpec   `json:"spec"`
 	Status            YurtAppConfigRenderStatus `json:"status,omitempty"`
 }
 

@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/openyurtio/openyurt/pkg/apis/apps/v1alpha1"
+	"github.com/openyurtio/openyurt/pkg/controller/yurtappset/adapter"
 )
 
 var (
@@ -63,6 +64,7 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 	switch app.Kind {
 	case "YurtAppSet":
 		instance = &v1alpha1.YurtAppSet{}
+
 	case "YurtAppDaemon":
 		instance = &v1alpha1.YurtAppDaemon{}
 	default:
@@ -73,6 +75,31 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 		Name:      app.Name,
 	}, instance); err != nil {
 		return err
+	}
+
+	// Get nodepool of deployment
+	nodepool := deployment.Labels["apps.openyurt.io/pool-name"]
+
+	// resume deployment
+	switch app.Kind {
+	case "YurtAppSet":
+		var replicas int32
+		yas := instance.(*v1alpha1.YurtAppSet)
+		revision := yas.Status.CurrentRevision
+		deploymentAdapter := adapter.DeploymentAdapter{}
+		for _, pool := range yas.Spec.Topology.Pools {
+			if pool.Name == nodepool {
+				replicas = *pool.Replicas
+			}
+		}
+		obj := deploymentAdapter.NewResourceObject()
+		if err := deploymentAdapter.ApplyPoolTemplate(yas, nodepool, revision, replicas, obj); err != nil {
+			return err
+		}
+		deployment = obj.(*v1.Deployment)
+	case "YurtAppDaemon":
+		yad := instance.(*v1alpha1.YurtAppDaemon)
+		yad.Spec.WorkloadTemplate.DeploymentTemplate.Spec.DeepCopyInto(&deployment.Spec)
 	}
 
 	// Get YurtAppConfigRender resource of app(1 to 1)
@@ -87,11 +114,8 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 	}
 	render := configRenderList.Items[0]
 
-	// Get nodepool of deployment
-	nodepool := deployment.Labels["apps.openyurt.io/pool-name"]
-
 	klog.Info("start to render deployment")
-	for _, entry := range render.Entries {
+	for _, entry := range render.Spec.Entries {
 		pools := entry.Pools
 		for _, pool := range pools {
 			if pool == nodepool || pool == "*" {

@@ -22,7 +22,6 @@ import (
 	"fmt"
 
 	v1 "k8s.io/api/apps/v1"
-
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
@@ -39,7 +38,10 @@ import (
 	"github.com/openyurtio/openyurt/pkg/controller/yurtappconfigrender/config"
 	utilclient "github.com/openyurtio/openyurt/pkg/util/client"
 	utildiscovery "github.com/openyurtio/openyurt/pkg/util/discovery"
+	"github.com/openyurtio/yurt-app-manager-api/pkg/yurtappmanager/apis/apps/v1alpha1"
 )
+
+const updateRetries = 5
 
 func init() {
 	flag.IntVar(&concurrentReconciles, "yurtappconfigrender-workers", concurrentReconciles, "Max concurrent workers for YurtAppConfigRender controller.")
@@ -135,32 +137,100 @@ func (r *ReconcileYurtAppConfigRender) Reconcile(_ context.Context, request reco
 	if instance.DeletionTimestamp != nil {
 		return reconcile.Result{}, nil
 	}
+	oldStatus := instance.Status.DeepCopy()
 
-	// Update Instance
-	// Update Deployment
+	currentRevision, updatedRevision, collisionCount, err := r.constructYurtAppConfigRenderRevisions(instance)
+	if err != nil {
+		klog.Errorf("Fail to construct controller revision of YurtAppConfigRender %s/%s: %s", instance.Namespace, instance.Name, err)
+		return reconcile.Result{}, err
+	}
+
+	expectedRevision := currentRevision
+	if updatedRevision != nil {
+		expectedRevision = updatedRevision
+	}
+
+	newStatus, err := r.updatePools(instance, expectedRevision.Name)
+	if err != nil {
+		klog.Errorf("Fail to update YurtAppConfigRender %s/%s: %s", instance.Namespace, instance.Name, err)
+	}
+
+	return r.updateStatus(instance, newStatus, oldStatus, currentRevision, collisionCount)
+}
+
+func (r *ReconcileYurtAppConfigRender) updateStatus(instance *appsv1alpha1.YurtAppConfigRender, newStatus, oldStatus *appsv1alpha1.YurtAppConfigRenderStatus,
+	currentRevision *v1.ControllerRevision,
+	collisionCount int32) (reconcile.Result, error) {
+
+	newStatus = r.calculateStatus(newStatus, currentRevision, collisionCount)
+	_, err := r.updateYurtAppConfigRender(instance, oldStatus, newStatus)
+
+	return reconcile.Result{}, err
+}
+
+func (r *ReconcileYurtAppConfigRender) updatePools(yacr *appsv1alpha1.YurtAppConfigRender, revision string) (newStatus *appsv1alpha1.YurtAppConfigRenderStatus, updateErr error) {
+	newStatus = yacr.Status.DeepCopy()
+
 	pools := []string(nil)
-	for _, entry := range instance.Entries {
+	for _, entry := range yacr.Spec.Entries {
 		pools = append(pools, entry.Pools...)
 	}
-	//client.Patch()
+
 	for _, pool := range pools {
 		deployments := v1.DeploymentList{}
 		listOptions := client.MatchingLabels{"apps.openyurt.io/pool-name": pool}
-		if err := r.List(context.TODO(), &deployments, listOptions); err != nil {
-			return reconcile.Result{}, err
-		}
+		updateErr = r.List(context.TODO(), &deployments, listOptions)
 		for _, deployment := range deployments.Items {
 			deployment.Annotations["resourceVersion"] = deployment.ResourceVersion
-			if err := r.Update(context.TODO(), &deployment); err != nil {
-				klog.Info("update deployment failed")
-				return reconcile.Result{}, err
-			}
+			deployment.Labels[v1alpha1.ControllerRevisionHashLabelKey] = revision
+			updateErr = r.Update(context.TODO(), &deployment)
 		}
 	}
-	//if err = r.Update(context.TODO(), instance); err != nil {
-	//	klog.Errorf(Format("Update YurtAppConfigRender %s error %v", klog.KObj(instance), err))
-	//	return reconcile.Result{Requeue: true}, err
-	//}
+	return
+}
 
-	return reconcile.Result{}, nil
+func (r *ReconcileYurtAppConfigRender) calculateStatus(newStatus *appsv1alpha1.YurtAppConfigRenderStatus,
+	currentRevision *v1.ControllerRevision, collisionCount int32) *appsv1alpha1.YurtAppConfigRenderStatus {
+
+	newStatus.CollisionCount = &collisionCount
+
+	if newStatus.CurrentRevision == "" {
+		// init with current revision
+		newStatus.CurrentRevision = currentRevision.Name
+	}
+
+	return newStatus
+}
+
+func (r *ReconcileYurtAppConfigRender) updateYurtAppConfigRender(yacr *appsv1alpha1.YurtAppConfigRender, oldStatus, newStatus *appsv1alpha1.YurtAppConfigRenderStatus) (*appsv1alpha1.YurtAppConfigRender, error) {
+	if oldStatus.CurrentRevision == newStatus.CurrentRevision &&
+		oldStatus.CollisionCount == newStatus.CollisionCount &&
+		yacr.Generation == newStatus.ObservedGeneration {
+		return yacr, nil
+	}
+	newStatus.ObservedGeneration = yacr.Generation
+
+	var getErr, updateErr error
+	for i, obj := 0, yacr; ; i++ {
+		klog.V(4).Infof(fmt.Sprintf("The %d th time updating status for %v: %s/%s, ", i, obj.Kind, obj.Namespace, obj.Name) +
+			fmt.Sprintf("sequence No: %v->%v", obj.Status.ObservedGeneration, newStatus.ObservedGeneration))
+
+		obj.Status = *newStatus
+
+		updateErr = r.Client.Status().Update(context.TODO(), obj)
+		if updateErr == nil {
+			return obj, nil
+		}
+		if i >= updateRetries {
+			break
+		}
+		tmpObj := &appsv1alpha1.YurtAppConfigRender{}
+		if getErr = r.Client.Get(context.TODO(), client.ObjectKey{Namespace: obj.Namespace, Name: obj.Name}, tmpObj); getErr != nil {
+			return nil, getErr
+		}
+		obj = tmpObj
+	}
+
+	klog.Errorf("fail to update YurtAppConfigRender %s/%s status: %s", yacr.Namespace, yacr.Name, updateErr)
+	return nil, updateErr
 }
