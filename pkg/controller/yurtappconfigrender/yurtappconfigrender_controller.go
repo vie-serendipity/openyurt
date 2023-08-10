@@ -28,8 +28,10 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -38,10 +40,7 @@ import (
 	"github.com/openyurtio/openyurt/pkg/controller/yurtappconfigrender/config"
 	utilclient "github.com/openyurtio/openyurt/pkg/util/client"
 	utildiscovery "github.com/openyurtio/openyurt/pkg/util/discovery"
-	"github.com/openyurtio/yurt-app-manager-api/pkg/yurtappmanager/apis/apps/v1alpha1"
 )
-
-const updateRetries = 5
 
 func init() {
 	flag.IntVar(&concurrentReconciles, "yurtappconfigrender-workers", concurrentReconciles, "Max concurrent workers for YurtAppConfigRender controller.")
@@ -100,8 +99,44 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	yurtappconfigrenderPredicates := predicate.Funcs{
+		CreateFunc: func(evt event.CreateEvent) bool {
+			obj, ok := evt.Object.(*appsv1alpha1.YurtAppConfigRender)
+			if !ok {
+				return ok
+			}
+			if err := r.(*ReconcileYurtAppConfigRender).updatePools(obj); err != nil {
+				klog.Errorf("fail to update deployments belonging to obj: %v", err)
+			}
+			return true
+		},
+		DeleteFunc: func(evt event.DeleteEvent) bool {
+			obj, ok := evt.Object.(*appsv1alpha1.YurtAppConfigRender)
+			if !ok {
+				return ok
+			}
+			if err := r.(*ReconcileYurtAppConfigRender).updatePools(obj); err != nil {
+				klog.Errorf("fail to update deployments belonging to obj: %v", err)
+			}
+			return true
+		},
+		UpdateFunc: func(evt event.UpdateEvent) bool {
+			obj, ok := evt.ObjectOld.(*appsv1alpha1.YurtAppConfigRender)
+			if !ok {
+				return ok
+			}
+			if err := r.(*ReconcileYurtAppConfigRender).updatePools(obj); err != nil {
+				klog.Errorf("fail to update deployments belonging to obj: %v", err)
+			}
+			return true
+		},
+		GenericFunc: func(evt event.GenericEvent) bool {
+			return false
+		},
+	}
+
 	// Watch for changes to YurtAppConfigRender
-	err = c.Watch(&source.Kind{Type: &appsv1alpha1.YurtAppConfigRender{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &appsv1alpha1.YurtAppConfigRender{}}, &handler.EnqueueRequestForObject{}, yurtappconfigrenderPredicates)
 	if err != nil {
 		return err
 	}
@@ -137,39 +172,11 @@ func (r *ReconcileYurtAppConfigRender) Reconcile(_ context.Context, request reco
 	if instance.DeletionTimestamp != nil {
 		return reconcile.Result{}, nil
 	}
-	oldStatus := instance.Status.DeepCopy()
 
-	currentRevision, updatedRevision, collisionCount, err := r.constructYurtAppConfigRenderRevisions(instance)
-	if err != nil {
-		klog.Errorf("Fail to construct controller revision of YurtAppConfigRender %s/%s: %s", instance.Namespace, instance.Name, err)
-		return reconcile.Result{}, err
-	}
-
-	expectedRevision := currentRevision
-	if updatedRevision != nil {
-		expectedRevision = updatedRevision
-	}
-
-	newStatus, err := r.updatePools(instance, expectedRevision.Name)
-	if err != nil {
-		klog.Errorf("Fail to update YurtAppConfigRender %s/%s: %s", instance.Namespace, instance.Name, err)
-	}
-
-	return r.updateStatus(instance, newStatus, oldStatus, currentRevision, collisionCount)
+	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileYurtAppConfigRender) updateStatus(instance *appsv1alpha1.YurtAppConfigRender, newStatus, oldStatus *appsv1alpha1.YurtAppConfigRenderStatus,
-	currentRevision *v1.ControllerRevision,
-	collisionCount int32) (reconcile.Result, error) {
-
-	newStatus = r.calculateStatus(newStatus, currentRevision, collisionCount)
-	_, err := r.updateYurtAppConfigRender(instance, oldStatus, newStatus)
-
-	return reconcile.Result{}, err
-}
-
-func (r *ReconcileYurtAppConfigRender) updatePools(yacr *appsv1alpha1.YurtAppConfigRender, revision string) (newStatus *appsv1alpha1.YurtAppConfigRenderStatus, updateErr error) {
-	newStatus = yacr.Status.DeepCopy()
+func (r *ReconcileYurtAppConfigRender) updatePools(yacr *appsv1alpha1.YurtAppConfigRender) error {
 
 	pools := []string(nil)
 	for _, entry := range yacr.Spec.Entries {
@@ -179,58 +186,17 @@ func (r *ReconcileYurtAppConfigRender) updatePools(yacr *appsv1alpha1.YurtAppCon
 	for _, pool := range pools {
 		deployments := v1.DeploymentList{}
 		listOptions := client.MatchingLabels{"apps.openyurt.io/pool-name": pool}
-		updateErr = r.List(context.TODO(), &deployments, listOptions)
+		err := r.List(context.TODO(), &deployments, listOptions)
+		if err != nil {
+			return err
+		}
 		for _, deployment := range deployments.Items {
-			deployment.Annotations["resourceVersion"] = deployment.ResourceVersion
-			deployment.Labels[v1alpha1.ControllerRevisionHashLabelKey] = revision
-			updateErr = r.Update(context.TODO(), &deployment)
+			deployment.Annotations["apps.openyurt.io/resourceVersion"] = deployment.ResourceVersion
+			err = r.Update(context.TODO(), &deployment)
+			if err != nil {
+				return err
+			}
 		}
 	}
-	return
-}
-
-func (r *ReconcileYurtAppConfigRender) calculateStatus(newStatus *appsv1alpha1.YurtAppConfigRenderStatus,
-	currentRevision *v1.ControllerRevision, collisionCount int32) *appsv1alpha1.YurtAppConfigRenderStatus {
-
-	newStatus.CollisionCount = &collisionCount
-
-	if newStatus.CurrentRevision == "" {
-		// init with current revision
-		newStatus.CurrentRevision = currentRevision.Name
-	}
-
-	return newStatus
-}
-
-func (r *ReconcileYurtAppConfigRender) updateYurtAppConfigRender(yacr *appsv1alpha1.YurtAppConfigRender, oldStatus, newStatus *appsv1alpha1.YurtAppConfigRenderStatus) (*appsv1alpha1.YurtAppConfigRender, error) {
-	if oldStatus.CurrentRevision == newStatus.CurrentRevision &&
-		oldStatus.CollisionCount == newStatus.CollisionCount &&
-		yacr.Generation == newStatus.ObservedGeneration {
-		return yacr, nil
-	}
-	newStatus.ObservedGeneration = yacr.Generation
-
-	var getErr, updateErr error
-	for i, obj := 0, yacr; ; i++ {
-		klog.V(4).Infof(fmt.Sprintf("The %d th time updating status for %v: %s/%s, ", i, obj.Kind, obj.Namespace, obj.Name) +
-			fmt.Sprintf("sequence No: %v->%v", obj.Status.ObservedGeneration, newStatus.ObservedGeneration))
-
-		obj.Status = *newStatus
-
-		updateErr = r.Client.Status().Update(context.TODO(), obj)
-		if updateErr == nil {
-			return obj, nil
-		}
-		if i >= updateRetries {
-			break
-		}
-		tmpObj := &appsv1alpha1.YurtAppConfigRender{}
-		if getErr = r.Client.Get(context.TODO(), client.ObjectKey{Namespace: obj.Namespace, Name: obj.Name}, tmpObj); getErr != nil {
-			return nil, getErr
-		}
-		obj = tmpObj
-	}
-
-	klog.Errorf("fail to update YurtAppConfigRender %s/%s status: %s", yacr.Namespace, yacr.Name, updateErr)
-	return nil, updateErr
+	return nil
 }
