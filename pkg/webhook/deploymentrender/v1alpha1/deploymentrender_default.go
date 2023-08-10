@@ -164,6 +164,7 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 				if err := replaceItems(deployment, items); err != nil {
 					return err
 				}
+				klog.Info("Successfully replace items for deployment")
 				// json patch and strategic merge
 				patches := entry.Patches
 				// Implement injection
@@ -176,6 +177,7 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 				if err := pc.updatePatches(); err != nil {
 					return err
 				}
+				klog.Info("Successfully update patches for deployment")
 			}
 		}
 	}
