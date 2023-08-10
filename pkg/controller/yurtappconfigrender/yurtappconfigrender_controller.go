@@ -196,7 +196,6 @@ func (r *ReconcileYurtAppConfigRender) updatePools(yacr *appsv1alpha1.YurtAppCon
 			if err != nil {
 				return err
 			}
-			klog.Infof("%v is triggered to update", deployment)
 		}
 	}
 	return nil
