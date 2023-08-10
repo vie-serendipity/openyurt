@@ -79,11 +79,16 @@ func (webhook *YurtAppConfigRenderHandler) ValidateDelete(_ context.Context, obj
 // YurtConfigRender and YurtAppSet are one-to-one relationship
 func (webhook *YurtAppConfigRenderHandler) validateOneToOne(ctx context.Context, configRender *v1alpha1.YurtAppConfigRender) error {
 	app := configRender.Spec.Subject
-	var configRenderList v1alpha1.YurtAppConfigRenderList
-	listOptions := client.MatchingFields{"subject.Kind": app.Kind, "subject.Name": app.Name, "subject.APIVersion": app.APIVersion}
-	if err := webhook.Client.List(ctx, &configRenderList, client.InNamespace(configRender.Namespace), listOptions); err != nil {
+	var allConfigRenderList v1alpha1.YurtAppConfigRenderList
+	if err := webhook.Client.List(ctx, &allConfigRenderList, client.InNamespace(configRender.Namespace)); err != nil {
 		klog.Info("error in listing YurtAppConfigRender")
 		return err
+	}
+	var configRenderList = v1alpha1.YurtAppConfigRenderList{}
+	for _, configRender := range allConfigRenderList.Items {
+		if configRender.Spec.Subject.Kind == app.Kind && configRender.Name == app.Name && configRender.APIVersion == app.APIVersion {
+			configRenderList.Items = append(configRenderList.Items, configRender)
+		}
 	}
 	if len(configRenderList.Items) > 0 {
 		return fmt.Errorf("only one YurtAppConfigRender can be bound into one YurtAppSet")
