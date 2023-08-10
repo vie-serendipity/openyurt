@@ -114,7 +114,7 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 	}
 	var configRenderList = v1alpha1.YurtAppConfigRenderList{}
 	for _, configRender := range allConfigRenderList.Items {
-		if configRender.Spec.Subject.Kind == app.Kind && configRender.Name == app.Name && configRender.APIVersion == app.APIVersion {
+		if configRender.Spec.Subject.Kind == app.Kind && configRender.Spec.Subject.Name == app.Name && configRender.Spec.Subject.APIVersion == app.APIVersion {
 			configRenderList.Items = append(configRenderList.Items, configRender)
 		}
 	}
