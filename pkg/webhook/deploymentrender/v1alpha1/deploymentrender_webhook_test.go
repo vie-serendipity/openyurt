@@ -60,6 +60,18 @@ var defaultAppSet = &v1alpha1.YurtAppSet{
 							Containers: []corev1.Container{
 								{Name: "nginx", Image: "nginx"},
 							},
+							Volumes: []corev1.Volume{
+								{
+									Name: "config",
+									VolumeSource: corev1.VolumeSource{
+										ConfigMap: &corev1.ConfigMapVolumeSource{
+											LocalObjectReference: corev1.LocalObjectReference{
+												Name: "configMapSource-nodepool-test",
+											},
+										},
+									},
+								},
+							},
 						},
 					},
 				},
@@ -100,18 +112,6 @@ var defaultDeployment = &appsv1.Deployment{
 					{
 						Name:  "nginx",
 						Image: "nginx",
-					},
-				},
-				Volumes: []corev1.Volume{
-					{
-						Name: "config",
-						VolumeSource: corev1.VolumeSource{
-							ConfigMap: &corev1.ConfigMapVolumeSource{
-								LocalObjectReference: corev1.LocalObjectReference{
-									Name: "configMapSource-nodepool-test",
-								},
-							},
-						},
 					},
 				},
 			},
@@ -173,6 +173,7 @@ func TestDeploymentRenderHandler_Default(t *testing.T) {
 	}
 	webhook := &DeploymentRenderHandler{
 		Client: fakeclient.NewClientBuilder().WithScheme(scheme).WithObjects(defaultAppSet, defaultDeployment, defaultConfigRender).Build(),
+		Scheme: scheme,
 	}
 	if err := webhook.Default(context.TODO(), defaultDeployment); err != nil {
 		t.Fatal(err)
@@ -180,7 +181,7 @@ func TestDeploymentRenderHandler_Default(t *testing.T) {
 	for _, volume := range defaultDeployment.Spec.Template.Spec.Volumes {
 		if volume.VolumeSource.ConfigMap != nil {
 			if volume.VolumeSource.ConfigMap.Name != "configMapTarget-nodepool-test" {
-				t.Fatalf("fail to update configMap")
+				t.Fatalf("fail to update configMap: %v", volume.VolumeSource.ConfigMap.Name)
 			}
 		}
 	}
