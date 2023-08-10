@@ -107,7 +107,7 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 
 	// Get YurtAppConfigRender resource of app(1 to 1)
 	var configRenderList v1alpha1.YurtAppConfigRenderList
-	listOptions := client.MatchingFields{"subject.Kind": app.Kind, "subject.Name": app.Name, "subject.APIVersion": app.APIVersion}
+	listOptions := client.MatchingFields{"spec.subject.Kind": app.Kind, "spec.subject.Name": app.Name, "spec.subject.APIVersion": app.APIVersion}
 	if err := webhook.Client.List(ctx, &configRenderList, client.InNamespace(deployment.Namespace), listOptions); err != nil {
 		klog.Info("error in listing YurtAppConfigRender")
 		return err
