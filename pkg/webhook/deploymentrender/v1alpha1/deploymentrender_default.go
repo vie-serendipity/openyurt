@@ -76,7 +76,7 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 	}, instance); err != nil {
 		return err
 	}
-
+	klog.Info("Successfully get the owner of deployment")
 	// Get nodepool of deployment
 	nodepool := deployment.Labels["apps.openyurt.io/pool-name"]
 
@@ -112,6 +112,8 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 		klog.Info("error in listing YurtAppConfigRender")
 		return err
 	}
+	klog.Info("Successfully list YurtAppConfigRender")
+
 	if len(configRenderList.Items) == 0 {
 		return nil
 	}
