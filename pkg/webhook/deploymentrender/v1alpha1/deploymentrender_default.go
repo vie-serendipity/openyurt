@@ -31,6 +31,10 @@ import (
 	"github.com/openyurtio/openyurt/pkg/controller/yurtappset/adapter"
 )
 
+const (
+	DeploymentMutatingWebhook = "deployment-webhook"
+)
+
 var (
 	resources = []string{"YurtAppSet", "YurtAppDaemon"}
 )
@@ -50,6 +54,9 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 	deployment, ok := obj.(*v1.Deployment)
 	if !ok {
 		return apierrors.NewBadRequest(fmt.Sprintf("expected a YurtAppConfigRender but got a %T", obj))
+	}
+	if v, ok := deployment.Annotations[DeploymentMutatingWebhook]; ok && v == "mutated" {
+		return nil
 	}
 	if deployment.OwnerReferences == nil {
 		return nil
@@ -180,6 +187,7 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 			}
 		}
 	}
+	deployment.Annotations[DeploymentMutatingWebhook] = "mutated"
 	if err := webhook.Client.Update(ctx, deployment); err != nil {
 		klog.Infof("error to update deployment: %v", err)
 		return err
