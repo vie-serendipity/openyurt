@@ -282,6 +282,7 @@ func (c *ClusterConverter) deployYurtManager() error {
 			klog.Infof("no yurt-manager pod: %#v", podList)
 			return false, nil
 		}
+		klog.Info("yurt-manager pod status: %v", podList.Items[0].Status.Phase)
 		if podList.Items[0].Status.Phase != corev1.PodRunning {
 			klog.Info("yurt manager's status phase is not running")
 			return false, nil
@@ -296,16 +297,14 @@ func (c *ClusterConverter) deployYurtManager() error {
 				}
 				if podList.Items[0].Status.Conditions[i].Type == corev1.PodReady &&
 					podList.Items[0].Status.Conditions[i].Status != corev1.ConditionTrue {
-					klog.Info("yurt manager pod is not ready")
-					return false, nil
-				}
-				if podList.Items[0].Status.Conditions[i].Type == corev1.PodReady &&
-					podList.Items[0].Status.Conditions[i].Status != corev1.ConditionTrue {
 					klog.Infof("pod(%s/%s): %#v", podList.Items[0].Namespace, podList.Items[0].Name, podList.Items[0])
 					return false, nil
 				}
-
 			}
+		}
+
+		for i := range podList.Items[0].Status.Conditions {
+			klog.Info("yurt-manager pod condition%v: %v", podList.Items[0].Status.Conditions[i].Type, podList.Items[0].Status.Conditions[i].Status)
 		}
 		return true, nil
 	})
