@@ -301,11 +301,14 @@ func (c *ClusterConverter) deployYurtManager() error {
 					return false, nil
 				}
 			}
+			klog.Infof("container: %v", podList.Items[0].Status.ContainerStatuses[0].Ready)
+			for i := range podList.Items[0].Status.ContainerStatuses {
+				if podList.Items[0].Status.ContainerStatuses[i].Ready == false {
+					return false, nil
+				}
+			}
 		}
 
-		for i := range podList.Items[0].Status.Conditions {
-			klog.Info("yurt-manager pod condition%v: %v", podList.Items[0].Status.Conditions[i].Type, podList.Items[0].Status.Conditions[i].Status)
-		}
 		return true, nil
 	})
 }
