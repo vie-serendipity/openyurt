@@ -191,8 +191,8 @@ func (r *ReconcileYurtAppConfigRender) updatePools(yacr *appsv1alpha1.YurtAppCon
 			return err
 		}
 		for _, deployment := range deployments.Items {
-			deployment.Annotations["apps.openyurt.io/resourceVersion"] = deployment.ResourceVersion
-			deployment.Annotations["deployment-webhook"] = "pending"
+			//deployment.Annotations["apps.openyurt.io/resourceVersion"] = deployment.ResourceVersion
+			//deployment.Annotations["deployment-webhook"] = "pending"
 			err = r.Update(context.TODO(), &deployment)
 			if err != nil {
 				return err

@@ -56,6 +56,7 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 		return apierrors.NewBadRequest(fmt.Sprintf("expected a YurtAppConfigRender but got a %T", obj))
 	}
 	if v, ok := deployment.Annotations[DeploymentMutatingWebhook]; ok && v == "mutated" {
+		delete(deployment.Annotations, DeploymentMutatingWebhook)
 		return nil
 	}
 	if deployment.OwnerReferences == nil {
