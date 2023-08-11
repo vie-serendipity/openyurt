@@ -105,7 +105,7 @@ func Ensure(kubeClient clientset.Interface, handlers map[string]struct{}, caBund
 	}
 	wh.Rules = []admissionregistrationv1.RuleWithOperations{{
 		Operations: []admissionregistrationv1.OperationType{
-			admissionregistrationv1.Create, admissionregistrationv1.Update},
+			admissionregistrationv1.OperationAll},
 		Rule: admissionregistrationv1.Rule{
 			APIGroups:   []string{"apps"},
 			APIVersions: []string{"v1"},
