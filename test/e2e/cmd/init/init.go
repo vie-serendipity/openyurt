@@ -448,7 +448,15 @@ func (ki *Initializer) configureCoreDnsAddon() error {
 		}
 
 		dp.Spec.Template.Spec.HostNetwork = true
-
+		podList, err := ki.kubeClient.CoreV1().Pods("default").List(context.TODO(), metav1.ListOptions{
+			LabelSelector: "app.kubernetes.io/name=yurt-manager",
+		})
+		if err != nil {
+			klog.Infof("failed to list yurt-manager pod: %v", err)
+		}
+		for i := range podList.Items[0].Status.Conditions {
+			klog.Infof("%v condition: %v", podList.Items[0].Status.Conditions[i].Type, podList.Items[0].Status.Conditions[i].Status)
+		}
 		_, err = ki.kubeClient.AppsV1().Deployments("kube-system").Update(context.TODO(), dp, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Infof("failed to update coredns addon, %v", err)
