@@ -451,6 +451,7 @@ func (ki *Initializer) configureCoreDnsAddon() error {
 
 		_, err = ki.kubeClient.AppsV1().Deployments("kube-system").Update(context.TODO(), dp, metav1.UpdateOptions{})
 		if err != nil {
+			klog.Infof("failed to update coredns addon, %v", err)
 			return err
 		}
 	}

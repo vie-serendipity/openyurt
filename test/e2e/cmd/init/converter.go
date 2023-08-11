@@ -282,6 +282,10 @@ func (c *ClusterConverter) deployYurtManager() error {
 			klog.Infof("no yurt-manager pod: %#v", podList)
 			return false, nil
 		}
+		if podList.Items[0].Status.Phase != corev1.PodRunning {
+			klog.Info("yurt manager's status phase is not running")
+			return false, nil
+		}
 
 		if podList.Items[0].Status.Phase == corev1.PodRunning {
 			for i := range podList.Items[0].Status.Conditions {
