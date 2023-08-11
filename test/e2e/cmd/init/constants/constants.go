@@ -121,6 +121,7 @@ spec:
             httpGet:
               path: /readyz
               port: 10272
+            failureThreshold: 10
       serviceAccountName: yurt-manager
       affinity:
         nodeAffinity:

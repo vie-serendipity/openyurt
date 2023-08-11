@@ -181,6 +181,7 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 		}
 	}
 	if err := webhook.Client.Update(ctx, deployment); err != nil {
+		klog.Infof("error to update deployment: %v", err)
 		return err
 	}
 	klog.Info("Successfully render deployment")

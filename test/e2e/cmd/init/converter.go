@@ -292,6 +292,11 @@ func (c *ClusterConverter) deployYurtManager() error {
 				}
 				if podList.Items[0].Status.Conditions[i].Type == corev1.PodReady &&
 					podList.Items[0].Status.Conditions[i].Status != corev1.ConditionTrue {
+					klog.Info("yurt manager pod is not ready")
+					return false, nil
+				}
+				if podList.Items[0].Status.Conditions[i].Type == corev1.PodReady &&
+					podList.Items[0].Status.Conditions[i].Status != corev1.ConditionTrue {
 					klog.Infof("pod(%s/%s): %#v", podList.Items[0].Namespace, podList.Items[0].Name, podList.Items[0])
 					return false, nil
 				}
