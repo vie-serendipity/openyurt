@@ -126,7 +126,11 @@ var defaultConfigRender = &v1alpha1.YurtAppConfigRender{
 	},
 	Spec: v1alpha1.YurtAppConfigRenderSpec{
 		Subject: v1alpha1.Subject{
-			Name: "foo",
+			Name: "yurtappset-patch",
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "YurtAppSet",
+				APIVersion: "apps.openyurt.io/v1alpha1",
+			},
 		},
 		Entries: []v1alpha1.Entry{
 			{

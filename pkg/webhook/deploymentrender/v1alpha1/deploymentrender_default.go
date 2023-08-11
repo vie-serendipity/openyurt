@@ -95,11 +95,9 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 				replicas = *pool.Replicas
 			}
 		}
-		obj := deploymentAdapter.NewResourceObject()
-		if err := deploymentAdapter.ApplyPoolTemplate(yas, nodepool, revision, replicas, obj); err != nil {
+		if err := deploymentAdapter.ApplyPoolTemplate(yas, nodepool, revision, replicas, deployment); err != nil {
 			return err
 		}
-		deployment = obj.(*v1.Deployment)
 	case "YurtAppDaemon":
 		yad := instance.(*v1alpha1.YurtAppDaemon)
 		yad.Spec.WorkloadTemplate.DeploymentTemplate.Spec.DeepCopyInto(&deployment.Spec)
@@ -178,6 +176,7 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 					return err
 				}
 				klog.Info("Successfully update patches for deployment")
+				klog.Infof("name of deployment: %v", deployment.Name)
 				if err := webhook.Client.Update(ctx, deployment); err != nil {
 					return err
 				}
