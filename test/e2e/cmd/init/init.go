@@ -25,6 +25,8 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/labels"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -448,8 +450,8 @@ func (ki *Initializer) configureCoreDnsAddon() error {
 		}
 
 		dp.Spec.Template.Spec.HostNetwork = true
-		podList, err := ki.kubeClient.CoreV1().Pods("default").List(context.TODO(), metav1.ListOptions{
-			LabelSelector: "app.kubernetes.io/name=yurt-manager",
+		podList, err := ki.kubeClient.CoreV1().Pods("kube-system").List(context.TODO(), metav1.ListOptions{
+			LabelSelector: labels.SelectorFromSet(map[string]string{"app.kubernetes.io/name": "yurt-manager"}).String(),
 		})
 		if err != nil {
 			klog.Infof("failed to list yurt-manager pod: %v", err)
