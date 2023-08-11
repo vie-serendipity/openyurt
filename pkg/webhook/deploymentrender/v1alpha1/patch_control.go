@@ -101,7 +101,7 @@ func (pc *PatchControl) jsonMergePatch(patch v1alpha1.Patch) error {
 func (pc *PatchControl) updatePatches() error {
 	for _, patch := range pc.patches {
 		switch patch.Type {
-		case v1alpha1.Default:
+		case v1alpha1.Default, "":
 			if err := pc.strategicMergePatch(patch); err != nil {
 				return err
 			}

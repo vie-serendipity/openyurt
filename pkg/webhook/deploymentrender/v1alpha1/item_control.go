@@ -25,7 +25,6 @@ import (
 
 func replaceItems(deployment *v1.Deployment, items []v1alpha1.Item) error {
 	for _, item := range items {
-		// go func
 		switch {
 		case item.Replicas != nil:
 			deployment.Spec.Replicas = item.Replicas
@@ -39,9 +38,9 @@ func replaceItems(deployment *v1.Deployment, items []v1alpha1.Item) error {
 				envVars = append(envVars, envVar)
 			}
 
-			for _, v := range deployment.Spec.Template.Spec.Containers {
-				if v.Name == item.Env.ContainerName {
-					v.Env = envVars
+			for i := range deployment.Spec.Template.Spec.Containers {
+				if deployment.Spec.Template.Spec.Containers[i].Name == item.Env.ContainerName {
+					deployment.Spec.Template.Spec.Containers[i].Env = envVars
 				}
 			}
 		case item.UpgradeStrategy != nil:
@@ -54,37 +53,37 @@ func replaceItems(deployment *v1.Deployment, items []v1alpha1.Item) error {
 				deployment.Spec.Strategy.Type = v1.RollingUpdateDeploymentStrategyType
 			}
 		case item.Image != nil:
-			for _, v := range deployment.Spec.Template.Spec.Containers {
-				if v.Name == item.Image.ContainerName {
-					v.Image = item.Image.ImageClaim
+			for i := range deployment.Spec.Template.Spec.Containers {
+				if deployment.Spec.Template.Spec.Containers[i].Name == item.Image.ContainerName {
+					deployment.Spec.Template.Spec.Containers[i].Image = item.Image.ImageClaim
 				}
 			}
 		case item.ConfigMap != nil:
-			for _, container := range deployment.Spec.Template.Spec.Containers {
-				for _, env := range container.Env {
-					if env.ValueFrom.ConfigMapKeyRef != nil {
-						if env.ValueFrom.ConfigMapKeyRef.Name == item.ConfigMap.ConfigMapSource {
-							env.ValueFrom.ConfigMapKeyRef.Name = item.ConfigMap.ConfigMapTarget
+			for i := range deployment.Spec.Template.Spec.Containers {
+				for j := range deployment.Spec.Template.Spec.Containers[i].Env {
+					if deployment.Spec.Template.Spec.Containers[i].Env[j].ValueFrom.ConfigMapKeyRef != nil {
+						if deployment.Spec.Template.Spec.Containers[i].Env[j].ValueFrom.ConfigMapKeyRef.Name == item.ConfigMap.ConfigMapSource {
+							deployment.Spec.Template.Spec.Containers[i].Env[j].ValueFrom.ConfigMapKeyRef.Name = item.ConfigMap.ConfigMapTarget
 						}
 					}
 				}
 			}
-			for _, volume := range deployment.Spec.Template.Spec.Volumes {
-				if volume.VolumeSource.ConfigMap != nil && volume.VolumeSource.ConfigMap.Name == item.ConfigMap.ConfigMapSource {
-					volume.VolumeSource.ConfigMap.Name = item.ConfigMap.ConfigMapTarget
+			for i := range deployment.Spec.Template.Spec.Volumes {
+				if deployment.Spec.Template.Spec.Volumes[i].VolumeSource.ConfigMap != nil && deployment.Spec.Template.Spec.Volumes[i].VolumeSource.ConfigMap.Name == item.ConfigMap.ConfigMapSource {
+					deployment.Spec.Template.Spec.Volumes[i].VolumeSource.ConfigMap.Name = item.ConfigMap.ConfigMapTarget
 				}
 			}
 		case item.PersistentVolumeClaim != nil:
-			for _, volume := range deployment.Spec.Template.Spec.Volumes {
-				if volume.VolumeSource.PersistentVolumeClaim != nil &&
-					volume.VolumeSource.PersistentVolumeClaim.ClaimName == item.PersistentVolumeClaim.PVCSource {
-					volume.VolumeSource.PersistentVolumeClaim.ClaimName = item.PersistentVolumeClaim.PVCTarget
+			for i := range deployment.Spec.Template.Spec.Volumes {
+				if deployment.Spec.Template.Spec.Volumes[i].VolumeSource.PersistentVolumeClaim != nil &&
+					deployment.Spec.Template.Spec.Volumes[i].VolumeSource.PersistentVolumeClaim.ClaimName == item.PersistentVolumeClaim.PVCSource {
+					deployment.Spec.Template.Spec.Volumes[i].VolumeSource.PersistentVolumeClaim.ClaimName = item.PersistentVolumeClaim.PVCTarget
 				}
 			}
 		case item.Secret != nil:
-			for _, volume := range deployment.Spec.Template.Spec.Volumes {
-				if volume.VolumeSource.Secret != nil && volume.VolumeSource.Secret.SecretName == item.Secret.SecretSource {
-					volume.VolumeSource.Secret.SecretName = item.Secret.SecretTarget
+			for i := range deployment.Spec.Template.Spec.Volumes {
+				if deployment.Spec.Template.Spec.Volumes[i].VolumeSource.Secret != nil && deployment.Spec.Template.Spec.Volumes[i].VolumeSource.Secret.SecretName == item.Secret.SecretSource {
+					deployment.Spec.Template.Spec.Volumes[i].VolumeSource.Secret.SecretName = item.Secret.SecretTarget
 				}
 			}
 		}
