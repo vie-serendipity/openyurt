@@ -35,3 +35,15 @@ const (
 	RavenEnableProxy           = "enable-l7-proxy"
 	RavenEnableTunnel          = "enable-l3-tunnel"
 )
+
+const (
+	LoadBalancerId = "loadbalancer-id"
+	LoadBalancerIP = "loadbalancer-ip"
+	ElasticIPId    = "eip-id"
+	ElasticIPIP    = "eip-ip"
+	ACLId          = "acl-id"
+	ACLEntry       = "acl-entry"
+
+	GatewayProxyPublicServiceExternalIP      = "raven.openyurt.io/public-service-external-ip"
+	GatewayProxyPublicServiceExternalDNSName = "raven.openyurt.io/public-service-external-dns-name"
+)

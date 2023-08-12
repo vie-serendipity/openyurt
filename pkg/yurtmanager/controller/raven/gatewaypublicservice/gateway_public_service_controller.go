@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -106,6 +108,26 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// Watch for changes to Gateway
 	err = c.Watch(&source.Kind{Type: &ravenv1beta1.Gateway{}}, &EnqueueRequestForGatewayEvent{})
+	if err != nil {
+		return err
+	}
+
+	//Watch for changes to raven cfg
+	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}}, &EnqueueRequestForRavenConfigEvent{client: mgr.GetClient()}, predicate.NewPredicateFuncs(
+		func(object client.Object) bool {
+			cm, ok := object.(*corev1.ConfigMap)
+			if !ok {
+				return false
+			}
+			if cm.GetNamespace() != util.WorkingNamespace {
+				return false
+			}
+			if cm.GetName() != util.RavenGlobalConfig {
+				return false
+			}
+			return true
+		},
+	))
 	if err != nil {
 		return err
 	}
@@ -289,6 +311,8 @@ func (r *ReconcileService) manageService(ctx context.Context, gateway *ravenv1be
 	specSvcList := acquiredSpecService(gateway, gatewayType, proxyPort, tunnelPort)
 	addSvc, updateSvc, deleteSvc := classifyService(curSvcList, specSvcList)
 	recordServiceNames(specSvcList.Items, record)
+	addSvc = r.addAnnotations(addSvc)
+	updateSvc = r.addAnnotations(updateSvc)
 	for i := 0; i < len(addSvc); i++ {
 		if err := r.Create(ctx, addSvc[i]); err != nil {
 			if apierrs.IsAlreadyExists(err) {
@@ -309,6 +333,66 @@ func (r *ReconcileService) manageService(ctx context.Context, gateway *ravenv1be
 		}
 	}
 	return nil
+}
+func (r *ReconcileService) addAnnotations(services []*corev1.Service) (ret []*corev1.Service) {
+	ret = make([]*corev1.Service, 0)
+	var cm corev1.ConfigMap
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Namespace: util.WorkingNamespace, Name: util.RavenGlobalConfig}, &cm)
+	if err != nil {
+		return
+	}
+	if cm.Data == nil {
+		return
+	}
+	lb := cm.Data[util.LoadBalancerId]
+	if lb == "" {
+		lb = "waiting"
+	}
+	acl := cm.Data[util.ACLId]
+	if acl == "" {
+		acl = "waiting"
+	}
+	for i := 0; i < len(services); i++ {
+		svc := services[i].DeepCopy()
+		if svc.Annotations == nil {
+			svc.Annotations = make(map[string]string)
+		}
+		svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-id"] = lb
+		svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-acl-id"] = acl
+		svc.Annotations["service.beta.kubernetes.io/alicloud-loadbalancer-force-override-listeners"] = "true"
+		svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-acl-status"] = "on"
+		svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-acl-type"] = "white"
+		svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-health-check-switch"] = "off"
+		svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-hostname"] = fmt.Sprintf("%s.%s.svc", services[i].GetName(), services[i].GetNamespace())
+
+		ips := strings.Split(svc.Annotations[util.GatewayProxyPublicServiceExternalIP], ",")
+		ipMap := make(map[string]struct{})
+
+		newIps := make([]string, 0)
+		for idx := range ips {
+			if ips[idx] == "" {
+				continue
+			} else {
+				ipMap[ips[idx]] = struct{}{}
+				newIps = append(newIps, ips[idx])
+			}
+		}
+
+		if ip := cm.Data[util.ElasticIPIP]; ip != "" {
+			if _, ok := ipMap[ip]; !ok {
+				newIps = append(newIps, ip)
+			}
+		}
+
+		if ip := cm.Data[util.LoadBalancerIP]; ip != "" {
+			if _, ok := ipMap[ip]; !ok {
+				newIps = append(newIps, ip)
+			}
+		}
+		svc.Annotations[util.GatewayProxyPublicServiceExternalIP] = strings.Join(newIps, ",")
+		ret = append(ret, svc)
+	}
+	return
 }
 
 func (r *ReconcileService) manageEndpoints(ctx context.Context, gateway *ravenv1beta1.Gateway, gatewayType string, record *serviceRecord) error {

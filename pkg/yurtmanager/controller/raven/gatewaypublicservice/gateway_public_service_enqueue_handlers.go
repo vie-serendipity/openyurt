@@ -147,6 +147,57 @@ func (h *EnqueueRequestForConfigEvent) Generic(e event.GenericEvent, q workqueue
 	return
 }
 
+var configKeys = []string{util.LoadBalancerIP, util.LoadBalancerId, util.ElasticIPIP, util.ElasticIPId, util.ACLId}
+
+type EnqueueRequestForRavenConfigEvent struct {
+	client client.Client
+}
+
+func (h *EnqueueRequestForRavenConfigEvent) Create(e event.CreateEvent, q workqueue.RateLimitingInterface) {
+	cm, ok := e.Object.(*corev1.ConfigMap)
+	if !ok {
+		klog.Error(Format("fail to assert runtime Object %s/%s to v1.Configmap,", e.Object.GetNamespace(), e.Object.GetName()))
+		return
+	}
+	if cm.Data == nil {
+		return
+	}
+	for i := range configKeys {
+		if cm.Data[configKeys[i]] != "" {
+			addExposedGateway(h.client, q)
+			return
+		}
+	}
+
+}
+
+func (h *EnqueueRequestForRavenConfigEvent) Update(e event.UpdateEvent, q workqueue.RateLimitingInterface) {
+	newCm, ok := e.ObjectNew.(*corev1.ConfigMap)
+	if !ok {
+		klog.Error(Format("fail to assert runtime Object %s/%s to v1.Configmap,", e.ObjectNew.GetNamespace(), e.ObjectNew.GetName()))
+		return
+	}
+	oldCm, ok := e.ObjectOld.(*corev1.ConfigMap)
+	if !ok {
+		klog.Error(Format("fail to assert runtime Object %s/%s to v1.Configmap,", e.ObjectOld.GetNamespace(), e.ObjectOld.GetName()))
+		return
+	}
+	for i := range configKeys {
+		if newCm.Data[configKeys[i]] != oldCm.Data[configKeys[i]] {
+			addExposedGateway(h.client, q)
+			return
+		}
+	}
+}
+
+func (h *EnqueueRequestForRavenConfigEvent) Delete(e event.DeleteEvent, q workqueue.RateLimitingInterface) {
+	return
+}
+
+func (h *EnqueueRequestForRavenConfigEvent) Generic(e event.GenericEvent, q workqueue.RateLimitingInterface) {
+	return
+}
+
 func addExposedGateway(client client.Client, q workqueue.RateLimitingInterface) {
 	var gwList ravenv1beta1.GatewayList
 	err := client.List(context.TODO(), &gwList)
