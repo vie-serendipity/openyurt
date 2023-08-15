@@ -141,7 +141,7 @@ var _ = Describe("YurtAppOverrider Test", func() {
 				},
 			})
 		}).WithTimeout(timeout).WithPolling(500 * time.Millisecond).Should(SatisfyAny(BeNil(), &util.NotFoundMatcher{}))
-		testYurtAppCongfigRender := v1alpha1.YurtAppOverrider{
+		testYurtAppOverrider := v1alpha1.YurtAppOverrider{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      yurtAppOverriderName,
 				Namespace: namespaceName,
@@ -180,7 +180,7 @@ var _ = Describe("YurtAppOverrider Test", func() {
 			},
 		}
 		Eventually(func() error {
-			return k8sClient.Create(ctx, &testYurtAppCongfigRender)
+			return k8sClient.Create(ctx, &testYurtAppOverrider)
 		}).WithTimeout(timeout).WithPolling(500 * time.Millisecond).Should(SatisfyAny(BeNil(), &util.AlreadyExistMatcher{}))
 	}
 	deleteNodePool := func() {
