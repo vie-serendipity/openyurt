@@ -24,6 +24,7 @@ import (
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -170,7 +171,9 @@ var _ = Describe("YurtAppOverrider Test", func() {
 						{
 							Operator: v1alpha1.Default,
 							Path:     "/spec/template/spec/containers/0/image",
-							Value:    "nginx-patch",
+							Value: apiextensionsv1.JSON{
+								Raw: []byte("nginx-patch"),
+							},
 						},
 					},
 				},

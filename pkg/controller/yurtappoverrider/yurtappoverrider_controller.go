@@ -37,7 +37,7 @@ import (
 
 	appconfig "github.com/openyurtio/openyurt/cmd/yurt-manager/app/config"
 	appsv1alpha1 "github.com/openyurtio/openyurt/pkg/apis/apps/v1alpha1"
-
+	"github.com/openyurtio/openyurt/pkg/controller/yurtappoverrider/config"
 	//"github.com/openyurtio/openyurt/pkg/controller/yurtappoverrider/config"
 	utilclient "github.com/openyurtio/openyurt/pkg/util/client"
 	utildiscovery "github.com/openyurtio/openyurt/pkg/util/discovery"
@@ -75,18 +75,18 @@ var _ reconcile.Reconciler = &ReconcileYurtAppOverrider{}
 // ReconcileYurtAppOverrider reconciles a YurtAppOverrider object
 type ReconcileYurtAppOverrider struct {
 	client.Client
-	scheme   *runtime.Scheme
-	recorder record.EventRecorder
-	//Configration config.YurtAppOverriderControllerConfiguration
+	scheme       *runtime.Scheme
+	recorder     record.EventRecorder
+	Configration config.YurtAppOverriderControllerConfiguration
 }
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(c *appconfig.CompletedConfig, mgr manager.Manager) reconcile.Reconciler {
 	return &ReconcileYurtAppOverrider{
-		Client:   utilclient.NewClientFromManager(mgr, ControllerName),
-		scheme:   mgr.GetScheme(),
-		recorder: mgr.GetEventRecorderFor(ControllerName),
-		//Configration: c.ComponentConfig.YurtAppOverriderController,
+		Client:       utilclient.NewClientFromManager(mgr, ControllerName),
+		scheme:       mgr.GetScheme(),
+		recorder:     mgr.GetEventRecorderFor(ControllerName),
+		Configration: c.ComponentConfig.YurtAppOverriderController,
 	}
 }
 
