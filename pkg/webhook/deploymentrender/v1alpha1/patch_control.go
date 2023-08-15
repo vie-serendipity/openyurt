@@ -18,16 +18,11 @@ package v1alpha1
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
-	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
-
 	"github.com/openyurtio/openyurt/pkg/apis/apps/v1alpha1"
-	"github.com/openyurtio/openyurt/pkg/webhook/deploymentrender/utils"
+	appsv1 "k8s.io/api/apps/v1"
 )
 
 type PatchControl struct {
@@ -37,44 +32,15 @@ type PatchControl struct {
 	dataStruct interface{}
 }
 
-func (pc *PatchControl) strategicMergePatch(patch v1alpha1.Patch) error {
-	patchMap := make(map[string]interface{})
-	if err := json.Unmarshal(patch.Extensions.Raw, &patchMap); err != nil {
-		return err
-	}
-
-	original, err := runtime.DefaultUnstructuredConverter.ToUnstructured(pc.patchObject)
-	if err != nil {
-		return err
-	}
-
-	patchedMap, err := strategicpatch.StrategicMergeMapPatch(original, patchMap, pc.dataStruct)
-	if err != nil {
-		return err
-	}
-
-	return runtime.DefaultUnstructuredConverter.FromUnstructured(patchedMap, pc.patchObject)
-}
-
 // implement json patch
-func (pc *PatchControl) jsonMergePatch(patch v1alpha1.Patch) error {
-
-	patchMap := make(map[string]interface{})
-	if err := json.Unmarshal(patch.Extensions.Raw, &patchMap); err != nil {
-		return err
-	}
-	// convert patch yaml into path and value
-	flattenedData, err := utils.FlattenYAML(patchMap, "", "/")
-	if err != nil {
-		return err
-	}
+func (pc *PatchControl) jsonMergePatch(patches []v1alpha1.Patch) error {
 	// convert into json patch format
 	var patchOperations []string
-	for key, value := range flattenedData {
+	for _, patch := range patches {
 		single, err := json.Marshal(map[string]interface{}{
-			"op":    string(patch.Type),
-			"path":  key,
-			"value": value,
+			"op":    string(patch.Operator),
+			"path":  patch.Path,
+			"value": patch.Value,
 		})
 		if err != nil {
 			return err
@@ -99,19 +65,8 @@ func (pc *PatchControl) jsonMergePatch(patch v1alpha1.Patch) error {
 }
 
 func (pc *PatchControl) updatePatches() error {
-	for _, patch := range pc.patches {
-		switch patch.Type {
-		case v1alpha1.Default, "":
-			if err := pc.strategicMergePatch(patch); err != nil {
-				return err
-			}
-		case v1alpha1.ADD, v1alpha1.REMOVE, v1alpha1.REPLACE:
-			if err := pc.jsonMergePatch(patch); err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("unknown patch type: %v", patch.Type)
-		}
+	if err := pc.jsonMergePatch(pc.patches); err != nil {
+		return err
 	}
 	return nil
 }

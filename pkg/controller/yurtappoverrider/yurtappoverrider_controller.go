@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package yurtappconfigrender
+package yurtappoverrider
 
 import (
 	"context"
@@ -37,22 +37,23 @@ import (
 
 	appconfig "github.com/openyurtio/openyurt/cmd/yurt-manager/app/config"
 	appsv1alpha1 "github.com/openyurtio/openyurt/pkg/apis/apps/v1alpha1"
-	"github.com/openyurtio/openyurt/pkg/controller/yurtappconfigrender/config"
+
+	//"github.com/openyurtio/openyurt/pkg/controller/yurtappoverrider/config"
 	utilclient "github.com/openyurtio/openyurt/pkg/util/client"
 	utildiscovery "github.com/openyurtio/openyurt/pkg/util/discovery"
 )
 
 func init() {
-	flag.IntVar(&concurrentReconciles, "yurtappconfigrender-workers", concurrentReconciles, "Max concurrent workers for YurtAppConfigRender controller.")
+	flag.IntVar(&concurrentReconciles, "yurtappoverrider-workers", concurrentReconciles, "Max concurrent workers for YurtAppOverrider controller.")
 }
 
 var (
 	concurrentReconciles = 3
-	controllerKind       = appsv1alpha1.SchemeGroupVersion.WithKind("YurtAppConfigRender")
+	controllerKind       = appsv1alpha1.SchemeGroupVersion.WithKind("YurtAppOverrider")
 )
 
 const (
-	ControllerName = "YurtAppConfigRender-controller"
+	ControllerName = "YurtAppOverrider-controller"
 )
 
 func Format(format string, args ...interface{}) string {
@@ -60,7 +61,7 @@ func Format(format string, args ...interface{}) string {
 	return fmt.Sprintf("%s: %s", ControllerName, s)
 }
 
-// Add creates a new YurtAppConfigRender Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
+// Add creates a new YurtAppOverrider Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(c *appconfig.CompletedConfig, mgr manager.Manager) error {
 	if !utildiscovery.DiscoverGVK(controllerKind) {
@@ -69,23 +70,23 @@ func Add(c *appconfig.CompletedConfig, mgr manager.Manager) error {
 	return add(mgr, newReconciler(c, mgr))
 }
 
-var _ reconcile.Reconciler = &ReconcileYurtAppConfigRender{}
+var _ reconcile.Reconciler = &ReconcileYurtAppOverrider{}
 
-// ReconcileYurtAppConfigRender reconciles a YurtAppConfigRender object
-type ReconcileYurtAppConfigRender struct {
+// ReconcileYurtAppOverrider reconciles a YurtAppOverrider object
+type ReconcileYurtAppOverrider struct {
 	client.Client
-	scheme       *runtime.Scheme
-	recorder     record.EventRecorder
-	Configration config.YurtAppConfigRenderControllerConfiguration
+	scheme   *runtime.Scheme
+	recorder record.EventRecorder
+	//Configration config.YurtAppOverriderControllerConfiguration
 }
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(c *appconfig.CompletedConfig, mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileYurtAppConfigRender{
+	return &ReconcileYurtAppOverrider{
 		Client:   utilclient.NewClientFromManager(mgr, ControllerName),
 		scheme:   mgr.GetScheme(),
 		recorder: mgr.GetEventRecorderFor(ControllerName),
-		//Configration: c.ComponentConfig.YurtAppConfigRenderController,
+		//Configration: c.ComponentConfig.YurtAppOverriderController,
 	}
 }
 
@@ -99,33 +100,33 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	yurtappconfigrenderPredicates := predicate.Funcs{
+	yurtappoverriderPredicates := predicate.Funcs{
 		CreateFunc: func(evt event.CreateEvent) bool {
-			obj, ok := evt.Object.(*appsv1alpha1.YurtAppConfigRender)
+			obj, ok := evt.Object.(*appsv1alpha1.YurtAppOverrider)
 			if !ok {
 				return ok
 			}
-			if err := r.(*ReconcileYurtAppConfigRender).updatePools(obj); err != nil {
+			if err := r.(*ReconcileYurtAppOverrider).updatePools(obj); err != nil {
 				klog.Errorf("fail to update deployments belonging to obj: %v", err)
 			}
 			return true
 		},
 		DeleteFunc: func(evt event.DeleteEvent) bool {
-			obj, ok := evt.Object.(*appsv1alpha1.YurtAppConfigRender)
+			obj, ok := evt.Object.(*appsv1alpha1.YurtAppOverrider)
 			if !ok {
 				return ok
 			}
-			if err := r.(*ReconcileYurtAppConfigRender).updatePools(obj); err != nil {
+			if err := r.(*ReconcileYurtAppOverrider).updatePools(obj); err != nil {
 				klog.Errorf("fail to update deployments belonging to obj: %v", err)
 			}
 			return true
 		},
 		UpdateFunc: func(evt event.UpdateEvent) bool {
-			obj, ok := evt.ObjectOld.(*appsv1alpha1.YurtAppConfigRender)
+			obj, ok := evt.ObjectOld.(*appsv1alpha1.YurtAppOverrider)
 			if !ok {
 				return ok
 			}
-			if err := r.(*ReconcileYurtAppConfigRender).updatePools(obj); err != nil {
+			if err := r.(*ReconcileYurtAppOverrider).updatePools(obj); err != nil {
 				klog.Errorf("fail to update deployments belonging to obj: %v", err)
 			}
 			return true
@@ -135,8 +136,8 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		},
 	}
 
-	// Watch for changes to YurtAppConfigRender
-	err = c.Watch(&source.Kind{Type: &appsv1alpha1.YurtAppConfigRender{}}, &handler.EnqueueRequestForObject{}, yurtappconfigrenderPredicates)
+	// Watch for changes to YurtAppOverrider
+	err = c.Watch(&source.Kind{Type: &appsv1alpha1.YurtAppOverrider{}}, &handler.EnqueueRequestForObject{}, yurtappoverriderPredicates)
 	if err != nil {
 		return err
 	}
@@ -144,23 +145,23 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-// +kubebuilder:rbac:groups=apps.openyurt.io,resources=yurtappconfigrenders,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=apps.openyurt.io,resources=yurtappoverriders,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=controllerrevisions,verbs=get;list;watch;create;update;patch;delete
 
-// Reconcile reads that state of the cluster for a YurtAppConfigRender object and makes changes based on the state read
-// and what is in the YurtAppConfigRender.Spec
-func (r *ReconcileYurtAppConfigRender) Reconcile(_ context.Context, request reconcile.Request) (reconcile.Result, error) {
+// Reconcile reads that state of the cluster for a YurtAppOverrider object and makes changes based on the state read
+// and what is in the YurtAppOverrider.Spec
+func (r *ReconcileYurtAppOverrider) Reconcile(_ context.Context, request reconcile.Request) (reconcile.Result, error) {
 
 	// Note !!!!!!!!!!
 	// We strongly recommend use Format() to  encapsulation because Format() can print logs by module
 	// @kadisi
-	klog.Infof(Format("Reconcile YurtAppConfigRender %s/%s", request.Namespace, request.Name))
+	klog.Infof(Format("Reconcile YurtAppOverrider %s/%s", request.Namespace, request.Name))
 
-	// Fetch the YurtAppConfigRender instance
-	instance := &appsv1alpha1.YurtAppConfigRender{}
+	// Fetch the YurtAppOverrider instance
+	instance := &appsv1alpha1.YurtAppOverrider{}
 	err := r.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -176,10 +177,10 @@ func (r *ReconcileYurtAppConfigRender) Reconcile(_ context.Context, request reco
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileYurtAppConfigRender) updatePools(yacr *appsv1alpha1.YurtAppConfigRender) error {
+func (r *ReconcileYurtAppOverrider) updatePools(yacr *appsv1alpha1.YurtAppOverrider) error {
 
 	pools := []string(nil)
-	for _, entry := range yacr.Spec.Entries {
+	for _, entry := range yacr.Entries {
 		pools = append(pools, entry.Pools...)
 	}
 

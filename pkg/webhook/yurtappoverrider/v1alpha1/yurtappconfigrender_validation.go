@@ -29,10 +29,10 @@ import (
 )
 
 // ValidateCreate implements webhook.CustomValidator so a webhook will be registered for the type.
-func (webhook *YurtAppConfigRenderHandler) ValidateCreate(ctx context.Context, obj runtime.Object) error {
-	configRender, ok := obj.(*v1alpha1.YurtAppConfigRender)
+func (webhook *YurtAppOverriderHandler) ValidateCreate(ctx context.Context, obj runtime.Object) error {
+	configRender, ok := obj.(*v1alpha1.YurtAppOverrider)
 	if !ok {
-		return apierrors.NewBadRequest(fmt.Sprintf("expected a YurtAppConfigRender but got a %T", obj))
+		return apierrors.NewBadRequest(fmt.Sprintf("expected a YurtAppOverrider but got a %T", obj))
 	}
 
 	// validate
@@ -46,14 +46,14 @@ func (webhook *YurtAppConfigRenderHandler) ValidateCreate(ctx context.Context, o
 }
 
 // ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type.
-func (webhook *YurtAppConfigRenderHandler) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) error {
-	_, ok := newObj.(*v1alpha1.YurtAppConfigRender)
+func (webhook *YurtAppOverriderHandler) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) error {
+	_, ok := newObj.(*v1alpha1.YurtAppOverrider)
 	if !ok {
-		return apierrors.NewBadRequest(fmt.Sprintf("expected a YurtAppConfigRender but got a %T", newObj))
+		return apierrors.NewBadRequest(fmt.Sprintf("expected a YurtAppOverrider but got a %T", newObj))
 	}
-	newConfigRender, ok := oldObj.(*v1alpha1.YurtAppConfigRender)
+	newConfigRender, ok := oldObj.(*v1alpha1.YurtAppOverrider)
 	if !ok {
-		return apierrors.NewBadRequest(fmt.Sprintf("expected a YurtAppConfigRender} but got a %T", oldObj))
+		return apierrors.NewBadRequest(fmt.Sprintf("expected a YurtAppOverrider} but got a %T", oldObj))
 	}
 
 	// validate
@@ -67,38 +67,38 @@ func (webhook *YurtAppConfigRenderHandler) ValidateUpdate(ctx context.Context, o
 }
 
 // ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type.
-func (webhook *YurtAppConfigRenderHandler) ValidateDelete(_ context.Context, obj runtime.Object) error {
-	_, ok := obj.(*v1alpha1.YurtAppConfigRender)
+func (webhook *YurtAppOverriderHandler) ValidateDelete(_ context.Context, obj runtime.Object) error {
+	_, ok := obj.(*v1alpha1.YurtAppOverrider)
 	if !ok {
-		return apierrors.NewBadRequest(fmt.Sprintf("expected a YurtAppConfigRender but got a %T", obj))
+		return apierrors.NewBadRequest(fmt.Sprintf("expected a YurtAppOverrider but got a %T", obj))
 	}
 	// validate
 	return nil
 }
 
 // YurtConfigRender and YurtAppSet are one-to-one relationship
-func (webhook *YurtAppConfigRenderHandler) validateOneToOne(ctx context.Context, configRender *v1alpha1.YurtAppConfigRender) error {
-	app := configRender.Spec.Subject
-	var allConfigRenderList v1alpha1.YurtAppConfigRenderList
+func (webhook *YurtAppOverriderHandler) validateOneToOne(ctx context.Context, configRender *v1alpha1.YurtAppOverrider) error {
+	app := configRender.Subject
+	var allConfigRenderList v1alpha1.YurtAppOverriderList
 	if err := webhook.Client.List(ctx, &allConfigRenderList, client.InNamespace(configRender.Namespace)); err != nil {
-		klog.Info("error in listing YurtAppConfigRender")
+		klog.Info("error in listing YurtAppOverrider")
 		return err
 	}
-	var configRenderList = v1alpha1.YurtAppConfigRenderList{}
+	var configRenderList = v1alpha1.YurtAppOverriderList{}
 	for _, configRender := range allConfigRenderList.Items {
-		if configRender.Spec.Subject.Kind == app.Kind && configRender.Name == app.Name && configRender.APIVersion == app.APIVersion {
+		if configRender.Subject.Kind == app.Kind && configRender.Name == app.Name && configRender.APIVersion == app.APIVersion {
 			configRenderList.Items = append(configRenderList.Items, configRender)
 		}
 	}
 	if len(configRenderList.Items) > 0 {
-		return fmt.Errorf("only one YurtAppConfigRender can be bound into one YurtAppSet")
+		return fmt.Errorf("only one YurtAppOverrider can be bound into one YurtAppSet")
 	}
 	return nil
 }
 
 // Verify that * and other pools are not set at the same time
-func (webhook *YurtAppConfigRenderHandler) validateStar(configRender *v1alpha1.YurtAppConfigRender) error {
-	for _, entry := range configRender.Spec.Entries {
+func (webhook *YurtAppOverriderHandler) validateStar(configRender *v1alpha1.YurtAppOverrider) error {
+	for _, entry := range configRender.Entries {
 		for _, pool := range entry.Pools {
 			if pool == "*" && len(entry.Pools) > 1 {
 				return fmt.Errorf("pool can't be '*' when other pools are set")

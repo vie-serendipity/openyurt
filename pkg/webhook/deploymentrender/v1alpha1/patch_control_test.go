@@ -21,8 +21,8 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/openyurtio/openyurt/pkg/apis/apps/v1alpha1"
 )
@@ -68,37 +68,33 @@ var testPatchDeployment = &appsv1.Deployment{
 var patchControl = PatchControl{
 	patches: []v1alpha1.Patch{
 		{
-			Type:       v1alpha1.ADD,
-			Extensions: &runtime.RawExtension{Raw: []byte(`{"spec":{"template":{"spec":{"containers":[{"image":"tomcat:1.18","name":"tomcat"}]}}}}`)},
+			Operator: v1alpha1.ADD,
+			Path:     "/spec/template/spec/containers/0/image",
+			Value: apiextensionsv1.JSON{
+				Raw: []byte("tomcat:1.18"),
+			},
 		},
 		{
-			Type:       v1alpha1.Default,
-			Extensions: &runtime.RawExtension{Raw: []byte(`{"spec":{"replicas":3,"template":{"spec":{"containers":[{"image":"nginx:1.18","name":"nginx"}]}}}}`)},
+			Operator: v1alpha1.ADD,
+			Path:     "/spec/replicas",
+			Value: apiextensionsv1.JSON{
+				Raw: []byte("5"),
+			},
 		},
 	},
 	patchObject: testPatchDeployment,
 	dataStruct:  appsv1.Deployment{},
 }
 
-func TestStrategicMergePatch(t *testing.T) {
-	patch := v1alpha1.Patch{
-		Type:       v1alpha1.Default,
-		Extensions: &runtime.RawExtension{Raw: []byte(`{"spec":{"replicas":3,"template":{"spec":{"containers":[{"image":"nginx:1.18.0","name":"nginx"}]}}}}`)},
-	}
-	if err := patchControl.strategicMergePatch(patch); err != nil {
-		t.Fatalf("fail to call strategicMergePatch: %v", err)
-	}
-	if *testPatchDeployment.Spec.Replicas != 3 {
-		t.Fatalf("fail to update replicas")
-	}
-}
-
 func TestJsonMergePatch(t *testing.T) {
-	patch := v1alpha1.Patch{
-		Type:       v1alpha1.REPLACE,
-		Extensions: &runtime.RawExtension{Raw: []byte(`{"spec":{"template":{"spec":{"containers":[{"image":"nginx:1.18.0","name":"nginx1"}]}}}}`)},
+	sample := v1alpha1.Patch{
+		Operator: v1alpha1.ADD,
+		Path:     "/spec/template/spec/containers/0/image",
+		Value: apiextensionsv1.JSON{
+			Raw: []byte("tomcat:1.18"),
+		},
 	}
-	if err := patchControl.strategicMergePatch(patch); err != nil {
+	if err := patchControl.jsonMergePatch([]v1alpha1.Patch{sample}); err != nil {
 		t.Fatalf("fail to call strategicMergePatch")
 	}
 	t.Logf("image:%v", testPatchDeployment.Spec.Template.Spec.Containers[0].Name)

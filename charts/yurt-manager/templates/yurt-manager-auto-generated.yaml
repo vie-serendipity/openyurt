@@ -144,18 +144,6 @@ rules:
 - apiGroups:
   - apps.openyurt.io
   resources:
-  - yurtappconfigrenders
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - apps.openyurt.io
-  resources:
   - yurtappdaemons
   verbs:
   - create
@@ -173,6 +161,18 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - apps.openyurt.io
+  resources:
+  - yurtappoverriders
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - apps.openyurt.io
   resources:
@@ -517,27 +517,6 @@ webhooks:
     service:
       name: yurt-manager-webhook-service
       namespace: {{ .Release.Namespace }}
-      path: /mutate-apps-openyurt-io-v1alpha1-yurtappconfigrender
-  failurePolicy: Fail
-  name: mutate.apps.v1alpha1.yurtappconfigrender.openyurt.io
-  rules:
-  - apiGroups:
-    - apps.openyurt.io
-    apiVersions:
-    - v1alpha1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - yurtappconfigrenders
-  sideEffects: None
-- admissionReviewVersions:
-  - v1
-  - v1beta1
-  clientConfig:
-    service:
-      name: yurt-manager-webhook-service
-      namespace: {{ .Release.Namespace }}
       path: /mutate-apps-openyurt-io-v1alpha1-yurtappdaemon
   failurePolicy: Fail
   name: mutate.apps.v1alpha1.yurtappdaemon.openyurt.io
@@ -551,6 +530,27 @@ webhooks:
     - UPDATE
     resources:
     - yurtappdaemons
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: yurt-manager-webhook-service
+      namespace: {{ .Release.Namespace }}
+      path: /mutate-apps-openyurt-io-v1alpha1-yurtappoverrider
+  failurePolicy: Fail
+  name: mutate.apps.v1alpha1.yurtappoverrider.openyurt.io
+  rules:
+  - apiGroups:
+    - apps.openyurt.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - yurtappoverriders
   sideEffects: None
 - admissionReviewVersions:
   - v1
@@ -709,27 +709,6 @@ webhooks:
     service:
       name: yurt-manager-webhook-service
       namespace: {{ .Release.Namespace }}
-      path: /validate-apps-openyurt-io-v1alpha1-yurtappconfigrender
-  failurePolicy: Fail
-  name: validate.apps.v1alpha1.yurtappconfigrender.openyurt.io
-  rules:
-  - apiGroups:
-    - apps.openyurt.io
-    apiVersions:
-    - v1alpha1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - yurtappconfigrenders
-  sideEffects: None
-- admissionReviewVersions:
-  - v1
-  - v1beta1
-  clientConfig:
-    service:
-      name: yurt-manager-webhook-service
-      namespace: {{ .Release.Namespace }}
       path: /validate-apps-openyurt-io-v1alpha1-yurtappdaemon
   failurePolicy: Fail
   name: validate.apps.v1alpha1.yurtappdaemon.openyurt.io
@@ -743,6 +722,27 @@ webhooks:
     - UPDATE
     resources:
     - yurtappdaemons
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: yurt-manager-webhook-service
+      namespace: {{ .Release.Namespace }}
+      path: /validate-apps-openyurt-io-v1alpha1-yurtappoverrider
+  failurePolicy: Fail
+  name: validate.apps.v1alpha1.yurtappoverrider.openyurt.io
+  rules:
+  - apiGroups:
+    - apps.openyurt.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - yurtappoverriders
   sideEffects: None
 - admissionReviewVersions:
   - v1

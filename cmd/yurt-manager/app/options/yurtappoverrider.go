@@ -19,21 +19,21 @@ package options
 import (
 	"github.com/spf13/pflag"
 
-	"github.com/openyurtio/openyurt/pkg/controller/yurtappconfigrender/config"
+	"github.com/openyurtio/openyurt/pkg/controller/yurtappoverrider/config"
 )
 
-type YurtAppConfigRenderControllerOptions struct {
-	*config.YurtAppConfigRenderControllerConfiguration
+type YurtAppOverriderControllerOptions struct {
+	*config.YurtAppOverriderControllerConfiguration
 }
 
-func NewYurtAppConfigRenderControllerOptions() *YurtAppConfigRenderControllerOptions {
-	return &YurtAppConfigRenderControllerOptions{
-		&config.YurtAppConfigRenderControllerConfiguration{},
+func NewYurtAppOverriderControllerOptions() *YurtAppOverriderControllerOptions {
+	return &YurtAppOverriderControllerOptions{
+		&config.YurtAppOverriderControllerConfiguration{},
 	}
 }
 
 // AddFlags adds flags related to nodepool for yurt-manager to the specified FlagSet.
-func (n *YurtAppConfigRenderControllerOptions) AddFlags(fs *pflag.FlagSet) {
+func (n *YurtAppOverriderControllerOptions) AddFlags(fs *pflag.FlagSet) {
 	if n == nil {
 		return
 	}
@@ -42,7 +42,7 @@ func (n *YurtAppConfigRenderControllerOptions) AddFlags(fs *pflag.FlagSet) {
 }
 
 // ApplyTo fills up nodepool config with options.
-func (o *YurtAppConfigRenderControllerOptions) ApplyTo(cfg *config.YurtAppConfigRenderControllerConfiguration) error {
+func (o *YurtAppOverriderControllerOptions) ApplyTo(cfg *config.YurtAppOverriderControllerConfiguration) error {
 	if o == nil {
 		return nil
 	}
@@ -50,8 +50,8 @@ func (o *YurtAppConfigRenderControllerOptions) ApplyTo(cfg *config.YurtAppConfig
 	return nil
 }
 
-// Validate checks validation of YurtAppConfigRenderControllerOptions.
-func (o *YurtAppConfigRenderControllerOptions) Validate() []error {
+// Validate checks validation of YurtAppOverriderControllerOptions.
+func (o *YurtAppOverriderControllerOptions) Validate() []error {
 	if o == nil {
 		return nil
 	}

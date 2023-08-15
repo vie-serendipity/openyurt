@@ -19,7 +19,6 @@ package v1alpha1
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	v1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -53,7 +52,7 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 
 	deployment, ok := obj.(*v1.Deployment)
 	if !ok {
-		return apierrors.NewBadRequest(fmt.Sprintf("expected a YurtAppConfigRender but got a %T", obj))
+		return apierrors.NewBadRequest(fmt.Sprintf("expected a YurtAppOverrider but got a %T", obj))
 	}
 	if v, ok := deployment.Annotations[DeploymentMutatingWebhook]; ok && v == "mutated" {
 		delete(deployment.Annotations, DeploymentMutatingWebhook)
@@ -111,61 +110,32 @@ func (webhook *DeploymentRenderHandler) Default(ctx context.Context, obj runtime
 		yad.Spec.WorkloadTemplate.DeploymentTemplate.Spec.DeepCopyInto(&deployment.Spec)
 	}
 
-	// Get YurtAppConfigRender resource of app(1 to 1)
-	var allConfigRenderList v1alpha1.YurtAppConfigRenderList
+	// Get YurtAppOverrider resource of app(1 to 1)
+	var allConfigRenderList v1alpha1.YurtAppOverriderList
 	//listOptions := client.MatchingFields{"spec.subject.kind": app.Kind, "spec.subject.name": app.Name, "spec.subject.APIVersion": app.APIVersion}
 	if err := webhook.Client.List(ctx, &allConfigRenderList, client.InNamespace(deployment.Namespace)); err != nil {
-		klog.Info("error in listing YurtAppConfigRender")
+		klog.Info("error in listing YurtAppOverrider")
 		return err
 	}
-	var configRenderList = v1alpha1.YurtAppConfigRenderList{}
+	var overriderList = v1alpha1.YurtAppOverriderList{}
 	for _, configRender := range allConfigRenderList.Items {
-		if configRender.Spec.Subject.Kind == app.Kind && configRender.Spec.Subject.Name == app.Name && configRender.Spec.Subject.APIVersion == app.APIVersion {
-			configRenderList.Items = append(configRenderList.Items, configRender)
+		if configRender.Subject.Kind == app.Kind && configRender.Subject.Name == app.Name && configRender.Subject.APIVersion == app.APIVersion {
+			overriderList.Items = append(overriderList.Items, configRender)
 		}
 	}
-	klog.Info("Successfully list YurtAppConfigRender")
+	klog.Info("Successfully list YurtAppOverrider")
 
-	if len(configRenderList.Items) == 0 {
+	if len(overriderList.Items) == 0 {
 		return nil
 	}
-	render := configRenderList.Items[0]
+	render := overriderList.Items[0]
 
 	klog.Info("start to render deployment")
-	for _, entry := range render.Spec.Entries {
+	for _, entry := range render.Entries {
 		pools := entry.Pools
 		for _, pool := range pools {
-			if pool == nodepool || pool == "*" {
-				// Get the corresponding config  of this deployment
-				// reference to the volumeSource implementation
+			if pool == nodepool {
 				items := entry.Items
-				// replace {{nodepool}} into real pool name
-				for _, item := range items {
-					if item.ConfigMap != nil {
-						if strings.Contains(item.ConfigMap.ConfigMapSource, "{{nodepool}}") {
-							item.ConfigMap.ConfigMapSource = strings.ReplaceAll(item.ConfigMap.ConfigMapSource, "{{nodepool}}", nodepool)
-						}
-						if strings.Contains(item.ConfigMap.ConfigMapTarget, "{{nodepool}}") {
-							item.ConfigMap.ConfigMapTarget = strings.ReplaceAll(item.ConfigMap.ConfigMapTarget, "{{nodepool}}", nodepool)
-						}
-					}
-					if item.Secret != nil {
-						if strings.Contains(item.Secret.SecretSource, "{{nodepool}}") {
-							item.Secret.SecretSource = strings.ReplaceAll(item.Secret.SecretSource, "{{nodepool}}", nodepool)
-						}
-						if strings.Contains(item.Secret.SecretTarget, "{{nodepool}}") {
-							item.Secret.SecretTarget = strings.ReplaceAll(item.Secret.SecretTarget, "{{nodepool}}", nodepool)
-						}
-					}
-					if item.PersistentVolumeClaim != nil {
-						if strings.Contains(item.PersistentVolumeClaim.PVCSource, "{{nodepool}}") {
-							item.PersistentVolumeClaim.PVCSource = strings.ReplaceAll(item.PersistentVolumeClaim.PVCSource, "{{nodepool}}", nodepool)
-						}
-						if strings.Contains(item.PersistentVolumeClaim.PVCTarget, "{{nodepool}}") {
-							item.PersistentVolumeClaim.PVCTarget = strings.ReplaceAll(item.PersistentVolumeClaim.PVCTarget, "{{nodepool}}", nodepool)
-						}
-					}
-				}
 				// Replace items
 				if err := replaceItems(deployment, items); err != nil {
 					return err

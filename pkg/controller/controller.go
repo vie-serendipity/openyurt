@@ -33,8 +33,8 @@ import (
 	servicetopologyendpoints "github.com/openyurtio/openyurt/pkg/controller/servicetopology/endpoints"
 	servicetopologyendpointslice "github.com/openyurtio/openyurt/pkg/controller/servicetopology/endpointslice"
 	"github.com/openyurtio/openyurt/pkg/controller/util"
-	"github.com/openyurtio/openyurt/pkg/controller/yurtappconfigrender"
 	"github.com/openyurtio/openyurt/pkg/controller/yurtappdaemon"
+	"github.com/openyurtio/openyurt/pkg/controller/yurtappoverrider"
 	"github.com/openyurtio/openyurt/pkg/controller/yurtappset"
 	yurtcoordinatorcert "github.com/openyurtio/openyurt/pkg/controller/yurtcoordinator/cert"
 	"github.com/openyurtio/openyurt/pkg/controller/yurtcoordinator/delegatelease"
@@ -65,7 +65,7 @@ func init() {
 	controllerAddFuncs[yurtappset.ControllerName] = []AddControllerFn{yurtappset.Add}
 	controllerAddFuncs[yurtappdaemon.ControllerName] = []AddControllerFn{yurtappdaemon.Add}
 	controllerAddFuncs[platformadmin.ControllerName] = []AddControllerFn{platformadmin.Add}
-	controllerAddFuncs[yurtappconfigrender.ControllerName] = []AddControllerFn{yurtappconfigrender.Add}
+	controllerAddFuncs[yurtappoverrider.ControllerName] = []AddControllerFn{yurtappoverrider.Add}
 }
 
 // If you want to add additional RBAC, enter it here !!! @kadisi

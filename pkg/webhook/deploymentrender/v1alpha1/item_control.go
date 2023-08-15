@@ -17,10 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-
 	"github.com/openyurtio/openyurt/pkg/apis/apps/v1alpha1"
+	v1 "k8s.io/api/apps/v1"
 )
 
 func replaceItems(deployment *v1.Deployment, items []v1alpha1.Item) error {
@@ -28,21 +26,6 @@ func replaceItems(deployment *v1.Deployment, items []v1alpha1.Item) error {
 		switch {
 		case item.Replicas != nil:
 			deployment.Spec.Replicas = item.Replicas
-		case item.Env != nil:
-			var envVars []corev1.EnvVar
-			for key, val := range item.Env.EnvClaim {
-				envVar := corev1.EnvVar{
-					Name:  key,
-					Value: val,
-				}
-				envVars = append(envVars, envVar)
-			}
-
-			for i := range deployment.Spec.Template.Spec.Containers {
-				if deployment.Spec.Template.Spec.Containers[i].Name == item.Env.ContainerName {
-					deployment.Spec.Template.Spec.Containers[i].Env = envVars
-				}
-			}
 		case item.UpgradeStrategy != nil:
 			if v1.DeploymentStrategyType(*item.UpgradeStrategy) == v1.RecreateDeploymentStrategyType {
 				if deployment.Spec.Strategy.RollingUpdate != nil {
@@ -56,34 +39,6 @@ func replaceItems(deployment *v1.Deployment, items []v1alpha1.Item) error {
 			for i := range deployment.Spec.Template.Spec.Containers {
 				if deployment.Spec.Template.Spec.Containers[i].Name == item.Image.ContainerName {
 					deployment.Spec.Template.Spec.Containers[i].Image = item.Image.ImageClaim
-				}
-			}
-		case item.ConfigMap != nil:
-			for i := range deployment.Spec.Template.Spec.Containers {
-				for j := range deployment.Spec.Template.Spec.Containers[i].Env {
-					if deployment.Spec.Template.Spec.Containers[i].Env[j].ValueFrom.ConfigMapKeyRef != nil {
-						if deployment.Spec.Template.Spec.Containers[i].Env[j].ValueFrom.ConfigMapKeyRef.Name == item.ConfigMap.ConfigMapSource {
-							deployment.Spec.Template.Spec.Containers[i].Env[j].ValueFrom.ConfigMapKeyRef.Name = item.ConfigMap.ConfigMapTarget
-						}
-					}
-				}
-			}
-			for i := range deployment.Spec.Template.Spec.Volumes {
-				if deployment.Spec.Template.Spec.Volumes[i].VolumeSource.ConfigMap != nil && deployment.Spec.Template.Spec.Volumes[i].VolumeSource.ConfigMap.Name == item.ConfigMap.ConfigMapSource {
-					deployment.Spec.Template.Spec.Volumes[i].VolumeSource.ConfigMap.Name = item.ConfigMap.ConfigMapTarget
-				}
-			}
-		case item.PersistentVolumeClaim != nil:
-			for i := range deployment.Spec.Template.Spec.Volumes {
-				if deployment.Spec.Template.Spec.Volumes[i].VolumeSource.PersistentVolumeClaim != nil &&
-					deployment.Spec.Template.Spec.Volumes[i].VolumeSource.PersistentVolumeClaim.ClaimName == item.PersistentVolumeClaim.PVCSource {
-					deployment.Spec.Template.Spec.Volumes[i].VolumeSource.PersistentVolumeClaim.ClaimName = item.PersistentVolumeClaim.PVCTarget
-				}
-			}
-		case item.Secret != nil:
-			for i := range deployment.Spec.Template.Spec.Volumes {
-				if deployment.Spec.Template.Spec.Volumes[i].VolumeSource.Secret != nil && deployment.Spec.Template.Spec.Volumes[i].VolumeSource.Secret.SecretName == item.Secret.SecretSource {
-					deployment.Spec.Template.Spec.Volumes[i].VolumeSource.Secret.SecretName = item.Secret.SecretTarget
 				}
 			}
 		}

@@ -27,30 +27,30 @@ import (
 )
 
 // SetupWebhookWithManager sets up Cluster webhooks. 	mutate path, validatepath, error
-func (webhook *YurtAppConfigRenderHandler) SetupWebhookWithManager(mgr ctrl.Manager) (string, string, error) {
+func (webhook *YurtAppOverriderHandler) SetupWebhookWithManager(mgr ctrl.Manager) (string, string, error) {
 	// init
 	webhook.Client = mgr.GetClient()
 
-	gvk, err := apiutil.GVKForObject(&v1alpha1.YurtAppConfigRender{}, mgr.GetScheme())
+	gvk, err := apiutil.GVKForObject(&v1alpha1.YurtAppOverrider{}, mgr.GetScheme())
 	if err != nil {
 		return "", "", err
 	}
 	return util.GenerateMutatePath(gvk),
 		util.GenerateValidatePath(gvk),
 		ctrl.NewWebhookManagedBy(mgr).
-			For(&v1alpha1.YurtAppConfigRender{}).
+			For(&v1alpha1.YurtAppOverrider{}).
 			WithDefaulter(webhook).
 			WithValidator(webhook).
 			Complete()
 }
 
-// +kubebuilder:webhook:path=/validate-apps-openyurt-io-v1alpha1-yurtappconfigrender,mutating=false,failurePolicy=fail,sideEffects=None,admissionReviewVersions=v1;v1beta1,groups=apps.openyurt.io,resources=yurtappconfigrenders,verbs=create;update,versions=v1alpha1,name=validate.apps.v1alpha1.yurtappconfigrender.openyurt.io
-// +kubebuilder:webhook:path=/mutate-apps-openyurt-io-v1alpha1-yurtappconfigrender,mutating=true,failurePolicy=fail,sideEffects=None,admissionReviewVersions=v1;v1beta1,groups=apps.openyurt.io,resources=yurtappconfigrenders,verbs=create;update,versions=v1alpha1,name=mutate.apps.v1alpha1.yurtappconfigrender.openyurt.io
+// +kubebuilder:webhook:path=/validate-apps-openyurt-io-v1alpha1-yurtappoverrider,mutating=false,failurePolicy=fail,sideEffects=None,admissionReviewVersions=v1;v1beta1,groups=apps.openyurt.io,resources=yurtappoverriders,verbs=create;update,versions=v1alpha1,name=validate.apps.v1alpha1.yurtappoverrider.openyurt.io
+// +kubebuilder:webhook:path=/mutate-apps-openyurt-io-v1alpha1-yurtappoverrider,mutating=true,failurePolicy=fail,sideEffects=None,admissionReviewVersions=v1;v1beta1,groups=apps.openyurt.io,resources=yurtappoverriders,verbs=create;update,versions=v1alpha1,name=mutate.apps.v1alpha1.yurtappoverrider.openyurt.io
 
 // Cluster implements a validating and defaulting webhook for Cluster.
-type YurtAppConfigRenderHandler struct {
+type YurtAppOverriderHandler struct {
 	Client client.Client
 }
 
-var _ webhook.CustomDefaulter = &YurtAppConfigRenderHandler{}
-var _ webhook.CustomValidator = &YurtAppConfigRenderHandler{}
+var _ webhook.CustomDefaulter = &YurtAppOverriderHandler{}
+var _ webhook.CustomValidator = &YurtAppOverriderHandler{}

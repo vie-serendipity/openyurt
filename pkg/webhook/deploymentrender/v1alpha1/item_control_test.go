@@ -89,33 +89,7 @@ func TestReplaceItems(t *testing.T) {
 			UpgradeStrategy: &itemUpgradeStrategy,
 		},
 		{
-			ConfigMap: &v1alpha1.ConfigMapItem{
-				ConfigMapSource: "configMapSource",
-				ConfigMapTarget: "configMapTarget",
-			},
-		},
-		{
 			Replicas: &itemReplicas,
-		},
-		{
-			Secret: &v1alpha1.SecretItem{
-				SecretSource: "secretSource",
-				SecretTarget: "secretTarget",
-			},
-		},
-		{
-			PersistentVolumeClaim: &v1alpha1.PersistentVolumeClaimItem{
-				PVCSource: "pvcSource",
-				PVCTarget: "pvcTarget",
-			},
-		},
-		{
-			Env: &v1alpha1.EnvItem{
-				ContainerName: "nginx",
-				EnvClaim: map[string]string{
-					"key": "value",
-				},
-			},
 		},
 	}
 	if err := replaceItems(testItemDeployment, items); err != nil {

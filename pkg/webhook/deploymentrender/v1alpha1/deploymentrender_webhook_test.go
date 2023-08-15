@@ -19,6 +19,8 @@ import (
 	"context"
 	"testing"
 
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -119,45 +121,35 @@ var defaultDeployment = &appsv1.Deployment{
 	},
 }
 
-var defaultConfigRender = &v1alpha1.YurtAppConfigRender{
+var defaultConfigRender = &v1alpha1.YurtAppOverrider{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      "demo",
 		Namespace: "default",
 	},
-	Spec: v1alpha1.YurtAppConfigRenderSpec{
-		Subject: v1alpha1.Subject{
-			Name: "yurtappset-patch",
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "YurtAppSet",
-				APIVersion: "apps.openyurt.io/v1alpha1",
-			},
+	Subject: v1alpha1.Subject{
+		Name: "yurtappset-patch",
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "YurtAppSet",
+			APIVersion: "apps.openyurt.io/v1alpha1",
 		},
-		Entries: []v1alpha1.Entry{
-			{
-				Pools: []string{"*"},
-				Items: []v1alpha1.Item{
-					{
-						ConfigMap: &v1alpha1.ConfigMapItem{
-							ConfigMapSource: "configMapSource-{{nodepool}}",
-							ConfigMapTarget: "configMapTarget-{{nodepool}}",
-						},
+	},
+	Entries: []v1alpha1.Entry{
+		{
+			Pools: []string{"nodepool-test"},
+			Items: []v1alpha1.Item{
+				{
+					Image: &v1alpha1.ImageItem{
+						ContainerName: "nginx",
+						ImageClaim:    "nginx:1.18",
 					},
 				},
 			},
-			{
-				Pools: []string{"nodepool-test"},
-				Items: []v1alpha1.Item{
-					{
-						Image: &v1alpha1.ImageItem{
-							ContainerName: "nginx",
-							ImageClaim:    "nginx:1.18",
-						},
-					},
-				},
-				Patches: []v1alpha1.Patch{
-					{
-						Type:       v1alpha1.Default,
-						Extensions: &runtime.RawExtension{Raw: []byte(`{"spec":{"replicas":3,"template":{"spec":{"containers":[{"image":"nginx:2.20","name":"nginx"}]}}}}`)},
+			Patches: []v1alpha1.Patch{
+				{
+					Operator: v1alpha1.REPLACE,
+					Path:     "/spec/replicas",
+					Value: apiextensionsv1.JSON{
+						Raw: []byte("3"),
 					},
 				},
 			},

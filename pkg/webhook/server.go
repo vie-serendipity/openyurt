@@ -30,8 +30,8 @@ import (
 	"github.com/openyurtio/openyurt/pkg/controller/platformadmin"
 	"github.com/openyurtio/openyurt/pkg/controller/raven"
 	ctrlutil "github.com/openyurtio/openyurt/pkg/controller/util"
-	"github.com/openyurtio/openyurt/pkg/controller/yurtappconfigrender"
 	"github.com/openyurtio/openyurt/pkg/controller/yurtappdaemon"
+	"github.com/openyurtio/openyurt/pkg/controller/yurtappoverrider"
 	"github.com/openyurtio/openyurt/pkg/controller/yurtappset"
 	"github.com/openyurtio/openyurt/pkg/controller/yurtstaticset"
 	v1alpha1deploymentrender "github.com/openyurtio/openyurt/pkg/webhook/deploymentrender/v1alpha1"
@@ -44,8 +44,8 @@ import (
 	v1pod "github.com/openyurtio/openyurt/pkg/webhook/pod/v1"
 	"github.com/openyurtio/openyurt/pkg/webhook/util"
 	webhookcontroller "github.com/openyurtio/openyurt/pkg/webhook/util/controller"
-	v1alpha1yurtappconfigrender "github.com/openyurtio/openyurt/pkg/webhook/yurtappconfigrender/v1alpha1"
 	v1alpha1yurtappdaemon "github.com/openyurtio/openyurt/pkg/webhook/yurtappdaemon/v1alpha1"
+	v1alpha1yurtappoverrider "github.com/openyurtio/openyurt/pkg/webhook/yurtappoverrider/v1alpha1"
 	v1alpha1yurtappset "github.com/openyurtio/openyurt/pkg/webhook/yurtappset/v1alpha1"
 	v1alpha1yurtstaticset "github.com/openyurtio/openyurt/pkg/webhook/yurtstaticset/v1alpha1"
 )
@@ -84,7 +84,7 @@ func init() {
 	addControllerWebhook(yurtappdaemon.ControllerName, &v1alpha1yurtappdaemon.YurtAppDaemonHandler{})
 	addControllerWebhook(platformadmin.ControllerName, &v1alpha1platformadmin.PlatformAdminHandler{})
 	addControllerWebhook(platformadmin.ControllerName, &v1alpha2platformadmin.PlatformAdminHandler{})
-	addControllerWebhook(yurtappconfigrender.ControllerName, &v1alpha1yurtappconfigrender.YurtAppConfigRenderHandler{})
+	addControllerWebhook(yurtappoverrider.ControllerName, &v1alpha1yurtappoverrider.YurtAppOverriderHandler{})
 	independentWebhooks[v1pod.WebhookName] = &v1pod.PodHandler{}
 	independentWebhooks[v1node.WebhookName] = &v1node.NodeHandler{}
 	independentWebhooks[v1alpha1deploymentrender.WebhookName] = &v1alpha1deploymentrender.DeploymentRenderHandler{}
