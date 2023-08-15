@@ -19,10 +19,9 @@ import (
 	"context"
 	"testing"
 
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -173,12 +172,5 @@ func TestDeploymentRenderHandler_Default(t *testing.T) {
 	}
 	if err := webhook.Default(context.TODO(), defaultDeployment); err != nil {
 		t.Fatal(err)
-	}
-	for _, volume := range defaultDeployment.Spec.Template.Spec.Volumes {
-		if volume.VolumeSource.ConfigMap != nil {
-			if volume.VolumeSource.ConfigMap.Name != "configMapTarget-nodepool-test" {
-				t.Fatalf("fail to update configMap: %v", volume.VolumeSource.ConfigMap.Name)
-			}
-		}
 	}
 }

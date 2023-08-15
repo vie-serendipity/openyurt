@@ -17,8 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/openyurtio/openyurt/pkg/apis/apps/v1alpha1"
 	v1 "k8s.io/api/apps/v1"
+
+	"github.com/openyurtio/openyurt/pkg/apis/apps/v1alpha1"
 )
 
 func replaceItems(deployment *v1.Deployment, items []v1alpha1.Item) error {

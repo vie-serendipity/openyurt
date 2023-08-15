@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	"encoding/json"
-	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/openyurtio/openyurt/pkg/apis/apps/v1alpha1"
@@ -32,22 +31,28 @@ type PatchControl struct {
 	dataStruct interface{}
 }
 
+type overrider struct {
+	Op    string      `json:"op"`
+	Path  string      `json:"path"`
+	Value interface{} `json:"value,omitempty"`
+}
+
 // implement json patch
 func (pc *PatchControl) jsonMergePatch(patches []v1alpha1.Patch) error {
 	// convert into json patch format
-	var patchOperations []string
+	var patchOperations []overrider
 	for _, patch := range patches {
-		single, err := json.Marshal(map[string]interface{}{
-			"op":    string(patch.Operator),
-			"path":  patch.Path,
-			"value": patch.Value,
-		})
-		if err != nil {
-			return err
+		single := overrider{
+			Op:    string(patch.Operator),
+			Path:  patch.Path,
+			Value: patch.Value,
 		}
-		patchOperations = append(patchOperations, string(single))
+		patchOperations = append(patchOperations, single)
 	}
-	patchBytes := []byte("[" + strings.Join(patchOperations, ",") + "]")
+	patchBytes, err := json.Marshal(patchOperations)
+	if err != nil {
+		return err
+	}
 	patchedData, err := json.Marshal(pc.patchObject.(*appsv1.Deployment))
 	if err != nil {
 		return err
