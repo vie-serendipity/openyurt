@@ -42,10 +42,17 @@ const (
 	// propagating the hostNetwork configuration to the pods running in it.
 	HostNetworkPropagationFilterName = "hostnetworkpropagation"
 
-	// SkipDiscardServiceAnnotation is annotation used by LB service.
+	// Deprecated: SkipDiscardServiceAnnotation is annotation used by LB service.
 	// If end users want to use specified LB service at the edge side,
 	// End users should add annotation["openyurt.io/skip-discard"]="true" for LB service.
 	SkipDiscardServiceAnnotation = "openyurt.io/skip-discard"
+
+	// DiscardServiceAnnotation is used for specifying discard LB service or not.
+	DiscardServiceAnnotation = "svc.openyurt.io/discard"
+
+	// ImageCustomizationFilterName filter is used to mutate the image in the system component pod(like kube-proxy)
+	// in order to allow users to configure the image.
+	ImageCustomizationFilterName = "imagecustomization"
 )
 
 var (

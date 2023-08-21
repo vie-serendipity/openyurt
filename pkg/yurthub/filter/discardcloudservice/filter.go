@@ -28,8 +28,9 @@ import (
 )
 
 var (
-	cloudClusterIPService = map[string]struct{}{
+	cloudServiceBlacklist = map[string]struct{}{
 		"kube-system/x-tunnel-server-internal-svc": {},
+		"kube-system/x-tunnel-server-svc":          {},
 	}
 )
 
@@ -79,15 +80,15 @@ func discardCloudService(svc *v1.Service) *v1.Service {
 	nsName := fmt.Sprintf("%s/%s", svc.Namespace, svc.Name)
 	// remove cloud LoadBalancer service
 	if svc.Spec.Type == v1.ServiceTypeLoadBalancer {
-		if svc.Annotations[filter.SkipDiscardServiceAnnotation] != "true" {
-			klog.V(2).Infof("load balancer service(%s) is discarded in StreamResponseFilter of discardCloudServiceFilterHandler", nsName)
+		if svc.Annotations[filter.DiscardServiceAnnotation] == "true" {
+			klog.V(2).Infof("load balancer service(%s) is discarded in discardCloudServiceFilter", nsName)
 			return nil
 		}
 	}
 
-	// remove cloud clusterIP service
-	if _, ok := cloudClusterIPService[nsName]; ok {
-		klog.V(2).Infof("clusterIP service(%s) is discarded in StreamResponseFilter of discardCloudServiceFilterHandler", nsName)
+	// remove service in cloudServiceBlacklist
+	if _, ok := cloudServiceBlacklist[nsName]; ok {
+		klog.V(2).Infof("service(%s) is discarded in discardCloudServiceFilter", nsName)
 		return nil
 	}
 
