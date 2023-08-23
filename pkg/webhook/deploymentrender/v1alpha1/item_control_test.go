@@ -27,8 +27,7 @@ import (
 )
 
 var (
-	itemReplicas        int32  = 3
-	itemUpgradeStrategy string = "Recreate"
+	itemReplicas int32 = 3
 )
 
 var testItemDeployment = &appsv1.Deployment{
@@ -84,9 +83,6 @@ func TestReplaceItems(t *testing.T) {
 				ContainerName: "nginx",
 				ImageClaim:    "nginx",
 			},
-		},
-		{
-			UpgradeStrategy: &itemUpgradeStrategy,
 		},
 		{
 			Replicas: &itemReplicas,

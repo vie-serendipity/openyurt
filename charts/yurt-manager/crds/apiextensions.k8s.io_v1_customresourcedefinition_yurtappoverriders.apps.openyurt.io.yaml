@@ -66,17 +66,19 @@ spec:
                       replicas:
                         format: int32
                         type: integer
-                      upgradeStrategy:
-                        type: string
                     type: object
                   type: array
                 patches:
                   description: Convert Patch struct into json patch operation
                   items:
                     properties:
-                      operator:
+                      operation:
                         description: type represents the operation default is strategic
                           merge patch
+                        enum:
+                        - add
+                        - remove
+                        - replace
                         type: string
                       path:
                         description: Path represents the path in the json patch
@@ -85,9 +87,8 @@ spec:
                         description: Indicates the patch for the template
                         x-kubernetes-preserve-unknown-fields: true
                     required:
-                    - operator
+                    - operation
                     - path
-                    - value
                     type: object
                   type: array
                 pools:

@@ -169,8 +169,8 @@ var _ = Describe("YurtAppOverrider Test", func() {
 					},
 					Patches: []v1alpha1.Patch{
 						{
-							Operator: v1alpha1.Default,
-							Path:     "/spec/template/spec/containers/0/image",
+							Operation: v1alpha1.Default,
+							Path:      "/spec/template/spec/containers/0/image",
 							Value: apiextensionsv1.JSON{
 								Raw: []byte("nginx-patch"),
 							},
@@ -223,22 +223,6 @@ var _ = Describe("YurtAppOverrider Test", func() {
 	AfterEach(func() {
 		By("Cleanup resources after test")
 		Expect(k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespaceName}}, client.PropagationPolicy(metav1.DeletePropagationBackground))).Should(Succeed())
-	})
-	Describe("Test wildcard", func() {
-		It("", func() {
-
-		})
-
-		BeforeEach(func() {
-			//createNodePool()
-			//createYurtAppSet()
-			//createYurtAppOverrider()
-		})
-		AfterEach(func() {
-			// deleteNodePool()
-			// deleteYurtAppSet()
-			// deleteYurtAppOverrider()
-		})
 	})
 
 	Describe("Test function of YurtAppOverrider", func() {

@@ -27,15 +27,6 @@ func replaceItems(deployment *v1.Deployment, items []v1alpha1.Item) error {
 		switch {
 		case item.Replicas != nil:
 			deployment.Spec.Replicas = item.Replicas
-		case item.UpgradeStrategy != nil:
-			if v1.DeploymentStrategyType(*item.UpgradeStrategy) == v1.RecreateDeploymentStrategyType {
-				if deployment.Spec.Strategy.RollingUpdate != nil {
-					deployment.Spec.Strategy.RollingUpdate = nil
-				}
-				deployment.Spec.Strategy.Type = v1.RecreateDeploymentStrategyType
-			} else if v1.DeploymentStrategyType(*item.UpgradeStrategy) == v1.RollingUpdateDeploymentStrategyType {
-				deployment.Spec.Strategy.Type = v1.RollingUpdateDeploymentStrategyType
-			}
 		case item.Image != nil:
 			for i := range deployment.Spec.Template.Spec.Containers {
 				if deployment.Spec.Template.Spec.Containers[i].Name == item.Image.ContainerName {

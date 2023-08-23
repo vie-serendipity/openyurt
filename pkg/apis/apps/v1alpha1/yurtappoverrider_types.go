@@ -41,17 +41,15 @@ type Item struct {
 	Image *ImageItem `json:"image,omitempty"`
 	// +optional
 	Replicas *int32 `json:"replicas,omitempty"`
-	// +optional
-	UpgradeStrategy *string `json:"upgradeStrategy,omitempty"`
 }
 
-type Operator string
+type Operation string
 
 const (
-	Default Operator = "default" // strategic merge patch
-	ADD     Operator = "add"     // json patch
-	REMOVE  Operator = "remove"  // json patch
-	REPLACE Operator = "replace" // json patch
+	Default Operation = "default" // strategic merge patch
+	ADD     Operation = "add"     // json patch
+	REMOVE  Operation = "remove"  // json patch
+	REPLACE Operation = "replace" // json patch
 )
 
 type Patch struct {
@@ -60,7 +58,7 @@ type Patch struct {
 	// type represents the operation
 	// default is strategic merge patch
 	// +kubebuilder:validation:Enum=add;remove;replace
-	Operator Operator `json:"operator"`
+	Operation Operation `json:"operation"`
 	// Indicates the patch for the template
 	// +optional
 	Value apiextensionsv1.JSON `json:"value,omitempty"`

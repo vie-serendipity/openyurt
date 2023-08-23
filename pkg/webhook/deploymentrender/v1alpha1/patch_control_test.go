@@ -68,15 +68,15 @@ var testPatchDeployment = &appsv1.Deployment{
 var patchControl = PatchControl{
 	patches: []v1alpha1.Patch{
 		{
-			Operator: v1alpha1.REPLACE,
-			Path:     "/spec/template/spec/containers/0/image",
+			Operation: v1alpha1.REPLACE,
+			Path:      "/spec/template/spec/containers/0/image",
 			Value: apiextensionsv1.JSON{
 				Raw: []byte(`"tomcat:1.18"`),
 			},
 		},
 		{
-			Operator: v1alpha1.ADD,
-			Path:     "/spec/replicas",
+			Operation: v1alpha1.ADD,
+			Path:      "/spec/replicas",
 			Value: apiextensionsv1.JSON{
 				Raw: []byte("5"),
 			},
@@ -88,9 +88,9 @@ var patchControl = PatchControl{
 
 func TestJsonMergePatch(t *testing.T) {
 	sample := v1alpha1.Patch{
-		Operator: v1alpha1.ADD,
-		Path:     "/spec/template/spec/containers/0/image",
-		Value:    apiextensionsv1.JSON{Raw: []byte(`"tomcat"`)},
+		Operation: v1alpha1.ADD,
+		Path:      "/spec/template/spec/containers/0/image",
+		Value:     apiextensionsv1.JSON{Raw: []byte(`"tomcat"`)},
 	}
 	if err := patchControl.jsonMergePatch([]v1alpha1.Patch{sample}); err != nil {
 		t.Fatalf("fail to call jsonMergePatch")

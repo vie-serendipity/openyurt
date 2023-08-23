@@ -145,8 +145,8 @@ var defaultConfigRender = &v1alpha1.YurtAppOverrider{
 			},
 			Patches: []v1alpha1.Patch{
 				{
-					Operator: v1alpha1.REPLACE,
-					Path:     "/spec/replicas",
+					Operation: v1alpha1.REPLACE,
+					Path:      "/spec/replicas",
 					Value: apiextensionsv1.JSON{
 						Raw: []byte("3"),
 					},

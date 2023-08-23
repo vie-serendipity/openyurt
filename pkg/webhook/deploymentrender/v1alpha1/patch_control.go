@@ -20,8 +20,9 @@ import (
 	"encoding/json"
 
 	jsonpatch "github.com/evanphx/json-patch"
-	"github.com/openyurtio/openyurt/pkg/apis/apps/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
+
+	"github.com/openyurtio/openyurt/pkg/apis/apps/v1alpha1"
 )
 
 type PatchControl struct {
@@ -43,7 +44,7 @@ func (pc *PatchControl) jsonMergePatch(patches []v1alpha1.Patch) error {
 	var patchOperations []overrider
 	for _, patch := range patches {
 		single := overrider{
-			Op:    string(patch.Operator),
+			Op:    string(patch.Operation),
 			Path:  patch.Path,
 			Value: patch.Value,
 		}
