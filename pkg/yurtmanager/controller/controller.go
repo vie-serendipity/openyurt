@@ -35,12 +35,12 @@ import (
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/platformadmin"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/dns"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/gatewayinternalservice"
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/gatewaylifecycle"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/gatewaypickup"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/gatewaypublicservice"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/uniteddeployment"
-
 	servicetopologyendpoints "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/servicetopology/endpoints"
 	servicetopologyendpointslice "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/servicetopology/endpointslice"
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/uniteddeployment"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/yurtappdaemon"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/yurtappoverrider"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/yurtappset"
@@ -91,6 +91,7 @@ func NewControllerInitializers() map[string]InitFunc {
 	register(names.YurtAppOverriderController, yurtappoverrider.Add)
 	register(names.PlatformAdminController, platformadmin.Add)
 	register(names.GatewayPickupController, gatewaypickup.Add)
+	register(names.GatewayLifeCycleController, gatewaylifecycle.Add)
 	register(names.GatewayDNSController, dns.Add)
 	register(names.GatewayInternalServiceController, gatewayinternalservice.Add)
 	register(names.GatewayPublicServiceController, gatewaypublicservice.Add)

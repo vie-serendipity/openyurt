@@ -86,6 +86,14 @@ func AddGatewayProxyInternalService(q workqueue.RateLimitingInterface) {
 	})
 }
 
+func AddNodePoolToWorkQueue(npName string, q workqueue.RateLimitingInterface) {
+	if npName != "" {
+		q.Add(reconcile.Request{
+			NamespacedName: types.NamespacedName{Name: npName},
+		})
+	}
+}
+
 func HashObject(o interface{}) string {
 	data, _ := json.Marshal(o)
 	var a interface{}

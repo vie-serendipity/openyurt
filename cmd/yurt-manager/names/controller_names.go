@@ -31,6 +31,7 @@ const (
 	DelegateLeaseController                = "delegate-lease-controller"
 	PodBindingController                   = "pod-binding-controller"
 	GatewayPickupController                = "gateway-pickup-controller"
+	GatewayLifeCycleController             = "gateway-life-cycle-controller"
 	GatewayInternalServiceController       = "gateway-internal-service-controller"
 	GatewayPublicServiceController         = "gateway-public-service-controller"
 	GatewayDNSController                   = "gateway-dns-controller"
@@ -58,6 +59,7 @@ func YurtManagerControllerAliases() map[string]string {
 		"gatewayinternalservice":        GatewayInternalServiceController,
 		"gatewaypublicservice":          GatewayPublicServiceController,
 		"gatewaydns":                    GatewayDNSController,
+		"gatewaylifycycle":              GatewayLifeCycleController,
 		"nodelifecycle":                 NodeLifeCycleController,
 	}
 }

@@ -44,6 +44,11 @@ const (
 	ACLId          = "acl-id"
 	ACLEntry       = "acl-entry"
 
+	KubeletSecurePort      = 10250
+	KubeletInsecurePort    = 10255
+	PrometheusSecurePort   = 9100
+	PrometheusInsecurePort = 9445
+
 	GatewayProxyPublicServiceExternalIP      = "raven.openyurt.io/public-service-external-ip"
 	GatewayProxyPublicServiceExternalDNSName = "raven.openyurt.io/public-service-external-dns-name"
 )
