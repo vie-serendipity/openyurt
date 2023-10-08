@@ -33,6 +33,7 @@ import (
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter/inclusterconfig"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter/initializer"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter/masterservice"
+	"github.com/openyurtio/openyurt/pkg/yurthub/filter/mutetunnelnodes"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter/nodeportisolation"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter/servicetopology"
 	"github.com/openyurtio/openyurt/pkg/yurthub/kubernetes/serializer"
@@ -136,4 +137,5 @@ func registerAllFilters(filters *filter.Filters) {
 	inclusterconfig.Register(filters)
 	nodeportisolation.Register(filters)
 	hostnetworkpropagation.Register(filters)
+	mutetunnelnodes.Register(filters)
 }

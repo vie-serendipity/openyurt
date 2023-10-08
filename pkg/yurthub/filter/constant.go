@@ -53,11 +53,13 @@ const (
 	// ImageCustomizationFilterName filter is used to mutate the image in the system component pod(like kube-proxy)
 	// in order to allow users to configure the image.
 	ImageCustomizationFilterName = "imagecustomization"
+	// MuteTunnelNodesFilterName filter is used to comment /etc/edge/tunnel-nodes settings in Corefile of coredns.
+	MuteTunnelNodesFilterName = "mutetunnelnodes"
 )
 
 var (
 	// DisabledInCloudMode contains the filters that should be disabled when yurthub is working in cloud mode.
-	DisabledInCloudMode = []string{DiscardCloudServiceFilterName, HostNetworkPropagationFilterName}
+	DisabledInCloudMode = []string{DiscardCloudServiceFilterName, HostNetworkPropagationFilterName, MuteTunnelNodesFilterName}
 
 	// SupportedComponentsForFilter is used for specifying which components are supported by filters as default setting.
 	SupportedComponentsForFilter = map[string]string{
@@ -67,5 +69,6 @@ var (
 		InClusterConfigFilterName:        "kubelet",
 		NodePortIsolationFilterName:      "kube-proxy",
 		HostNetworkPropagationFilterName: "kubelet",
+		MuteTunnelNodesFilterName:        "kubelet",
 	}
 )
