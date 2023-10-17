@@ -51,4 +51,8 @@ const (
 
 	GatewayProxyPublicServiceExternalIP      = "raven.openyurt.io/public-service-external-ip"
 	GatewayProxyPublicServiceExternalDNSName = "raven.openyurt.io/public-service-external-dns-name"
+
+	ResourceUseForRavenComponentKey   = "ack.edge.ecm"
+	ResourceUseForRavenComponentValue = "raven-agent-ds"
+	CloudConfigDefaultPath            = "/etc/kubernetes/config/cloud-config.json"
 )

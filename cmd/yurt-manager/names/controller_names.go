@@ -35,6 +35,8 @@ const (
 	GatewayInternalServiceController       = "gateway-internal-service-controller"
 	GatewayPublicServiceController         = "gateway-public-service-controller"
 	GatewayDNSController                   = "gateway-dns-controller"
+	RavenCloudProviderController           = "raven-cloud-provider-controller"
+	RavenACLEntryController                = "raven-acl-entry-controller"
 	NodeLifeCycleController                = "node-life-cycle-controller"
 	UnitedDeploymentController             = "uniteddeployment-controller"
 )
@@ -61,5 +63,7 @@ func YurtManagerControllerAliases() map[string]string {
 		"gatewaydns":                    GatewayDNSController,
 		"gatewaylifycycle":              GatewayLifeCycleController,
 		"nodelifecycle":                 NodeLifeCycleController,
+		"cloudprovider":                 RavenCloudProviderController,
+		"aclentry":                      RavenACLEntryController,
 	}
 }
