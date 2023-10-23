@@ -34,6 +34,7 @@ type YurtManagerOptions struct {
 	PlatformAdminController    *PlatformAdminControllerOptions
 	YurtAppOverriderController *YurtAppOverriderControllerOptions
 	NodeLifeCycleController    *NodeLifecycleControllerOptions
+	UnitedDeploymentController *UnitedDeploymentControllerOptions
 }
 
 // NewYurtManagerOptions creates a new YurtManagerOptions with a default config.
@@ -49,6 +50,7 @@ func NewYurtManagerOptions() (*YurtManagerOptions, error) {
 		PlatformAdminController:    NewPlatformAdminControllerOptions(),
 		YurtAppOverriderController: NewYurtAppOverriderControllerOptions(),
 		NodeLifeCycleController:    NewNodeLifecycleControllerOptions(),
+		UnitedDeploymentController: NewUnitedDeploymentControllerOptions(),
 	}
 
 	return &s, nil

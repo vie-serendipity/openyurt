@@ -37,6 +37,8 @@ import (
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/gatewayinternalservice"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/gatewaypickup"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/gatewaypublicservice"
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/uniteddeployment"
+
 	servicetopologyendpoints "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/servicetopology/endpoints"
 	servicetopologyendpointslice "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/servicetopology/endpointslice"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/yurtappdaemon"
@@ -93,6 +95,7 @@ func NewControllerInitializers() map[string]InitFunc {
 	register(names.GatewayInternalServiceController, gatewayinternalservice.Add)
 	register(names.GatewayPublicServiceController, gatewaypublicservice.Add)
 	register(names.NodeLifeCycleController, nodelifecycle.Add)
+	register(names.UnitedDeploymentController, uniteddeployment.Add)
 
 	return controllers
 }

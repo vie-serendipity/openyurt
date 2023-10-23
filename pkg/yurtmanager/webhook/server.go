@@ -36,6 +36,7 @@ import (
 	v1beta1nodepool "github.com/openyurtio/openyurt/pkg/yurtmanager/webhook/nodepool/v1beta1"
 	v1alpha1platformadmin "github.com/openyurtio/openyurt/pkg/yurtmanager/webhook/platformadmin/v1alpha1"
 	v1alpha2platformadmin "github.com/openyurtio/openyurt/pkg/yurtmanager/webhook/platformadmin/v1alpha2"
+	v1alpha1uniteddeployment "github.com/openyurtio/openyurt/pkg/yurtmanager/webhook/uniteddeployment/v1alpha1"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/webhook/util"
 	webhookcontroller "github.com/openyurtio/openyurt/pkg/yurtmanager/webhook/util/controller"
 	v1alpha1yurtappdaemon "github.com/openyurtio/openyurt/pkg/yurtmanager/webhook/yurtappdaemon/v1alpha1"
@@ -79,6 +80,7 @@ func init() {
 	addControllerWebhook(names.PlatformAdminController, &v1alpha2platformadmin.PlatformAdminHandler{})
 	addControllerWebhook(names.YurtAppOverriderController, &v1alpha1yurtappoverrider.YurtAppOverriderHandler{})
 	addControllerWebhook(names.YurtAppOverriderController, &v1alpha1deploymentrender.DeploymentRenderHandler{})
+	addControllerWebhook(names.UnitedDeploymentController, &v1alpha1uniteddeployment.UnitedDeploymentHandler{})
 
 	independentWebhooks[v1node.WebhookName] = &v1node.NodeHandler{}
 }
