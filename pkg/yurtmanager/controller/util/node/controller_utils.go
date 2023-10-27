@@ -52,6 +52,9 @@ const (
 
 	// PodBindingAnnotation can be added into pod annotation, which indicates that this pod will be bound to the node that it is scheduled to.
 	PodBindingAnnotation = "apps.openyurt.io/binding"
+
+	// AnnotationKeyVirtualClusterNode is an internal key for esk, value is 'true' of 'false'
+	AnnotationKeyVirtualClusterNode = "node.beta.alibabacloud.com/is-vc-node"
 )
 
 var UpdateTaintBackoff = wait.Backoff{

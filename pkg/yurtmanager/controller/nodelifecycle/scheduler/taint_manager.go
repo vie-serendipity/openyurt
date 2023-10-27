@@ -49,6 +49,9 @@ const (
 	UpdateWorkerSize     = 8
 	podUpdateChannelSize = 1
 	retries              = 5
+
+	// LabelExcludeEviction is a label on nodes that controls whether they can be evicted.
+	LabelExcludeEviction = "alibabacloud.com/exclude-eviction"
 )
 
 type nodeUpdateItem struct {
@@ -489,4 +492,10 @@ func (tc *NoExecuteTaintManager) emitCancelPodDeletionEvent(nsName types.Namespa
 		Namespace:  nsName.Namespace,
 	}
 	tc.recorder.Eventf(ref, v1.EventTypeNormal, "TaintManagerEviction", "Cancelling deletion of Pod %s", nsName.String())
+}
+
+// IsNodeExcludeFromEviction estimates whether the node can be evicted. If the node is virtual
+// node or has ExcludeEviction label, we should not evict it.
+func IsNodeExcludeFromEviction(node *v1.Node) bool {
+	return node.Labels != nil && (node.Labels[LabelExcludeEviction] == "true" || node.Labels["type"] == "virtual-kubelet")
 }

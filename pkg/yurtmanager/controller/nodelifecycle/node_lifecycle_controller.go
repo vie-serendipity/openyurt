@@ -662,9 +662,20 @@ func (nc *ReconcileNodeLifeCycle) monitorNodeHealth(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	nodes := make([]*v1.Node, len(nodeList.Items), len(nodeList.Items))
+	newNodeSlice := make([]*v1.Node, len(nodeList.Items), len(nodeList.Items))
 	for i := range nodeList.Items {
-		nodes[i] = &nodeList.Items[i]
+		newNodeSlice[i] = &nodeList.Items[i]
+	}
+
+	// xiyuan added: for cdn , the vc nodes always keep ready and do not send heartbeat
+	// nodes of this type need to skip monitoring
+	var nodes []*v1.Node
+	for j := range newNodeSlice {
+		if newNodeSlice[j].Annotations != nil && newNodeSlice[j].Annotations[nodeutil.AnnotationKeyVirtualClusterNode] == "true" {
+			klog.V(5).Infof("Skip monitoring node: %v in virtual cluster", newNodeSlice[j].Name)
+		} else {
+			nodes = append(nodes, newNodeSlice[j])
+		}
 	}
 
 	added, deleted, newZoneRepresentatives := nc.classifyNodes(nodes)
@@ -745,7 +756,8 @@ func (nc *ReconcileNodeLifeCycle) monitorNodeHealth(ctx context.Context) error {
 				fallthrough
 			case needsRetry && observedReadyCondition.Status != v1.ConditionTrue:
 				// Ignore mark the pods NotReady if the node has bounded to node.
-				if nodeutil.IsPodBoundenToNode(node) {
+				if nodeutil.IsPodBoundenToNode(node) || scheduler.IsNodeExcludeFromEviction(node) {
+					klog.Infof("skip mark pods not ready on node %s for pods are binding to node", node.Name)
 					return
 				}
 
@@ -1139,7 +1151,8 @@ func (nc *ReconcileNodeLifeCycle) processPod(ctx context.Context, podItem podUpd
 	}
 
 	// Ignore mark the pods NotReady if the node has bounded to node.
-	if nodeutil.IsPodBoundenToNode(node) {
+	if nodeutil.IsPodBoundenToNode(node) || scheduler.IsNodeExcludeFromEviction(node) {
+		klog.Infof("skip mark pods not ready on node %s for pods are binding to node", node.Name)
 		return
 	}
 
