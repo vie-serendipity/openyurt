@@ -28,6 +28,7 @@ import (
 
 	"github.com/openyurtio/openyurt/cmd/yurt-manager/app/config"
 	"github.com/openyurtio/openyurt/cmd/yurt-manager/names"
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/cloudnodepoollifecycle"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/csrapprover"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/daemonpodupdater"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/nodelifecycle"
@@ -101,6 +102,7 @@ func NewControllerInitializers() map[string]InitFunc {
 	register(names.UnitedDeploymentController, uniteddeployment.Add)
 	register(names.RavenCloudProviderController, cloudprovider.Add)
 	register(names.RavenACLEntryController, aclentry.Add)
+	register(names.CloudNodepoolLifecycleController, cloudnodepoollifecycle.Add)
 
 	return controllers
 }

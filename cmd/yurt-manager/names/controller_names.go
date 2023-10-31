@@ -39,6 +39,7 @@ const (
 	RavenACLEntryController                = "raven-acl-entry-controller"
 	NodeLifeCycleController                = "node-life-cycle-controller"
 	UnitedDeploymentController             = "uniteddeployment-controller"
+	CloudNodepoolLifecycleController       = "cloud-nodepool-lifecycle-controller"
 )
 
 func YurtManagerControllerAliases() map[string]string {
@@ -65,5 +66,7 @@ func YurtManagerControllerAliases() map[string]string {
 		"nodelifecycle":                 NodeLifeCycleController,
 		"cloudprovider":                 RavenCloudProviderController,
 		"aclentry":                      RavenACLEntryController,
+		"uniteddeployment":              UnitedDeploymentController,
+		"cloudnodepoollifecycle":        CloudNodepoolLifecycleController,
 	}
 }
