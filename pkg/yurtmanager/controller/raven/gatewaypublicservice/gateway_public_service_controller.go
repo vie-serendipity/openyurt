@@ -22,7 +22,6 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -310,9 +309,9 @@ func (r *ReconcileService) manageService(ctx context.Context, gateway *ravenv1be
 	proxyPort, tunnelPort := r.getTargetPort()
 	specSvcList := acquiredSpecService(gateway, gatewayType, proxyPort, tunnelPort)
 	addSvc, updateSvc, deleteSvc := classifyService(curSvcList, specSvcList)
+	addSvc = r.bindCloudProduct(addSvc)
+	updateSvc = r.bindCloudProduct(updateSvc)
 	recordServiceNames(specSvcList.Items, record)
-	addSvc = r.addAnnotations(addSvc)
-	updateSvc = r.addAnnotations(updateSvc)
 	for i := 0; i < len(addSvc); i++ {
 		if err := r.Create(ctx, addSvc[i]); err != nil {
 			if apierrs.IsAlreadyExists(err) {
@@ -334,7 +333,7 @@ func (r *ReconcileService) manageService(ctx context.Context, gateway *ravenv1be
 	}
 	return nil
 }
-func (r *ReconcileService) addAnnotations(services []*corev1.Service) (ret []*corev1.Service) {
+func (r *ReconcileService) bindCloudProduct(services []*corev1.Service) (ret []*corev1.Service) {
 	ret = make([]*corev1.Service, 0)
 	var cm corev1.ConfigMap
 	err := r.Client.Get(context.TODO(), types.NamespacedName{Namespace: util.WorkingNamespace, Name: util.RavenGlobalConfig}, &cm)

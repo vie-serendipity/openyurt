@@ -75,23 +75,21 @@ func Add(ctx context.Context, c *appconfig.CompletedConfig, mgr manager.Manager)
 	return add(mgr, newReconciler(c, mgr))
 }
 
-var _ reconcile.Reconciler = &ReconcileResource{}
+var _ reconcile.Reconciler = &ReconcileGatewayLifeCycle{}
 
-// ReconcileService reconciles a Gateway object
-type ReconcileResource struct {
+// ReconcileResource reconciles a Gateway object
+type ReconcileGatewayLifeCycle struct {
 	client.Client
 	scheme   *runtime.Scheme
 	recorder record.EventRecorder
-	option   util.Option
 }
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(c *appconfig.CompletedConfig, mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileResource{
+	return &ReconcileGatewayLifeCycle{
 		Client:   mgr.GetClient(),
 		scheme:   mgr.GetScheme(),
 		recorder: mgr.GetEventRecorderFor(names.GatewayLifeCycleController),
-		option:   util.NewOption(),
 	}
 }
 
@@ -134,16 +132,13 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 // Reconcile reads that state of the cluster for a Gateway object and makes changes based on the state read
 // and what is in the Gateway.Spec
-func (r *ReconcileResource) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileGatewayLifeCycle) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	klog.V(2).Info(Format("started reconciling nodepool %s", req.Name))
 	defer func() {
 		klog.V(2).Info(Format("finished reconciling nodepool %s", req.Name))
 	}()
 
 	enableProxy, enableTunnel := util.CheckServer(ctx, r.Client)
-	r.option.SetProxyOption(enableProxy)
-	r.option.SetTunnelOption(enableTunnel)
-
 	np, err := r.getNodePool(ctx, req.Name)
 	if err != nil {
 		return reconcile.Result{Requeue: true, RequeueAfter: 2 * time.Second}, fmt.Errorf("failed to get np %s, error %s", req.Name, err.Error())
@@ -153,19 +148,19 @@ func (r *ReconcileResource) Reconcile(ctx context.Context, req reconcile.Request
 		return reconcile.Result{}, nil
 	}
 
-	err = r.reconcileCloud(ctx, np)
+	err = r.reconcileCloud(ctx, np, enableTunnel, enableProxy)
 	if err != nil {
 		return reconcile.Result{Requeue: true, RequeueAfter: 2 * time.Second}, fmt.Errorf("failed to reconcile cloud gateway, error %s", err.Error())
 	}
 
-	err = r.reconcileEdge(ctx, np)
+	err = r.reconcileEdge(ctx, np, enableTunnel, enableProxy)
 	if err != nil {
 		return reconcile.Result{Requeue: true, RequeueAfter: 2 * time.Second}, fmt.Errorf("failed to reconcile edge %s gateway, error %s", np.GetName(), err.Error())
 	}
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileResource) getNodePool(ctx context.Context, name string) (*nodepoolv1beta1.NodePool, error) {
+func (r *ReconcileGatewayLifeCycle) getNodePool(ctx context.Context, name string) (*nodepoolv1beta1.NodePool, error) {
 	var np nodepoolv1beta1.NodePool
 	err := r.Client.Get(ctx, types.NamespacedName{Name: name}, &np)
 	if err != nil {
@@ -174,18 +169,16 @@ func (r *ReconcileResource) getNodePool(ctx context.Context, name string) (*node
 	return np.DeepCopy(), nil
 }
 
-func (r *ReconcileResource) reconcileCloud(ctx context.Context, np *nodepoolv1beta1.NodePool) error {
+func (r *ReconcileGatewayLifeCycle) reconcileCloud(ctx context.Context, np *nodepoolv1beta1.NodePool, enableTunnel, enableProxy bool) error {
 	if !isCloudNodePool(np) {
 		return nil
 	}
-	enableTunnel := r.option.GetTunnelOption()
-	enableProxy := r.option.GetProxyOption()
 	if enableProxy || enableTunnel {
 		err := r.updateCloudGateway(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to update cloud gateway, error %s", err.Error())
 		}
-		err = r.labelNodesByNodePool(ctx, np, fmt.Sprintf("%s%s", GatewayPrefix, CloudNodePoolName), false)
+		err = r.manageNodesLabelByNodePool(ctx, np, fmt.Sprintf("%s%s", GatewayPrefix, CloudNodePoolName), false)
 		if err != nil {
 			return fmt.Errorf("failed to update cloud gateway label, error %s", err.Error())
 		}
@@ -198,15 +191,11 @@ func (r *ReconcileResource) reconcileCloud(ctx context.Context, np *nodepoolv1be
 	return nil
 }
 
-func (r *ReconcileResource) updateCloudGateway(ctx context.Context) error {
+func (r *ReconcileGatewayLifeCycle) updateCloudGateway(ctx context.Context) error {
 	var cloudGw ravenv1beta1.Gateway
 	gwName := fmt.Sprintf("%s%s", GatewayPrefix, CloudNodePoolName)
+	publicAddr, privateAddr := r.getLoadBalancerIP(ctx)
 	err := r.Client.Get(ctx, types.NamespacedName{Name: gwName}, &cloudGw)
-	publicAddr, privateAddr, addrErr := r.getLoadBalancerIP(ctx)
-	if addrErr != nil {
-		r.recorder.Event(cloudGw.DeepCopy(), corev1.EventTypeNormal, "AcquiredEndpointsPublicIP",
-			fmt.Sprintf("The gateway %s has no publicIP, ExposedType %s", gwName, cloudGw.Spec.ExposeType))
-	}
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			var nodeList corev1.NodeList
@@ -279,7 +268,7 @@ func (r *ReconcileResource) updateCloudGateway(ctx context.Context) error {
 	return nil
 }
 
-func (r *ReconcileResource) clearCloudGateway(ctx context.Context) error {
+func (r *ReconcileGatewayLifeCycle) clearCloudGateway(ctx context.Context) error {
 	gwName := fmt.Sprintf("%s%s", GatewayPrefix, CloudNodePoolName)
 	var gw ravenv1beta1.Gateway
 	err := r.Client.Get(ctx, types.NamespacedName{Name: gwName}, &gw)
@@ -290,7 +279,7 @@ func (r *ReconcileResource) clearCloudGateway(ctx context.Context) error {
 		return fmt.Errorf("failed to get gateway %s, error %s", gw.GetName(), err.Error())
 	}
 	for _, node := range gw.Status.Nodes {
-		err := r.labelNode(ctx, node.NodeName, "", true)
+		err := r.manageNodeLabel(ctx, node.NodeName, "", true)
 		if err != nil {
 			return fmt.Errorf("failed to delete label for node %s, error %s", node.NodeName, err.Error())
 		}
@@ -302,10 +291,10 @@ func (r *ReconcileResource) clearCloudGateway(ctx context.Context) error {
 	return nil
 }
 
-func (r *ReconcileResource) clearCloudGatewayLabel(ctx context.Context, np *nodepoolv1beta1.NodePool) error {
+func (r *ReconcileGatewayLifeCycle) clearCloudGatewayLabel(ctx context.Context, np *nodepoolv1beta1.NodePool) error {
 	gwName := fmt.Sprintf("%s%s", GatewayPrefix, CloudNodePoolName)
 	for _, nodeName := range np.Status.Nodes {
-		err := r.labelNode(ctx, nodeName, gwName, false)
+		err := r.manageNodeLabel(ctx, nodeName, gwName, false)
 		if err != nil {
 			return fmt.Errorf("failed to label node %s, error %s", nodeName, err.Error())
 		}
@@ -313,17 +302,15 @@ func (r *ReconcileResource) clearCloudGatewayLabel(ctx context.Context, np *node
 	return nil
 }
 
-func (r *ReconcileResource) reconcileEdge(ctx context.Context, np *nodepoolv1beta1.NodePool) error {
+func (r *ReconcileGatewayLifeCycle) reconcileEdge(ctx context.Context, np *nodepoolv1beta1.NodePool, enableTunnel, enableProxy bool) error {
 	if !isEdgeNodePool(np) {
 		return nil
 	}
 	if getInterconnectionMode(np) == DedicatedLine && !isAddressConflict(np) {
 		np.Annotations[SpecifiedGateway] = fmt.Sprintf("%s%s", GatewayPrefix, CloudNodePoolName)
 	}
-	enableTunnel := r.option.GetTunnelOption()
-	enableProxy := r.option.GetProxyOption()
 	if enableProxy || enableTunnel {
-		err := r.updateEdgeGateway(ctx, np)
+		err := r.updateEdgeGateway(ctx, np, enableTunnel)
 		if err != nil {
 			return err
 		}
@@ -336,9 +323,9 @@ func (r *ReconcileResource) reconcileEdge(ctx context.Context, np *nodepoolv1bet
 	return nil
 }
 
-func (r *ReconcileResource) labelNodesByNodePool(ctx context.Context, np *nodepoolv1beta1.NodePool, gwName string, isClear bool) error {
+func (r *ReconcileGatewayLifeCycle) manageNodesLabelByNodePool(ctx context.Context, np *nodepoolv1beta1.NodePool, gwName string, isClear bool) error {
 	for _, node := range np.Status.Nodes {
-		err := r.labelNode(ctx, node, gwName, isClear)
+		err := r.manageNodeLabel(ctx, node, gwName, isClear)
 		if err != nil {
 			return err
 		}
@@ -346,7 +333,7 @@ func (r *ReconcileResource) labelNodesByNodePool(ctx context.Context, np *nodepo
 	return nil
 }
 
-func (r *ReconcileResource) labelNode(ctx context.Context, nodeName, gwName string, isClear bool) error {
+func (r *ReconcileGatewayLifeCycle) manageNodeLabel(ctx context.Context, nodeName, gwName string, isClear bool) error {
 	var node corev1.Node
 	err := r.Client.Get(ctx, types.NamespacedName{Name: nodeName}, &node)
 	if err != nil {
@@ -372,29 +359,22 @@ func (r *ReconcileResource) labelNode(ctx context.Context, nodeName, gwName stri
 	return nil
 }
 
-func (r *ReconcileResource) getLoadBalancerIP(ctx context.Context) (publicAddr, privateAddr string, err error) {
+func (r *ReconcileGatewayLifeCycle) getLoadBalancerIP(ctx context.Context) (publicAddr, privateAddr string) {
 	var cm corev1.ConfigMap
 	objKey := types.NamespacedName{Name: util.RavenGlobalConfig, Namespace: util.WorkingNamespace}
-	err = r.Client.Get(ctx, objKey, &cm)
+	err := r.Client.Get(ctx, objKey, &cm)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to get configmap %s, error %s", objKey.String(), err.Error())
+		return "", ""
 	}
 	if cm.Data == nil {
-		return "", "", fmt.Errorf("failed to get loadbalancer public ip")
+		return "", ""
 	}
-	var ok bool
-	privateAddr, ok = cm.Data[util.LoadBalancerIP]
-	if !ok {
-		return "", "", fmt.Errorf("failed to get loadbalancer public ip")
-	}
-	publicAddr, ok = cm.Data[util.ElasticIPIP]
-	if !ok {
-		return "", "", fmt.Errorf("failed to get loadbalancer public ip")
-	}
+	privateAddr = cm.Data[util.LoadBalancerIP]
+	publicAddr = cm.Data[util.ElasticIPIP]
 	return
 }
 
-func (r *ReconcileResource) updateEdgeGateway(ctx context.Context, np *nodepoolv1beta1.NodePool) error {
+func (r *ReconcileGatewayLifeCycle) updateEdgeGateway(ctx context.Context, np *nodepoolv1beta1.NodePool, enableTunnel bool) error {
 	if len(np.Status.Nodes) == 0 {
 		klog.Info(Format("nodepool %s has no node, skip manage it for gateway", np.GetName()))
 		return nil
@@ -412,7 +392,7 @@ func (r *ReconcileResource) updateEdgeGateway(ctx context.Context, np *nodepoolv
 				continue
 			}
 		}
-		err = r.labelNodesByNodePool(ctx, np, gwName, false)
+		err = r.manageNodesLabelByNodePool(ctx, np, gwName, false)
 		if err != nil {
 			return fmt.Errorf("failed to label nodes for gateway %s, error %s", gwName, err.Error())
 		}
@@ -420,7 +400,7 @@ func (r *ReconcileResource) updateEdgeGateway(ctx context.Context, np *nodepoolv
 	}
 	anno := map[string]string{InterconnectionModeAnnotationKey: getInterconnectionMode(np)}
 	label := map[string]string{BelongToNodePool: np.GetName()}
-	if isSoloMode(np) && r.option.GetTunnelOption() {
+	if isSoloMode(np) && enableTunnel {
 		for _, nodeName := range np.Status.Nodes {
 			gwName := fmt.Sprintf("%s%s", GatewayPrefix, nodeName)
 			var edgeGateway ravenv1beta1.Gateway
@@ -445,7 +425,7 @@ func (r *ReconcileResource) updateEdgeGateway(ctx context.Context, np *nodepoolv
 					return fmt.Errorf("failed to create gateway %s, error %s", gwName, err.Error())
 				}
 			}
-			err = r.labelNode(ctx, nodeName, gwName, false)
+			err = r.manageNodeLabel(ctx, nodeName, gwName, false)
 			if err != nil {
 				return fmt.Errorf("failed to label nodes for gateway %s, error %s", gwName, err.Error())
 			}
@@ -478,7 +458,7 @@ func (r *ReconcileResource) updateEdgeGateway(ctx context.Context, np *nodepoolv
 				return fmt.Errorf("failed to create gateway %s for nodepool %s, error %s", gwName, np.GetName(), err.Error())
 			}
 		}
-		err = r.labelNodesByNodePool(ctx, np, gwName, false)
+		err = r.manageNodesLabelByNodePool(ctx, np, gwName, false)
 		if err != nil {
 			return fmt.Errorf("failed to label nodes for gateway %s, error %s", gwName, err.Error())
 		}
@@ -487,7 +467,7 @@ func (r *ReconcileResource) updateEdgeGateway(ctx context.Context, np *nodepoolv
 
 }
 
-func (r *ReconcileResource) clearGateway(ctx context.Context, np *nodepoolv1beta1.NodePool, isSoloMode bool) error {
+func (r *ReconcileGatewayLifeCycle) clearGateway(ctx context.Context, np *nodepoolv1beta1.NodePool, isSoloMode bool) error {
 	if isSoloMode {
 		for _, nodeName := range np.Status.Nodes {
 			gwName := fmt.Sprintf("%s%s", GatewayPrefix, nodeName)
@@ -495,7 +475,7 @@ func (r *ReconcileResource) clearGateway(ctx context.Context, np *nodepoolv1beta
 			if err != nil && !apierrors.IsNotFound(err) {
 				return fmt.Errorf("failed to delete gateway %s, error %s", gwName, err.Error())
 			}
-			err = r.labelNode(ctx, nodeName, gwName, true)
+			err = r.manageNodeLabel(ctx, nodeName, gwName, true)
 			if err != nil {
 				return fmt.Errorf("failed to clear label for node %s, error %s", nodeName, err.Error())
 			}
@@ -506,7 +486,7 @@ func (r *ReconcileResource) clearGateway(ctx context.Context, np *nodepoolv1beta
 		if err != nil && !apierrors.IsNotFound(err) {
 			return fmt.Errorf("failed to delete gateway %s, error %s", gwName, err.Error())
 		}
-		err = r.labelNodesByNodePool(ctx, np, "", true)
+		err = r.manageNodesLabelByNodePool(ctx, np, "", true)
 		if err != nil {
 			return fmt.Errorf("failed to clear label for nodepool %s, error %s", np.GetName(), err)
 		}
@@ -514,7 +494,7 @@ func (r *ReconcileResource) clearGateway(ctx context.Context, np *nodepoolv1beta
 	return nil
 }
 
-func (r *ReconcileResource) getTargetPort() (proxyPort, tunnelPort int32) {
+func (r *ReconcileGatewayLifeCycle) getTargetPort() (proxyPort, tunnelPort int32) {
 	proxyPort = ravenv1beta1.DefaultProxyServerExposedPort
 	tunnelPort = ravenv1beta1.DefaultTunnelServerExposedPort
 	var cm corev1.ConfigMap
@@ -535,7 +515,7 @@ func (r *ReconcileResource) getTargetPort() (proxyPort, tunnelPort int32) {
 	return
 }
 
-func (r *ReconcileResource) generateEndpoints(nodeName, publicIP string, underNAT bool) []ravenv1beta1.Endpoint {
+func (r *ReconcileGatewayLifeCycle) generateEndpoints(nodeName, publicIP string, underNAT bool) []ravenv1beta1.Endpoint {
 	proxyPort, tunnelPort := r.getTargetPort()
 	endpoints := make([]ravenv1beta1.Endpoint, 0)
 	endpoints = append(endpoints, ravenv1beta1.Endpoint{

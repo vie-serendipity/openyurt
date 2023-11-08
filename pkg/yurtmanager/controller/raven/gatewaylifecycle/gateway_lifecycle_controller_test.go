@@ -52,7 +52,7 @@ const (
 	EdgeNode          = "alibabacloud.com/is-edge-worker"
 )
 
-func mockReconcile() *ReconcileResource {
+func mockReconcile() *ReconcileGatewayLifeCycle {
 	nodeList := &corev1.NodeList{
 		Items: []corev1.Node{
 			{
@@ -197,10 +197,9 @@ func mockReconcile() *ReconcileResource {
 	if err != nil {
 		return nil
 	}
-	return &ReconcileResource{
+	return &ReconcileGatewayLifeCycle{
 		Client:   fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(objs...).Build(),
 		recorder: record.NewFakeRecorder(100),
-		option:   util.NewOption(),
 	}
 }
 
