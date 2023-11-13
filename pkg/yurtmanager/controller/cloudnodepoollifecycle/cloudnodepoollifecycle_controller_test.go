@@ -10,12 +10,16 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	appconfig "github.com/openyurtio/openyurt/cmd/yurt-manager/app/config"
 	"github.com/openyurtio/openyurt/pkg/apis"
 	"github.com/openyurtio/openyurt/pkg/apis/apps/v1beta1"
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/webhook/util"
 )
 
 var (
@@ -54,6 +58,28 @@ func newFakeClient(object ...client.Object) *fakeClient {
 	}
 
 	return f
+}
+
+func TestAdd(t *testing.T) {
+	t.Run("test add", func(t *testing.T) {
+
+		c := &appconfig.Config{}
+		err := Add(context.Background(), c.Complete(), newFakeMgr())
+
+		assertErrorNil(t, err)
+	})
+}
+
+func newFakeMgr() manager.Manager {
+	scheme := newOpenYurtScheme()
+	cfg := ctrl.GetConfigOrDie()
+
+	mgr, _ := ctrl.NewManager(cfg, ctrl.Options{
+		Scheme:    scheme,
+		Namespace: "",
+		CertDir:   util.GetCertDir(),
+	})
+	return mgr
 }
 
 func TestReconcileCloudNodepoolLifecycle_Reconcile(t *testing.T) {

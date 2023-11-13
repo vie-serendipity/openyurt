@@ -26,7 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/scale/scheme/appsv1beta1"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -49,7 +48,7 @@ func init() {
 
 var (
 	concurrentReconciles = 3
-	controllerResource   = appsv1beta1.SchemeGroupVersion.WithResource("nodepools")
+	controllerResource   = v1beta1.SchemeGroupVersion.WithResource("nodepools")
 )
 
 var (
