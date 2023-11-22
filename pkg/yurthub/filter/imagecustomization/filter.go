@@ -30,22 +30,39 @@ import (
 )
 
 const (
-	systemNamespace  = "kube-system"
 	PublicImageRepo  = "public"
 	PrivateImageRepo = "private"
 )
 
 var (
-	systemComponents = []string{
-		"logtail-ds",
-		"edge-tunnel-agent",
-		"coredns",
-		"kube-flannel-ds",
-		"kube-proxy",
-		"csi-local-plugin",
-		"node-resource-manager",
-		"raven-agent-ds",
-		"yss-upgrade-worker",
+	systemComponents = map[string][]string{
+		"kube-system": {
+			"logtail-ds",
+			"edge-tunnel-agent",
+			"coredns",
+			"kube-flannel-ds",
+			"kube-proxy",
+			"csi-local-plugin",
+			"csi-ens-plugin",
+			"csi-plugin",
+			"node-resource-manager",
+			"raven-agent-ds",
+			"yss-upgrade-worker",
+			"gpushare-core-device-plugin-ds",
+			"gpushare-device-plugin-ds",
+			"gpushare-mps-device-plugin-ds",
+			"gputopo-device-plugin-ds",
+			"migparted-device-plugin",
+			"nvidia-device-plugin-recover",
+			"ack-node-problem-detector-daemonset",
+		},
+		"fluid-system": {
+			"csi-nodeplugin-fluid",
+		},
+		"arms-prom": {
+			"ack-prometheus-gpu-exporter",
+			"node-exporter",
+		},
 	}
 	matchForOldRegistry = regexp.MustCompile(`^registry(-vpc)?\.(cn-\w+)\.aliyuncs\.com(.*)`)
 	matchForEERegistry  = regexp.MustCompile(`^registry-(cn-\w+)(-vpc)?\.ack\.aliyuncs\.com(.*)`)
@@ -110,7 +127,7 @@ func (icf *imageCustomizationFilter) Filter(obj runtime.Object, stopCh <-chan st
 }
 
 func (icf *imageCustomizationFilter) replacePodImage(pod *v1.Pod) {
-	if pod.Namespace == systemNamespace && isSystemComponent(pod.Name) {
+	if isSystemComponent(pod.Namespace, pod.Name) {
 		for j := range pod.Spec.InitContainers {
 			newImage := icf.replaceImageRegion(pod.Spec.InitContainers[j].Image)
 			pod.Spec.InitContainers[j].Image = newImage
@@ -160,13 +177,14 @@ func (icf *imageCustomizationFilter) replaceImageRegion(image string) string {
 	return image
 }
 
-func isSystemComponent(podName string) bool {
-	if podName == "" {
+func isSystemComponent(ns, name string) bool {
+	if ns == "" || name == "" {
 		return false
 	}
 
-	for i := range systemComponents {
-		if strings.HasPrefix(podName, systemComponents[i]) {
+	componentNames := systemComponents[ns]
+	for i := range componentNames {
+		if strings.HasPrefix(name, componentNames[i]) {
 			return true
 		}
 	}
