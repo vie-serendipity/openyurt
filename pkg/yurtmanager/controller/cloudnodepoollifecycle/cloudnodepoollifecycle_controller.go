@@ -53,11 +53,7 @@ var (
 
 var (
 	cloudNodeDefaultLabels = map[string]string{
-		"alibabacloud.com/cloud-worker-nodes":           "tools",
-		"alibabacloud.com/edge-enable-addon-coredns":    "true",
-		"alibabacloud.com/edge-enable-addon-flannel":    "true",
-		"alibabacloud.com/edge-enable-addon-kube-proxy": "true",
-		"alibabacloud.com/is-edge-worker":               "false",
+		"alibabacloud.com/is-edge-worker": "false",
 	}
 )
 
