@@ -238,7 +238,6 @@ func (r *ReconcileGateway) electActiveEndpoint(nodeList corev1.NodeList, gw *rav
 			readyNodes[v.Name] = &v
 		}
 	}
-	klog.V(1).Infof(Format("Ready node has %d, node %v", len(readyNodes), readyNodes))
 	// init a endpoints slice
 	enableProxy, enableTunnel := util.CheckServer(context.TODO(), r.Client)
 	eps := make([]*ravenv1beta1.Endpoint, 0)
