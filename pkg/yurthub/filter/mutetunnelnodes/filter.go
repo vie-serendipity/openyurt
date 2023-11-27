@@ -83,11 +83,28 @@ func mutateCorednsConfigMap(cm *v1.ConfigMap) bool {
 	if cm.Namespace == CorednsConfigMapNamespace && cm.Name == CorednsConfigMapName {
 		if cm.Data != nil && len(cm.Data[CorednsDataKey]) != 0 {
 			corefile := cm.Data[CorednsDataKey]
-			newCorefile := strings.Replace(corefile, CorednsMuteBlock, "", 1)
+			newCorefile := removeTunnelNodesHostsConfig(corefile)
 			cm.Data[CorednsDataKey] = newCorefile
 			klog.Infof("corefile in configmap(%s/%s) has been commented, new corefile: \n%s\n", cm.Namespace, cm.Name, cm.Data[CorednsDataKey])
 			mutated = true
 		}
 	}
 	return mutated
+}
+
+func removeTunnelNodesHostsConfig(corefile string) string {
+	oldCorefileLines := strings.Split(corefile, "\n")
+
+	var newCorefileLines []string
+
+	for i := 0; i < len(oldCorefileLines); i++ {
+		if !strings.Contains(oldCorefileLines[i], "/etc/edge/tunnel-nodes") {
+			newCorefileLines = append(newCorefileLines, oldCorefileLines[i])
+			continue
+		}
+
+		i += 3
+	}
+
+	return strings.Join(newCorefileLines, "\n")
 }
