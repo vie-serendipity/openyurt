@@ -110,7 +110,6 @@ func TestRuntimeObjectFilter(t *testing.T) {
         health :10260 {
            lameduck 15s
         }
-
         ready
         kubeapi
         k8s_event {
@@ -275,7 +274,6 @@ func TestRuntimeObjectFilter(t *testing.T) {
         health :10260 {
            lameduck 15s
         }
-
         ready
         kubeapi
         k8s_event {
@@ -296,6 +294,108 @@ func TestRuntimeObjectFilter(t *testing.T) {
         reload
         loadbalance
     }`,
+						},
+					},
+				},
+			},
+		},
+		"coredns configmap has empty lines": {
+			responseObject: &v1.ConfigMapList{
+				Items: []v1.ConfigMap{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "foo",
+							Namespace: "default",
+						},
+						Data: map[string]string{
+							"foo": "bar",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      CorednsConfigMapName,
+							Namespace: CorednsConfigMapNamespace,
+						},
+						Data: map[string]string{
+							"Corefile": `.:53 {
+    errors
+    health {
+       lameduck 15s
+    }
+    ready
+    kubeapi
+    k8s_event {
+      level info error warning
+    }
+
+    hosts /etc/edge/tunnel-nodes {
+        reload 300ms
+        fallthrough
+    }
+    kubernetes cluster.local in-addr.arpa ip6.arpa {
+
+      pods verified
+      ttl 30
+      fallthrough in-addr.arpa ip6.arpa
+    }
+    prometheus :9153
+    forward . /etc/resolv.conf {
+      prefer_udp
+    }
+    cache 30
+    log
+    loop
+    reload
+    loadbalance
+}`,
+						},
+					},
+				},
+			},
+			expectObject: &v1.ConfigMapList{
+				Items: []v1.ConfigMap{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "foo",
+							Namespace: "default",
+						},
+						Data: map[string]string{
+							"foo": "bar",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      CorednsConfigMapName,
+							Namespace: CorednsConfigMapNamespace,
+						},
+						Data: map[string]string{
+							"Corefile": `.:53 {
+    errors
+    health {
+       lameduck 15s
+    }
+    ready
+    kubeapi
+    k8s_event {
+      level info error warning
+    }
+
+    kubernetes cluster.local in-addr.arpa ip6.arpa {
+
+      pods verified
+      ttl 30
+      fallthrough in-addr.arpa ip6.arpa
+    }
+    prometheus :9153
+    forward . /etc/resolv.conf {
+      prefer_udp
+    }
+    cache 30
+    log
+    loop
+    reload
+    loadbalance
+}`,
 						},
 					},
 				},
