@@ -50,7 +50,7 @@ func (tcvf *trimCorednsVolumeFilter) Name() string {
 
 func (tcvf *trimCorednsVolumeFilter) SupportedResourceAndVerbs() map[string]sets.String {
 	return map[string]sets.String{
-		"pods": sets.NewString("list", "watch"),
+		"pods": sets.NewString("get", "list", "watch"),
 	}
 }
 
