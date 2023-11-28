@@ -101,7 +101,7 @@ func (icf *imageCustomizationFilter) Name() string {
 
 func (icf *imageCustomizationFilter) SupportedResourceAndVerbs() map[string]sets.String {
 	return map[string]sets.String{
-		"pods": sets.NewString("list", "watch"),
+		"pods": sets.NewString("get", "list", "watch"),
 	}
 }
 
