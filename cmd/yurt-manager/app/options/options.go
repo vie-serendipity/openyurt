@@ -28,6 +28,7 @@ type YurtManagerOptions struct {
 	Generic                      *GenericOptions
 	NodePoolController           *NodePoolControllerOptions
 	GatewayPickupController      *GatewayPickupControllerOptions
+	GatewayLifecycleController   *GatewayLifecycleControllerOptions
 	YurtStaticSetController      *YurtStaticSetControllerOptions
 	YurtAppSetController         *YurtAppSetControllerOptions
 	YurtAppDaemonController      *YurtAppDaemonControllerOptions
@@ -46,6 +47,7 @@ func NewYurtManagerOptions() (*YurtManagerOptions, error) {
 		Generic:                      NewGenericOptions(),
 		NodePoolController:           NewNodePoolControllerOptions(),
 		GatewayPickupController:      NewGatewayPickupControllerOptions(),
+		GatewayLifecycleController:   NewGatewayLifecycleControllerOptions(),
 		YurtStaticSetController:      NewYurtStaticSetControllerOptions(),
 		YurtAppSetController:         NewYurtAppSetControllerOptions(),
 		YurtAppDaemonController:      NewYurtAppDaemonControllerOptions(),
@@ -65,6 +67,7 @@ func (y *YurtManagerOptions) Flags(allControllers, disabledByDefaultControllers 
 	y.Generic.AddFlags(fss.FlagSet("generic"), allControllers, disabledByDefaultControllers)
 	y.NodePoolController.AddFlags(fss.FlagSet("nodepool controller"))
 	y.GatewayPickupController.AddFlags(fss.FlagSet("gateway controller"))
+	y.GatewayLifecycleController.AddFlags(fss.FlagSet("gatewaylifecycle controller"))
 	y.YurtStaticSetController.AddFlags(fss.FlagSet("yurtstaticset controller"))
 	y.YurtAppDaemonController.AddFlags(fss.FlagSet("yurtappdaemon controller"))
 	y.PlatformAdminController.AddFlags(fss.FlagSet("iot controller"))
@@ -81,6 +84,7 @@ func (y *YurtManagerOptions) Validate(allControllers []string, controllerAliases
 	errs = append(errs, y.Generic.Validate(allControllers, controllerAliases)...)
 	errs = append(errs, y.NodePoolController.Validate()...)
 	errs = append(errs, y.GatewayPickupController.Validate()...)
+	errs = append(errs, y.GatewayLifecycleController.Validate()...)
 	errs = append(errs, y.YurtStaticSetController.Validate()...)
 	errs = append(errs, y.YurtAppDaemonController.Validate()...)
 	errs = append(errs, y.PlatformAdminController.Validate()...)
@@ -115,6 +119,9 @@ func (y *YurtManagerOptions) ApplyTo(c *config.Config, controllerAliases map[str
 		return err
 	}
 	if err := y.NodeLifeCycleController.ApplyTo(&c.ComponentConfig.NodeLifeCycleController); err != nil {
+		return err
+	}
+	if err := y.GatewayLifecycleController.ApplyTo(&c.ComponentConfig.GatewayLifecycleController); err != nil {
 		return err
 	}
 	if err := y.RavenCloudProviderController.ApplyTo(&c.ComponentConfig.RavenCloudProviderController); err != nil {
