@@ -24,6 +24,7 @@ import (
 	cloudnodepoollifecycleconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/cloudnodepoollifecycle/config"
 	nodepoolconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/nodepool/config"
 	platformadminconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/platformadmin/config"
+	gatewaylifecycleconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/gatewaylifecycle/config"
 	gatewaypickupconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/gatewaypickup/config"
 	ravencloudproviderconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util/config"
 	uniteddeploymentconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/uniteddeployment/config"
@@ -45,6 +46,9 @@ type YurtManagerConfiguration struct {
 
 	// GatewayPickupControllerConfiguration holds configuration for GatewayController related features.
 	GatewayPickupController gatewaypickupconfig.GatewayPickupControllerConfiguration
+
+	// GatewayLifecycleControllerConfiguration holds configuration for GatewayController related features.
+	GatewayLifecycleController gatewaylifecycleconfig.GatewayLifecycleControllerConfiguration
 
 	// YurtAppSetControllerConfiguration holds configuration for YurtAppSetController related features.
 	YurtAppSetController yurtappsetconfig.YurtAppSetControllerConfiguration

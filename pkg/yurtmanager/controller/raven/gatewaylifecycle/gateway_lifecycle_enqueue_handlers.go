@@ -18,11 +18,10 @@ package gatewaylifecycle
 
 import (
 	"context"
-	"k8s.io/klog/v2"
-	"strings"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog/v2"
+	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
@@ -61,23 +60,12 @@ func (h *EnqueueRequestForNodePoolEvent) Update(e event.UpdateEvent, q workqueue
 		return
 	}
 
-	newConnected := strings.ToLower(newNodePool.Annotations[PoolNodesConnectedAnnotationKey])
-	oldConnected := strings.ToLower(oldNodePool.Annotations[PoolNodesConnectedAnnotationKey])
-
-	if oldConnected != newConnected {
+	if reflect.DeepEqual(newNodePool.Annotations, oldNodePool.Annotations) {
 		klog.V(2).Infof(Format("enqueue nodepool %s for update event", newNodePool.GetName()))
 		util.AddNodePoolToWorkQueue(newNodePool.GetName(), q)
 		return
 	}
 
-	newInterConnMode := strings.ToLower(newNodePool.Annotations[InterconnectionModeAnnotationKey])
-	oldInterConnMode := strings.ToLower(oldNodePool.Annotations[InterconnectionModeAnnotationKey])
-	if oldInterConnMode != newInterConnMode {
-		klog.V(2).Infof(Format("enqueue nodepool %s for update event", newNodePool.GetName()))
-		util.AddNodePoolToWorkQueue(newNodePool.GetName(), q)
-		return
-	}
-	return
 }
 
 func (h *EnqueueRequestForNodePoolEvent) Delete(e event.DeleteEvent, q workqueue.RateLimitingInterface) {
@@ -133,10 +121,13 @@ func (h *EnqueueRequestForRavenConfigEvent) Update(e event.UpdateEvent, q workqu
 		klog.Error(Format("fail to assert runtime Object to v1alpha1.Gateway"))
 		return
 	}
-	if newCm.Data == nil || oldCm.Data == nil {
-		klog.Error(Format("assert configmap.Data is nil"))
-		return
+	if newCm.Data == nil {
+		newCm.Data = map[string]string{}
 	}
+	if oldCm.Data == nil {
+		oldCm.Data = map[string]string{}
+	}
+
 	if util.HashObject(newCm.Data) != util.HashObject(oldCm.Data) {
 		var nodePoolList nodepoolv1beta1.NodePoolList
 		err := h.client.List(context.TODO(), &nodePoolList)
@@ -179,4 +170,41 @@ func (h *EnqueueRequestForRavenConfigEvent) Delete(e event.DeleteEvent, q workqu
 
 func (h *EnqueueRequestForRavenConfigEvent) Generic(e event.GenericEvent, q workqueue.RateLimitingInterface) {
 	return
+}
+
+type EnqueueRequestForNodeEvent struct {
+}
+
+func (h *EnqueueRequestForNodeEvent) Create(e event.CreateEvent, q workqueue.RateLimitingInterface) {
+}
+
+func (h *EnqueueRequestForNodeEvent) Update(e event.UpdateEvent, q workqueue.RateLimitingInterface) {
+	newNode, ok := e.ObjectNew.(*corev1.Node)
+	if !ok {
+		klog.Error(Format("fail to assert runtime Object to v1alpha1.Gateway"))
+		return
+	}
+	oldNode, ok := e.ObjectOld.(*corev1.Node)
+	if !ok {
+		klog.Error(Format("fail to assert runtime Object to v1alpha1.Gateway"))
+		return
+	}
+	if isUnderNAT(newNode) != isUnderNAT(oldNode) {
+		np := newNode.Labels[NodePoolKey]
+		if np != "" {
+			util.AddNodePoolToWorkQueue(np, q)
+		}
+	}
+	if isGatewayEndpoint(newNode) != isGatewayEndpoint(oldNode) {
+		np := newNode.Labels[NodePoolKey]
+		if np != "" {
+			util.AddNodePoolToWorkQueue(np, q)
+		}
+	}
+}
+
+func (h *EnqueueRequestForNodeEvent) Delete(e event.DeleteEvent, q workqueue.RateLimitingInterface) {
+}
+
+func (h *EnqueueRequestForNodeEvent) Generic(e event.GenericEvent, q workqueue.RateLimitingInterface) {
 }
