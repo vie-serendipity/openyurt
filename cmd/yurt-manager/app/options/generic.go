@@ -99,6 +99,7 @@ func (o *GenericOptions) ApplyTo(cfg *config.GenericConfiguration, controllerAli
 	cfg.RestConfigBurst = o.RestConfigBurst
 	cfg.WorkingNamespace = o.WorkingNamespace
 	cfg.Kubeconfig = o.Kubeconfig
+	cfg.CloudConfig = o.CloudConfig
 
 	cfg.Controllers = make([]string, len(o.Controllers))
 	for i, initialName := range o.Controllers {
@@ -137,5 +138,6 @@ func (o *GenericOptions) AddFlags(fs *pflag.FlagSet, allControllers, disabledByD
 	fs.StringSliceVar(&o.DisabledWebhooks, "disable-independent-webhooks", o.DisabledWebhooks, "A list of webhooks to disable. "+
 		"'*' disables all independent webhooks, 'foo' disables the independent webhook named 'foo'.")
 	fs.StringVar(&o.Kubeconfig, "kubeconfig", o.Kubeconfig, "Path to kubeconfig file with authorization and master location information")
+	fs.StringVar(&o.CloudConfig, "cloud-config", o.CloudConfig, "Path to cloud provider configuration file with authorization.")
 	features.DefaultMutableFeatureGate.AddFlag(fs)
 }

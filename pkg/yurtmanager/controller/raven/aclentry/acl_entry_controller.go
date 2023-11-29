@@ -36,10 +36,10 @@ import (
 
 	appconfig "github.com/openyurtio/openyurt/cmd/yurt-manager/app/config"
 	"github.com/openyurtio/openyurt/cmd/yurt-manager/names"
+	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider"
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider/alibaba"
+	ravenmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider/model/raven"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util/model"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util/provider/base"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util/provider/slb"
 )
 
 func Format(format string, args ...interface{}) string {
@@ -50,7 +50,7 @@ func Format(format string, args ...interface{}) string {
 // Add creates a new Service Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(ctx context.Context, c *appconfig.CompletedConfig, mgr manager.Manager) error {
-	r, err := newReconciler(c, mgr)
+	r, err := newReconciler(ctx, c, mgr)
 	if err != nil {
 		klog.Error(Format("new reconcile error: %s", err.Error()))
 		return err
@@ -62,30 +62,30 @@ var _ reconcile.Reconciler = &ReconcileACL{}
 
 type ReconcileACL struct {
 	client.Client
-	scheme      *runtime.Scheme
-	recorder    record.EventRecorder
-	cloudClient *base.ClientMgr
-	slbClient   *slb.SLBProvider
-	model       *model.AccessControlListAttribute
+	scheme   *runtime.Scheme
+	recorder record.EventRecorder
+	provider prvd.Provider
+	model    *ravenmodel.AccessControlListAttribute
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(c *appconfig.CompletedConfig, mgr manager.Manager) (reconcile.Reconciler, error) {
-	if c.ComponentConfig.RavenCloudProviderController.CloudConfigPath == "" {
-		c.ComponentConfig.RavenCloudProviderController.CloudConfigPath = util.CloudConfigDefaultPath
+func newReconciler(ctx context.Context, c *appconfig.CompletedConfig, mgr manager.Manager) (reconcile.Reconciler, error) {
+	alibabaProvider := ctx.Value(alibaba.Provider)
+	if alibabaProvider == nil {
+		klog.Error(Format("alibaba provider is nil"))
+		return nil, fmt.Errorf("alibaba provider is nil")
 	}
-
-	cloudClient, err := base.NewClientMgr(c.ComponentConfig.RavenCloudProviderController.CloudConfigPath)
-	if err != nil {
-		return nil, err
+	provider, ok := alibabaProvider.(*alibaba.AlibabaCloud)
+	if !ok {
+		klog.Error(Format("can not init alibaba provider"))
+		return nil, fmt.Errorf("can not init alibaba provider")
 	}
 
 	return &ReconcileACL{
-		Client:      mgr.GetClient(),
-		scheme:      mgr.GetScheme(),
-		cloudClient: cloudClient,
-		slbClient:   slb.NewLBProvider(cloudClient),
-		recorder:    mgr.GetEventRecorderFor(names.RavenACLEntryController),
+		Client:   mgr.GetClient(),
+		scheme:   mgr.GetScheme(),
+		provider: provider,
+		recorder: mgr.GetEventRecorderFor(names.RavenACLEntryController),
 	}, nil
 }
 
@@ -169,19 +169,16 @@ func (r *ReconcileACL) Reconcile(ctx context.Context, req reconcile.Request) (re
 }
 
 func (r *ReconcileACL) buildModel() error {
-	if r.cloudClient == nil {
-		return fmt.Errorf("cloud client is not found")
-	}
-	clusterId, err := r.cloudClient.Meta.GetClusterID()
+	clusterId, err := r.provider.GetClusterID()
 	if err != nil {
 		return err
 	}
-	regionId, err := r.cloudClient.Meta.GetRegion()
+	regionId, err := r.provider.GetRegion()
 	if err != nil {
 		return err
 	}
-	r.model = &model.AccessControlListAttribute{
-		NamedKey: model.NewNamedKey(clusterId),
+	r.model = &ravenmodel.AccessControlListAttribute{
+		NamedKey: ravenmodel.NewNamedKey(clusterId),
 		Region:   regionId,
 	}
 	return nil
@@ -221,7 +218,7 @@ func (r *ReconcileACL) getLocalACLEntry(cm *corev1.ConfigMap) error {
 }
 
 func (r *ReconcileACL) getRemoteACLEntry(ctx context.Context) error {
-	return r.slbClient.DescribeAccessControlListAttribute(ctx, r.model)
+	return r.provider.DescribeAccessControlListAttribute(ctx, r.model)
 }
 
 func (r *ReconcileACL) updateACLEntry(ctx context.Context) error {
@@ -229,11 +226,11 @@ func (r *ReconcileACL) updateACLEntry(ctx context.Context) error {
 
 	added, deleted := classifyEntry(r.model.LocalEntries, r.model.RemoteEntries)
 
-	err = r.slbClient.AddAccessControlListEntry(ctx, r.model, entryConvertString(added))
+	err = r.provider.AddAccessControlListEntry(ctx, r.model, entryConvertString(added))
 	if err != nil {
 		return err
 	}
-	err = r.slbClient.RemoveAccessControlListEntry(ctx, r.model, entryConvertString(deleted))
+	err = r.provider.RemoveAccessControlListEntry(ctx, r.model, entryConvertString(deleted))
 	if err != nil {
 		return err
 	}

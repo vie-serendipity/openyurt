@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider"
 )
 
-func NewMetaData() (IMetaData, error) {
+func NewMetaData() (prvd.IMetaData, error) {
 	if CloudCFG == nil {
 		return &MetaData{}, errors.New("cloud config error")
 	}
@@ -64,16 +66,6 @@ type MetaData struct {
 	ClusterID       string
 	VpcID           string
 	VswitchID       string
-}
-
-type IMetaData interface {
-	GetClusterID() (string, error)
-	GetRegion() (string, error)
-	GetVpcID() (string, error)
-	GetVswitchID() (string, error)
-	GetUID() (string, error)
-	GetAccessID() (string, error)
-	GetAccessSecret() (string, error)
 }
 
 func (m *MetaData) GetVpcID() (string, error) {

@@ -14,6 +14,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/slb"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/vpc"
+	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider"
 )
 
 const (
@@ -26,7 +27,7 @@ var log = klogr.New().WithName("clientMgr")
 type ClientMgr struct {
 	stop   <-chan struct{}
 	Region string
-	Meta   IMetaData
+	Meta   prvd.IMetaData
 
 	SLB *slb.Client
 	EIP *vpc.Client

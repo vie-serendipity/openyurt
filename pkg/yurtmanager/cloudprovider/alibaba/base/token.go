@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	sts2 "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util/provider/sts"
 )
 
 const AssumeRoleName = "AliyunCSManagedEdgeRole"
@@ -30,11 +28,11 @@ type MetaToken struct {
 }
 
 func (m *MetaToken) NextToken() (*DefaultToken, error) {
-	stsClient, err := sts2.NewClientWithAccessKey(m.Region, m.AccessKeyID, m.AccessKeySecret)
+	stsClient, err := NewClientWithAccessKey(m.Region, m.AccessKeyID, m.AccessKeySecret)
 	if err != nil {
 		return nil, fmt.Errorf("alibaba cloud: create sts client error: %s", err.Error())
 	}
-	req := sts2.CreateAssumeRoleWithServiceIdentityRequest()
+	req := CreateAssumeRoleWithServiceIdentityRequest()
 	req.SetScheme("https")
 	req.DurationSeconds = "7200"
 	req.AssumeRoleFor = m.UID

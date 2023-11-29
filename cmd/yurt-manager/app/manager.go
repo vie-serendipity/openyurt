@@ -17,7 +17,9 @@ limitations under the License.
 package app
 
 import (
+	"context"
 	"fmt"
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider/alibaba"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -157,6 +159,14 @@ func Run(c *config.CompletedConfig, stopCh <-chan struct{}) error {
 			return err
 		}
 		cfg = config
+	}
+	if len(c.ComponentConfig.Generic.CloudConfig) != 0 {
+		provider, err := alibaba.NewAlibabaCloud(c.ComponentConfig.Generic.CloudConfig)
+		if err != nil {
+			klog.Infof("could not build alibaba provider, %v", err)
+			return err
+		}
+		ctx = context.WithValue(ctx, alibaba.Provider, provider)
 	}
 	setRestConfig(cfg, c)
 

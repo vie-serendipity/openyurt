@@ -1,4 +1,4 @@
-package model
+package raven
 
 import (
 	"fmt"
@@ -123,18 +123,4 @@ type AccessControlListAttribute struct {
 	Tags                TagList
 	LocalEntries        []string
 	RemoteEntries       []string
-}
-
-type Model struct {
-	ACLModel *AccessControlListAttribute
-	SLBModel *LoadBalancerAttribute
-	EIPModel *ElasticIPAttribute
-}
-
-func NewModel(key NamedKey, region string) *Model {
-	return &Model{
-		ACLModel: &AccessControlListAttribute{NamedKey: key, Region: region},
-		SLBModel: &LoadBalancerAttribute{NamedKey: key, Region: region},
-		EIPModel: &ElasticIPAttribute{NamedKey: key, Region: region},
-	}
 }
