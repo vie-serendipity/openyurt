@@ -36,6 +36,7 @@ type YurtManagerOptions struct {
 	NodeLifeCycleController      *NodeLifecycleControllerOptions
 	UnitedDeploymentController   *UnitedDeploymentControllerOptions
 	RavenCloudProviderController *CloudProviderControllerOptions
+	NodeBucketController         *NodeBucketControllerOptions
 }
 
 // NewYurtManagerOptions creates a new YurtManagerOptions with a default config.
@@ -53,6 +54,7 @@ func NewYurtManagerOptions() (*YurtManagerOptions, error) {
 		NodeLifeCycleController:      NewNodeLifecycleControllerOptions(),
 		UnitedDeploymentController:   NewUnitedDeploymentControllerOptions(),
 		RavenCloudProviderController: NewCloudProviderControllerOptions(),
+		NodeBucketController:         NewNodeBucketControllerOptions(),
 	}
 
 	return &s, nil
@@ -69,6 +71,7 @@ func (y *YurtManagerOptions) Flags(allControllers, disabledByDefaultControllers 
 	y.YurtAppOverriderController.AddFlags(fss.FlagSet("yurtappoverrider controller"))
 	y.NodeLifeCycleController.AddFlags(fss.FlagSet("nodelifecycle controller"))
 	y.RavenCloudProviderController.AddFlags(fss.FlagSet("cloudresource controller"))
+	y.NodeBucketController.AddFlags(fss.FlagSet("nodebucket controller"))
 	return fss
 }
 
@@ -84,6 +87,7 @@ func (y *YurtManagerOptions) Validate(allControllers []string, controllerAliases
 	errs = append(errs, y.YurtAppOverriderController.Validate()...)
 	errs = append(errs, y.NodeLifeCycleController.Validate()...)
 	errs = append(errs, y.RavenCloudProviderController.Validate()...)
+	errs = append(errs, y.NodeBucketController.Validate()...)
 	return utilerrors.NewAggregate(errs)
 }
 
@@ -114,6 +118,9 @@ func (y *YurtManagerOptions) ApplyTo(c *config.Config, controllerAliases map[str
 		return err
 	}
 	if err := y.RavenCloudProviderController.ApplyTo(&c.ComponentConfig.RavenCloudProviderController); err != nil {
+		return err
+	}
+	if err := y.NodeBucketController.ApplyTo(&c.ComponentConfig.NodeBucketController); err != nil {
 		return err
 	}
 	return nil
