@@ -3,11 +3,11 @@ package raven
 import (
 	"context"
 	"fmt"
+	provider "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/base"
+	ravenmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/raven"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/slb"
-	provider "github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider/alibaba/base"
-	ravenmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider/model/raven"
 )
 
 func NewLBProvider(auth *base.ClientMgr) *SLBProvider {

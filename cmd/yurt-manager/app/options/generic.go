@@ -18,6 +18,8 @@ package options
 
 import (
 	"fmt"
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba"
+	"k8s.io/klog/v2"
 	"strings"
 
 	"github.com/spf13/pflag"
@@ -99,7 +101,17 @@ func (o *GenericOptions) ApplyTo(cfg *config.GenericConfiguration, controllerAli
 	cfg.RestConfigBurst = o.RestConfigBurst
 	cfg.WorkingNamespace = o.WorkingNamespace
 	cfg.Kubeconfig = o.Kubeconfig
-	cfg.CloudConfig = o.CloudConfig
+	cfg.Cloudconfig = o.Cloudconfig
+
+	if len(cfg.Cloudconfig) != 0 {
+		var err error
+		cfg.CloudProvider, err = alibaba.NewAlibabaCloud(cfg.Cloudconfig)
+		if err != nil {
+			klog.Infof("could not build alibaba provider, %v", err)
+			return err
+		}
+		klog.Infof("successfully build alibaba provider")
+	}
 
 	cfg.Controllers = make([]string, len(o.Controllers))
 	for i, initialName := range o.Controllers {
@@ -123,7 +135,6 @@ func (o *GenericOptions) AddFlags(fs *pflag.FlagSet, allControllers, disabledByD
 	if o == nil {
 		return
 	}
-
 	fs.BoolVar(&o.Version, "version", o.Version, "Print the version information, and then exit")
 	fs.StringVar(&o.MetricsAddr, "metrics-addr", o.MetricsAddr, "The address the metric endpoint binds to.")
 	fs.StringVar(&o.HealthProbeAddr, "health-probe-addr", o.HealthProbeAddr, "The address the healthz/readyz endpoint binds to.")
@@ -138,6 +149,6 @@ func (o *GenericOptions) AddFlags(fs *pflag.FlagSet, allControllers, disabledByD
 	fs.StringSliceVar(&o.DisabledWebhooks, "disable-independent-webhooks", o.DisabledWebhooks, "A list of webhooks to disable. "+
 		"'*' disables all independent webhooks, 'foo' disables the independent webhook named 'foo'.")
 	fs.StringVar(&o.Kubeconfig, "kubeconfig", o.Kubeconfig, "Path to kubeconfig file with authorization and master location information")
-	fs.StringVar(&o.CloudConfig, "cloud-config", o.CloudConfig, "Path to cloud provider configuration file with authorization.")
+	fs.StringVar(&o.Cloudconfig, "cloudconfig", o.Cloudconfig, "Path to cloud provider configuration file with authorization.")
 	features.DefaultMutableFeatureGate.AddFlag(fs)
 }

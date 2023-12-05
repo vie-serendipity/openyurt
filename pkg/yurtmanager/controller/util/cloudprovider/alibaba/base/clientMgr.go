@@ -2,6 +2,8 @@ package base
 
 import (
 	"fmt"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/ens"
+	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
 	"net/http"
 	"os"
 	"time"
@@ -14,12 +16,13 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/slb"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/vpc"
-	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider"
 )
 
 const (
 	AgentClusterId  = "ClusterId"
 	TokenSyncPeriod = 10 * time.Minute
+
+	KubernetesEdgeControllerManager = "ack.ecm"
 )
 
 var log = klogr.New().WithName("clientMgr")
@@ -31,6 +34,7 @@ type ClientMgr struct {
 
 	SLB *slb.Client
 	EIP *vpc.Client
+	ELB *ens.Client
 }
 
 func NewClientMgr(cloudConfigPath string) (*ClientMgr, error) {
@@ -68,7 +72,21 @@ func NewClientMgr(cloudConfigPath string) (*ClientMgr, error) {
 		return nil, fmt.Errorf("initialize alibaba slb client: %s", err.Error())
 	}
 	slbcli.AppendUserAgent(AgentClusterId, clusterId)
-	auth := &ClientMgr{Meta: meta, SLB: slbcli, EIP: vpcli, Region: region, stop: make(<-chan struct{}, 1)}
+
+	elbcli, err := ens.NewClientWithOptions("cn-hangzhou", clientCfg(), credential)
+	if err != nil {
+		return nil, fmt.Errorf("initialize alibaba elb client: %s", err.Error())
+	}
+	elbcli.AppendUserAgent(AgentClusterId, clusterId)
+
+	auth := &ClientMgr{
+		Meta:   meta,
+		SLB:    slbcli,
+		EIP:    vpcli,
+		ELB:    elbcli,
+		Region: region,
+		stop:   make(<-chan struct{}, 1)}
+
 	err = auth.Start(RefreshToken)
 	if err != nil {
 		klog.Warningf("refresh token error: %s", err.Error())
@@ -88,6 +106,7 @@ func (mgr *ClientMgr) Start(settoken func(mgr *ClientMgr, token *DefaultToken) e
 		token, err := tokenAuth.NextToken()
 		if err != nil {
 			log.Error(err, "fail to get next token")
+			return
 		}
 		err = settoken(mgr, token)
 		if err != nil {
@@ -157,6 +176,12 @@ func RefreshToken(mgr *ClientMgr, token *DefaultToken) error {
 	if err != nil {
 		return fmt.Errorf("init slb sts token config: %s", err.Error())
 	}
+
+	err = mgr.ELB.InitWithOptions(token.Region, clientCfg(), credential)
+	if err != nil {
+		return fmt.Errorf("init elb sts token config: %s", err.Error())
+	}
+
 	return nil
 }
 

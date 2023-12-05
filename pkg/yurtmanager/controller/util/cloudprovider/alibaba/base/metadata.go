@@ -4,9 +4,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
 	"strings"
-
-	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider"
 )
 
 func NewMetaData() (prvd.IMetaData, error) {

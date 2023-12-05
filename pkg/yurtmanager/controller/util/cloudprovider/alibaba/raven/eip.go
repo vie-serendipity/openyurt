@@ -3,12 +3,12 @@ package raven
 import (
 	"context"
 	"fmt"
+	provider "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/base"
+	ravenmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/raven"
 	"strings"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/vpc"
-	provider "github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider/alibaba/base"
-	ravenmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider/model/raven"
 )
 
 func NewVPCProvider(auth *base.ClientMgr) *VPCProvider {

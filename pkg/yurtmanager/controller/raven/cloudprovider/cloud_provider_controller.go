@@ -19,6 +19,9 @@ package cloudprovider
 import (
 	"context"
 	"fmt"
+	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
+	ravenprvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/raven"
+	ravenmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/raven"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -39,10 +42,6 @@ import (
 	appconfig "github.com/openyurtio/openyurt/cmd/yurt-manager/app/config"
 	"github.com/openyurtio/openyurt/cmd/yurt-manager/names"
 	"github.com/openyurtio/openyurt/pkg/apis/raven"
-	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider/alibaba"
-	ravenprvd "github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider/alibaba/raven"
-	ravenmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider/model/raven"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util"
 )
 
@@ -116,20 +115,14 @@ type ReconcileResource struct {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(ctx context.Context, c *appconfig.CompletedConfig, mgr manager.Manager) (*ReconcileResource, error) {
-	alibabaProvider := ctx.Value(alibaba.Provider)
-	if alibabaProvider == nil {
-		klog.Error(Format("alibaba provider is nil"))
-		return nil, fmt.Errorf("alibaba provider is nil")
-	}
-	provider, ok := alibabaProvider.(*alibaba.AlibabaCloud)
-	if !ok {
-		klog.Error(Format("can not init alibaba provider"))
-		return nil, fmt.Errorf("can not init alibaba provider")
+	if c.Config.ComponentConfig.Generic.CloudProvider == nil {
+		klog.Error("can not get alibaba provider")
+		return nil, fmt.Errorf("can not get alibaba provider")
 	}
 	return &ReconcileResource{
 		Client:   mgr.GetClient(),
 		scheme:   mgr.GetScheme(),
-		provider: provider,
+		provider: c.Config.ComponentConfig.Generic.CloudProvider,
 		queue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "RavenServiceQueue"),
 		recorder: mgr.GetEventRecorderFor(names.RavenCloudProviderController),
 	}, nil

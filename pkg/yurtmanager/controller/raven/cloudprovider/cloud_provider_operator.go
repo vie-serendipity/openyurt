@@ -3,13 +3,12 @@ package cloudprovider
 import (
 	"context"
 	"fmt"
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/raven"
+	ravenmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/raven"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
-
-	ravenprovider "github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider/alibaba/raven"
-	ravenmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider/model/raven"
 )
 
 func (r *ReconcileResource) DescribeSLBByName() error {
@@ -75,7 +74,7 @@ func (r *ReconcileResource) CreateSLB() error {
 	waitErr = wait.PollImmediate(5*time.Second, time.Minute, func() (done bool, err error) {
 		err = r.provider.TagResource(context.TODO(), &r.localModel.SLBModel.Tags, &ravenmodel.Instance{
 			InstanceId:     r.localModel.SLBModel.LoadBalancerId,
-			InstanceType:   ravenprovider.LoadBalancerResourceType,
+			InstanceType:   raven.LoadBalancerResourceType,
 			InstanceRegion: r.localModel.SLBModel.Region,
 		})
 		if err != nil {
@@ -106,7 +105,7 @@ func (r *ReconcileResource) CreateACL() error {
 	waitErr = wait.PollImmediate(5*time.Second, time.Minute, func() (done bool, err error) {
 		err = r.provider.TagResource(context.TODO(), &r.localModel.ACLModel.Tags, &ravenmodel.Instance{
 			InstanceId:     r.localModel.ACLModel.AccessControlListId,
-			InstanceType:   ravenprovider.AccessControlListResourceType,
+			InstanceType:   raven.AccessControlListResourceType,
 			InstanceRegion: r.localModel.ACLModel.Region,
 		})
 		if err != nil {
@@ -158,7 +157,7 @@ func (r *ReconcileResource) CleanupSLB(model *ravenmodel.LoadBalancerAttribute) 
 	}
 	waitErr := wait.PollImmediate(5*time.Second, time.Minute, func() (done bool, err error) {
 		err = r.provider.DeleteLoadBalancer(context.TODO(), model)
-		if err != nil && !ravenprovider.IsNotFound(err) {
+		if err != nil && !raven.IsNotFound(err) {
 			klog.Error(Format("delete slb error %s", err.Error()))
 			return false, nil
 		}
@@ -177,7 +176,7 @@ func (r *ReconcileResource) CleanupACL(model *ravenmodel.AccessControlListAttrib
 	}
 	waitErr := wait.PollImmediate(5*time.Second, time.Minute, func() (done bool, err error) {
 		err = r.provider.DeleteAccessControlList(context.TODO(), model)
-		if err != nil && !ravenprovider.IsNotFound(err) {
+		if err != nil && !raven.IsNotFound(err) {
 			klog.Error(Format("delete acl error %s", err.Error()))
 			return false, nil
 		}
@@ -197,7 +196,7 @@ func (r *ReconcileResource) CleanupEIP(model *ravenmodel.ElasticIPAttribute) err
 	waitErr := wait.PollImmediate(10*time.Second, time.Minute, func() (done bool, err error) {
 		err = r.provider.DescribeEipAddresses(context.TODO(), r.localModel.EIPModel)
 		if err != nil {
-			if ravenprovider.IsNotFound(err) {
+			if raven.IsNotFound(err) {
 				return true, nil
 			}
 			klog.Error(Format("delete eip error %s", err.Error()))

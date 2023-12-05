@@ -22,7 +22,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider/model/raven"
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/raven"
 	"math/rand"
 	"net"
 	"strings"

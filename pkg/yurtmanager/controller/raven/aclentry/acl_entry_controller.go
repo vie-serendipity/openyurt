@@ -19,6 +19,8 @@ package aclentry
 import (
 	"context"
 	"fmt"
+	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
+	ravenmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/raven"
 	"net"
 	"strings"
 	"time"
@@ -36,9 +38,6 @@ import (
 
 	appconfig "github.com/openyurtio/openyurt/cmd/yurt-manager/app/config"
 	"github.com/openyurtio/openyurt/cmd/yurt-manager/names"
-	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider/alibaba"
-	ravenmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/cloudprovider/model/raven"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util"
 )
 
@@ -70,21 +69,14 @@ type ReconcileACL struct {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(ctx context.Context, c *appconfig.CompletedConfig, mgr manager.Manager) (reconcile.Reconciler, error) {
-	alibabaProvider := ctx.Value(alibaba.Provider)
-	if alibabaProvider == nil {
-		klog.Error(Format("alibaba provider is nil"))
-		return nil, fmt.Errorf("alibaba provider is nil")
+	if c.Config.ComponentConfig.Generic.CloudProvider == nil {
+		klog.Error("can not get alibaba provider")
+		return nil, fmt.Errorf("can not get alibaba provider")
 	}
-	provider, ok := alibabaProvider.(*alibaba.AlibabaCloud)
-	if !ok {
-		klog.Error(Format("can not init alibaba provider"))
-		return nil, fmt.Errorf("can not init alibaba provider")
-	}
-
 	return &ReconcileACL{
 		Client:   mgr.GetClient(),
 		scheme:   mgr.GetScheme(),
-		provider: provider,
+		provider: c.Config.ComponentConfig.Generic.CloudProvider,
 		recorder: mgr.GetEventRecorderFor(names.RavenACLEntryController),
 	}, nil
 }
