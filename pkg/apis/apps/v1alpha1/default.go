@@ -277,3 +277,9 @@ func SetDefaultsUnitedDeployment(obj *UnitedDeployment) {
 	}
 
 }
+
+// SetDefaultsNodeBucket set default values for NodeBucket.
+func SetDefaultsNodeBucket(obj *NodeBucket) {
+	// example for set default value for NodeBucket
+
+}

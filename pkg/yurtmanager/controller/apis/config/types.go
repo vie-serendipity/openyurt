@@ -22,6 +22,7 @@ import (
 	"k8s.io/kube-controller-manager/config/v1alpha1"
 
 	cloudnodepoollifecycleconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/cloudnodepoollifecycle/config"
+	nodebucketconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/nodebucket/config"
 	nodepoolconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/nodepool/config"
 	platformadminconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/platformadmin/config"
 	gatewaypickupconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/gatewaypickup/config"
@@ -66,8 +67,11 @@ type YurtManagerConfiguration struct {
 
 	NodeLifeCycleController v1alpha1.NodeLifecycleControllerConfiguration
 
-	// CloudnodepoollifecycleControllerConfiguration holds configuration for CloudNodepoolLifeCycleController related features.
+	// CloudNodepoolLifeCycleController holds configuration for CloudNodepoolLifeCycleController related features.
 	CloudNodepoolLifeCycleController cloudnodepoollifecycleconfig.CloudNodepoolLifeCycleControllerConfiguration
+
+	//  NodeBucketController holds configuration for NodeBucketController related features.
+	NodeBucketController nodebucketconfig.NodeBucketControllerConfiguration
 }
 
 type GenericConfiguration struct {
