@@ -121,7 +121,7 @@ func TestFindResponseFilter(t *testing.T) {
 			verb:                   "GET",
 			path:                   "/api/v1/pods",
 			isFound:                true,
-			names:                  sets.NewString("hostnetworkpropagation"),
+			names:                  sets.NewString("trimcorednsvolume", "imagecustomization"),
 		},
 		"could not get hostnetwork propagation filter in cloud mode": {
 			enableResourceFilter:   true,
@@ -130,7 +130,8 @@ func TestFindResponseFilter(t *testing.T) {
 			userAgent:              "kubelet",
 			verb:                   "GET",
 			path:                   "/api/v1/pods",
-			isFound:                false,
+			isFound:                true,
+			names:                  sets.NewString("imagecustomization"),
 		},
 	}
 

@@ -74,7 +74,7 @@ func NewFilterManager(options *options.YurtHubOptions,
 		}
 	}
 
-	objFilters, err := createObjectFilters(filters, sharedFactory, nodePoolFactory, proxiedClient, options.NodeName, options.NodePoolName, mutatedMasterServiceHost, mutatedMasterServicePort, options.ECSRegion, options.ImageRepoType)
+	objFilters, err := createObjectFilters(options, filters, sharedFactory, nodePoolFactory, proxiedClient, mutatedMasterServiceHost, mutatedMasterServicePort)
 	if err != nil {
 		return nil, err
 	}
@@ -115,19 +115,21 @@ func (m *Manager) FindResponseFilter(req *http.Request) (filter.ResponseFilter, 
 }
 
 // createObjectFilters return all object filters that initializations completed.
-func createObjectFilters(filters *filter.Filters,
+func createObjectFilters(options *options.YurtHubOptions,
+	filters *filter.Filters,
 	sharedFactory informers.SharedInformerFactory,
 	nodePoolFactory dynamicinformer.DynamicSharedInformerFactory,
 	proxiedClient kubernetes.Interface,
-	nodeName, nodePoolName, mutatedMasterServiceHost, mutatedMasterServicePort, region, imageRepoType string) ([]filter.ObjectFilter, error) {
+	mutatedMasterServiceHost, mutatedMasterServicePort string) ([]filter.ObjectFilter, error) {
 	if filters == nil {
 		return nil, nil
 	}
 
-	genericInitializer := initializer.New(sharedFactory, nodePoolFactory, proxiedClient, nodeName, nodePoolName, mutatedMasterServiceHost, mutatedMasterServicePort)
-	extraInitializer := initializer.NewExtraInitializer(region, imageRepoType)
+	genericInitializer := initializer.New(sharedFactory, nodePoolFactory, proxiedClient, options.NodeName, options.NodePoolName, mutatedMasterServiceHost, mutatedMasterServicePort)
+	extraInitializer := initializer.NewExtraInitializer(options.ECSRegion, options.ImageRepoType)
+	nodesInitializer := initializer.NewNodesInitializer(options.EnableNodeBucket, nodePoolFactory)
 	initializerChain := filter.Initializers{}
-	initializerChain = append(initializerChain, genericInitializer, extraInitializer)
+	initializerChain = append(initializerChain, genericInitializer, extraInitializer, nodesInitializer)
 	return filters.NewFromFilters(initializerChain)
 }
 

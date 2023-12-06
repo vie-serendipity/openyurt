@@ -34,10 +34,12 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 
 	"github.com/openyurtio/openyurt/pkg/apis"
+	"github.com/openyurtio/openyurt/pkg/apis/apps/v1alpha1"
 	"github.com/openyurtio/openyurt/pkg/apis/apps/v1beta1"
 	"github.com/openyurtio/openyurt/pkg/projectinfo"
 	"github.com/openyurtio/openyurt/pkg/util"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter"
+	"github.com/openyurtio/openyurt/pkg/yurthub/filter/initializer"
 )
 
 func TestName(t *testing.T) {
@@ -71,17 +73,21 @@ func TestFilter(t *testing.T) {
 	gvrToListKind := map[schema.GroupVersionResource]string{
 		{Group: "apps.openyurt.io", Version: "v1beta1", Resource: "nodepools"}: "NodePoolList",
 	}
+	nodeBucketGVRToListKind := map[schema.GroupVersionResource]string{
+		{Group: "apps.openyurt.io", Version: "v1alpha1", Resource: "nodebuckets"}: "NodeBucketList",
+	}
 	currentNodeName := "node1"
 	nodeName2 := "node2"
 	nodeName3 := "node3"
 
 	testcases := map[string]struct {
-		poolName       string
-		nodeName       string
-		responseObject runtime.Object
-		kubeClient     *k8sfake.Clientset
-		yurtClient     *fake.FakeDynamicClient
-		expectObject   runtime.Object
+		enableNodeBucket bool
+		poolName         string
+		nodeName         string
+		responseObject   runtime.Object
+		kubeClient       *k8sfake.Clientset
+		yurtClient       *fake.FakeDynamicClient
+		expectObject     runtime.Object
 	}{
 		"v1beta1.EndpointSliceList: topologyKeys is kubernetes.io/hostname": {
 			poolName: "hangzhou",
@@ -3206,6 +3212,328 @@ func TestFilter(t *testing.T) {
 				},
 			},
 		},
+		"v1beta1.EndpointSliceList use node bucket: topologyKeys is openyurt.io/nodepool": {
+			enableNodeBucket: true,
+			poolName:         "hangzhou",
+			responseObject: &discoveryV1beta1.EndpointSliceList{
+				Items: []discoveryV1beta1.EndpointSlice{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "svc1-np7sf",
+							Namespace: "default",
+							Labels: map[string]string{
+								discoveryV1beta1.LabelServiceName: "svc1",
+							},
+						},
+						Endpoints: []discoveryV1beta1.Endpoint{
+							{
+								Addresses: []string{
+									"10.244.1.2",
+								},
+								Topology: map[string]string{
+									corev1.LabelHostname: currentNodeName,
+								},
+							},
+							{
+								Addresses: []string{
+									"10.244.1.3",
+								},
+								Topology: map[string]string{
+									corev1.LabelHostname: "node2",
+								},
+							},
+							{
+								Addresses: []string{
+									"10.244.1.4",
+								},
+								Topology: map[string]string{
+									corev1.LabelHostname: currentNodeName,
+								},
+							},
+							{
+								Addresses: []string{
+									"10.244.1.5",
+								},
+								Topology: map[string]string{
+									corev1.LabelHostname: "node3",
+								},
+							},
+						},
+					},
+				},
+			},
+			kubeClient: k8sfake.NewSimpleClientset(
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: currentNodeName,
+						Labels: map[string]string{
+							projectinfo.GetNodePoolLabel(): "hangzhou",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node2",
+						Labels: map[string]string{
+							projectinfo.GetNodePoolLabel(): "shanghai",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node3",
+						Labels: map[string]string{
+							projectinfo.GetNodePoolLabel(): "hangzhou",
+						},
+					},
+				},
+				&corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "svc1",
+						Namespace: "default",
+						Annotations: map[string]string{
+							AnnotationServiceTopologyKey: AnnotationServiceTopologyValueNodePool,
+						},
+					},
+				},
+			),
+			yurtClient: fake.NewSimpleDynamicClientWithCustomListKinds(scheme, nodeBucketGVRToListKind,
+				&v1alpha1.NodeBucket{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "hangzhou",
+						Labels: map[string]string{
+							LabelNodePoolName: "hangzhou",
+						},
+					},
+					Nodes: []v1alpha1.Node{
+						{
+							Name: currentNodeName,
+						},
+						{
+							Name: "node3",
+						},
+					},
+				},
+				&v1alpha1.NodeBucket{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "shanghai",
+						Labels: map[string]string{
+							LabelNodePoolName: "shanghai",
+						},
+					},
+					Nodes: []v1alpha1.Node{
+						{
+							Name: "node2",
+						},
+					},
+				},
+			),
+			expectObject: &discoveryV1beta1.EndpointSliceList{
+				Items: []discoveryV1beta1.EndpointSlice{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "svc1-np7sf",
+							Namespace: "default",
+							Labels: map[string]string{
+								discoveryV1beta1.LabelServiceName: "svc1",
+							},
+						},
+						Endpoints: []discoveryV1beta1.Endpoint{
+							{
+								Addresses: []string{
+									"10.244.1.2",
+								},
+								Topology: map[string]string{
+									corev1.LabelHostname: currentNodeName,
+								},
+							},
+							{
+								Addresses: []string{
+									"10.244.1.4",
+								},
+								Topology: map[string]string{
+									corev1.LabelHostname: currentNodeName,
+								},
+							},
+							{
+								Addresses: []string{
+									"10.244.1.5",
+								},
+								Topology: map[string]string{
+									corev1.LabelHostname: "node3",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"v1beta1.EndpointSliceList use multiple node buckets: topologyKeys is openyurt.io/nodepool": {
+			enableNodeBucket: true,
+			poolName:         "hangzhou",
+			responseObject: &discoveryV1beta1.EndpointSliceList{
+				Items: []discoveryV1beta1.EndpointSlice{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "svc1-np7sf",
+							Namespace: "default",
+							Labels: map[string]string{
+								discoveryV1beta1.LabelServiceName: "svc1",
+							},
+						},
+						Endpoints: []discoveryV1beta1.Endpoint{
+							{
+								Addresses: []string{
+									"10.244.1.2",
+								},
+								Topology: map[string]string{
+									corev1.LabelHostname: currentNodeName,
+								},
+							},
+							{
+								Addresses: []string{
+									"10.244.1.3",
+								},
+								Topology: map[string]string{
+									corev1.LabelHostname: "node2",
+								},
+							},
+							{
+								Addresses: []string{
+									"10.244.1.4",
+								},
+								Topology: map[string]string{
+									corev1.LabelHostname: currentNodeName,
+								},
+							},
+							{
+								Addresses: []string{
+									"10.244.1.5",
+								},
+								Topology: map[string]string{
+									corev1.LabelHostname: "node3",
+								},
+							},
+						},
+					},
+				},
+			},
+			kubeClient: k8sfake.NewSimpleClientset(
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: currentNodeName,
+						Labels: map[string]string{
+							projectinfo.GetNodePoolLabel(): "hangzhou",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node2",
+						Labels: map[string]string{
+							projectinfo.GetNodePoolLabel(): "shanghai",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node3",
+						Labels: map[string]string{
+							projectinfo.GetNodePoolLabel(): "hangzhou",
+						},
+					},
+				},
+				&corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "svc1",
+						Namespace: "default",
+						Annotations: map[string]string{
+							AnnotationServiceTopologyKey: AnnotationServiceTopologyValueNodePool,
+						},
+					},
+				},
+			),
+			yurtClient: fake.NewSimpleDynamicClientWithCustomListKinds(scheme, nodeBucketGVRToListKind,
+				&v1alpha1.NodeBucket{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "hangzhou-foo",
+						Labels: map[string]string{
+							LabelNodePoolName: "hangzhou",
+						},
+					},
+					Nodes: []v1alpha1.Node{
+						{
+							Name: currentNodeName,
+						},
+					},
+				},
+				&v1alpha1.NodeBucket{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "hangzhou-bar",
+						Labels: map[string]string{
+							LabelNodePoolName: "hangzhou",
+						},
+					},
+					Nodes: []v1alpha1.Node{
+						{
+							Name: "node3",
+						},
+					},
+				},
+				&v1alpha1.NodeBucket{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "shanghai",
+						Labels: map[string]string{
+							LabelNodePoolName: "shanghai",
+						},
+					},
+					Nodes: []v1alpha1.Node{
+						{
+							Name: "node2",
+						},
+					},
+				},
+			),
+			expectObject: &discoveryV1beta1.EndpointSliceList{
+				Items: []discoveryV1beta1.EndpointSlice{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "svc1-np7sf",
+							Namespace: "default",
+							Labels: map[string]string{
+								discoveryV1beta1.LabelServiceName: "svc1",
+							},
+						},
+						Endpoints: []discoveryV1beta1.Endpoint{
+							{
+								Addresses: []string{
+									"10.244.1.2",
+								},
+								Topology: map[string]string{
+									corev1.LabelHostname: currentNodeName,
+								},
+							},
+							{
+								Addresses: []string{
+									"10.244.1.4",
+								},
+								Topology: map[string]string{
+									corev1.LabelHostname: currentNodeName,
+								},
+							},
+							{
+								Addresses: []string{
+									"10.244.1.5",
+								},
+								Topology: map[string]string{
+									corev1.LabelHostname: "node3",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for k, tt := range testcases {
@@ -3221,11 +3549,8 @@ func TestFilter(t *testing.T) {
 			factory.Start(stopper)
 			factory.WaitForCacheSync(stopper)
 
-			gvr := v1beta1.GroupVersion.WithResource("nodepools")
 			yurtFactory := dynamicinformer.NewDynamicSharedInformerFactory(tt.yurtClient, 24*time.Hour)
-			nodePoolInformer := yurtFactory.ForResource(gvr)
-			nodePoolLister := nodePoolInformer.Lister()
-			nodePoolSynced := nodePoolInformer.Informer().HasSynced
+			nodesInitializer := initializer.NewNodesInitializer(tt.enableNodeBucket, yurtFactory)
 
 			stopper2 := make(chan struct{})
 			defer close(stopper2)
@@ -3234,13 +3559,12 @@ func TestFilter(t *testing.T) {
 
 			stopCh := make(<-chan struct{})
 			stf := &serviceTopologyFilter{
-				nodeName:       currentNodeName,
-				serviceLister:  serviceLister,
-				nodePoolLister: nodePoolLister,
-				serviceSynced:  serviceSynced,
-				nodePoolSynced: nodePoolSynced,
-				client:         tt.kubeClient,
+				nodeName:      currentNodeName,
+				serviceLister: serviceLister,
+				serviceSynced: serviceSynced,
+				client:        tt.kubeClient,
 			}
+			nodesInitializer.Initialize(stf)
 
 			if len(tt.poolName) != 0 {
 				stf.nodePoolName = tt.poolName
