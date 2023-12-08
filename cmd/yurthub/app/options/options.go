@@ -91,6 +91,7 @@ type YurtHubOptions struct {
 	CoordinatorStoragePrefix  string
 	CoordinatorStorageAddr    string
 	LeaderElection            componentbaseconfig.LeaderElectionConfiguration
+	EnableNodeBucket          bool
 }
 
 // NewYurtHubOptions creates a new YurtHubOptions with a default config.
@@ -139,6 +140,7 @@ func NewYurtHubOptions() *YurtHubOptions {
 			ResourceName:      projectinfo.GetHubName(),
 			ResourceNamespace: "kube-system",
 		},
+		EnableNodeBucket: true,
 	}
 	return o
 }
@@ -226,6 +228,7 @@ func (o *YurtHubOptions) AddFlags(fs *pflag.FlagSet) {
 	bindFlags(&o.LeaderElection, fs)
 	fs.StringVar(&o.ECSRegion, "ecs-region", o.ECSRegion, "the registry region of system component pods. If it doesn't set, YurtHub will not do the modification.")
 	fs.StringVar(&o.ImageRepoType, "image-repo-type", o.ImageRepoType, "the registry type of system component pods: private or public.")
+	fs.BoolVar(&o.EnableNodeBucket, "enable-node-bucket", o.EnableNodeBucket, "enable yurthub to use node buckets to get nodes in the same node pool.")
 }
 
 // bindFlags binds the LeaderElectionConfiguration struct fields to a flagset
