@@ -31,12 +31,16 @@ type Node struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster,path=nodebuckets,shortName=nb,categories=all
+// +kubebuilder:printcolumn:name="NUM-NODES",type="integer",JSONPath=".numNodes",description="NumNodes represents the number of nodes in the NodeBucket."
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp",description="CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC."
 
 // NodeBucket is the Schema for the samples API
 type NodeBucket struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// NumNodes represents the number of nodes in the nodebucket
+	NumNodes int32 `json:"numNodes"`
 
 	// Nodes represents a subset nodes in the nodepool
 	Nodes []Node `json:"nodes"`

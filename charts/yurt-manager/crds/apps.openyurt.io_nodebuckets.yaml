@@ -19,6 +19,10 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
+    - description: NumNodes represents the number of nodes in the NodeBucket.
+      jsonPath: .numNodes
+      name: NUM-NODES
+      type: integer
     - description: CreationTimestamp is a timestamp representing the server time when
         this object was created. It is not guaranteed to be set in happens-before
         order across separate operations. Clients may not set this value. It is represented
@@ -53,8 +57,13 @@ spec:
                   type: string
               type: object
             type: array
+          numNodes:
+            description: NumNodes represents the number of nodes in the nodebucket
+            format: int32
+            type: integer
         required:
         - nodes
+        - numNodes
         type: object
     served: true
     storage: true
