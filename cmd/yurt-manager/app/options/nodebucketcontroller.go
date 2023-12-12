@@ -17,6 +17,8 @@ limitations under the License.
 package options
 
 import (
+	"fmt"
+
 	"github.com/spf13/pflag"
 
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/nodebucket/config"
@@ -49,6 +51,8 @@ func (o *NodeBucketControllerOptions) ApplyTo(cfg *config.NodeBucketControllerCo
 		return nil
 	}
 
+	cfg.MaxNodesPerBucket = o.MaxNodesPerBucket
+
 	return nil
 }
 
@@ -57,6 +61,10 @@ func (o *NodeBucketControllerOptions) Validate() []error {
 	if o == nil {
 		return nil
 	}
+
 	errs := []error{}
+	if o.MaxNodesPerBucket <= 0 {
+		errs = append(errs, fmt.Errorf("max-nodes-per-bucket(%s) is invalid, should greater than 0", o.MaxNodesPerBucket))
+	}
 	return errs
 }

@@ -220,6 +220,8 @@ func (r *ReconcileNodeBucket) reconcileNodeBuckets(
 	buckets *appsv1alpha1.NodeBucketList,
 ) ([]*appsv1alpha1.NodeBucket, []*appsv1alpha1.NodeBucket, []*appsv1alpha1.NodeBucket, []*appsv1alpha1.NodeBucket) {
 	bucketsUnchanged, bucketsToUpdate, bucketsToDelete, unFilledNodeSet := resolveExistingBuckets(buckets, desiredNodeSet)
+	klog.V(4).Infof("reconcileNodeBuckets for pool(%s), len(bucketsUnchanged)=%d, len(bucketsToUpdate)=%d, len(bucketsToDelete)=%d, unFilledNodeSet=%v",
+		pool.Name, len(bucketsUnchanged), len(bucketsToUpdate), len(bucketsToDelete), unFilledNodeSet.List())
 
 	// If we still have unfilled nodes to add and buckets marked for update,
 	// iterate through the buckets and fill them up with the unfilled nodes.
@@ -232,6 +234,8 @@ func (r *ReconcileNodeBucket) reconcileNodeBuckets(
 			}
 		}
 	}
+	klog.V(4).Infof("reconcileNodeBuckets for pool(%s) after filling bucketsToUpdate, len(bucketsUnchanged)=%d, len(bucketsToUpdate)=%d, len(bucketsToDelete)=%d, unFilledNodeSet=%v",
+		pool.Name, len(bucketsUnchanged), len(bucketsToUpdate), len(bucketsToDelete), unFilledNodeSet.List())
 
 	// If there are still unfilled nodes left at this point, we try to fit the nodes in a single existing buckets.
 	// If there are no buckets with that capacity, we create new buckets for the nodes.
@@ -259,6 +263,8 @@ func (r *ReconcileNodeBucket) reconcileNodeBuckets(
 			bucketToFill.Nodes = append(bucketToFill.Nodes, appsv1alpha1.Node{Name: nodeName})
 		}
 	}
+	klog.V(4).Infof("reconcileNodeBuckets for pool(%s) after filling bucketsUnchanged, len(bucketsUnchanged)=%d, len(bucketsToCreate)=%d len(bucketsToUpdate)=%v, len(bucketsToDelete)=%d, unFilledNodeSet=%v",
+		pool.Name, len(bucketsUnchanged), len(bucketsToCreate), len(bucketsToUpdate), len(bucketsToDelete), unFilledNodeSet.List())
 
 	return bucketsToCreate, bucketsToUpdate, bucketsToDelete, bucketsUnchanged
 }
@@ -351,6 +357,7 @@ func finalize(ctx context.Context, c client.Client, bucketsToCreate, bucketsToUp
 		for {
 			collisionCount++
 			bucket.Name = fmt.Sprintf("%s-%s", bucket.Labels[LabelNodePoolName], rand.String(6))
+			bucket.NumNodes = int32(len(bucket.Nodes))
 			if err := c.Create(ctx, bucket, &client.CreateOptions{}); err != nil {
 				if errors.IsAlreadyExists(err) && collisionCount < 5 {
 					continue
@@ -363,6 +370,7 @@ func finalize(ctx context.Context, c client.Client, bucketsToCreate, bucketsToUp
 	}
 
 	for _, bucket := range bucketsToUpdate {
+		bucket.NumNodes = int32(len(bucket.Nodes))
 		if err := c.Update(ctx, bucket, &client.UpdateOptions{}); err != nil {
 			klog.Errorf("could not update bucket(%s), %v", bucket.Name, err)
 			return err
@@ -385,5 +393,5 @@ type nodeBucketNodesLen []*appsv1alpha1.NodeBucket
 func (sl nodeBucketNodesLen) Len() int      { return len(sl) }
 func (sl nodeBucketNodesLen) Swap(i, j int) { sl[i], sl[j] = sl[j], sl[i] }
 func (sl nodeBucketNodesLen) Less(i, j int) bool {
-	return len(sl[i].Nodes) > len(sl[j].Nodes)
+	return sl[i].NumNodes > sl[j].NumNodes
 }
