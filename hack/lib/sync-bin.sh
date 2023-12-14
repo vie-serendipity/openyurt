@@ -1,5 +1,7 @@
 #!/bin/bash
 set -e
+
+echo "parameters are: " $*
  
 function usage(){
     echo "$0 [Options]"
@@ -65,6 +67,11 @@ while [ $# -gt 0 ];do
       KUBERNETES_FINANCE_OSS_SECRET=$1
       shift
       ;;
+    --all-regions)
+      shift
+      ALL_REGIONS=$1
+      shift
+      ;;
     --help|-h)
       shift
       usage
@@ -96,17 +103,12 @@ if [ "$KUBERNETES_OSS_KEY" = "" -o "$KUBERNETES_OSS_SECRET" = "" ];then
     echo "KUBERNETES_OSS_KEY & KUBERNETES_OSS_SECRET must be provided for rpm build." ; exit 1
 fi
  
+# ALL_REGIONS='cn-hangzhou cn-beijing cn-shanghai cn-qingdao cn-shenzhen cn-chengdu cn-zhangjiakou cn-huhehaote cn-heyuan cn-wulanchabu cn-guangzhou ap-southeast-3 ap-southeast-1 ap-southeast-2 ap-northeast-1 eu-central-1 me-east-1 us-east-1 us-west-1 ap-south-1 ap-southeast-5 eu-west-1 rus-west-1 cn-hongkong ap-northeast-2 ap-southeast-6 ap-southeast-7 cn-nanjing'
+# ALL_FIN_REGIONS='cn-shanghai-finance-1 cn-shenzhen-finance-1 cn-beijing-finance-1'
+
 REGIONS=(${REGIONLIST//./ })
 if [ "$REGIONLIST" = "All" ]; then
-	REGIONS='cn-hangzhou cn-beijing cn-shanghai cn-qingdao cn-shenzhen cn-chengdu cn-zhangjiakou cn-huhehaote cn-heyuan cn-wulanchabu cn-guangzhou ap-southeast-3 ap-southeast-1 ap-southeast-2 ap-northeast-1 eu-central-1 me-east-1 us-east-1 us-west-1 ap-south-1 ap-southeast-5 eu-west-1 rus-west-1 cn-hongkong ap-northeast-2 ap-southeast-6 ap-southeast-7 cn-nanjing'
-	if [ "$IS_FINANCE" = "true" ]; then
-	  REGIONS='cn-shanghai-finance-1 cn-shenzhen-finance-1 cn-beijing-finance-1'
-	fi
-fi
- 
-if [ "$IS_FINANCE" = "true" ]; then
-  KUBERNETES_OSS_KEY=$KUBERNETES_FINANCE_OSS_KEY
-  KUBERNETES_OSS_SECRET=$KUBERNETES_FINANCE_OSS_SECRET
+	REGIONS="$ALL_REGIONS"
 fi
  
 function retry() {
@@ -139,8 +141,17 @@ function push_oss_bin(){
  
     for reg in ${REGIONS[@]};
     do
-    	retry 5 osscmd -i ${KUBERNETES_OSS_KEY} -k ${KUBERNETES_OSS_SECRET} -H oss-${reg}.aliyuncs.com put ${bin} oss://aliacs-k8s-${reg}/public/pkg/edgehub/${VERSION}/${TARGET}/
+      if [[ "$reg" == "cn-hangzhou-finance-1" ]] || [[ "$reg" == "cn-shanghai-mybk" ]] || [[ "$reg" == *"gov"* ]]; then
+        echo "skip unsupported region $reg"
+      elif [[ "$reg" == *"finance"* ]]; then
+        echo "finance region $reg"
+        retry 5 osscmd -i ${KUBERNETES_FINANCE_OSS_KEY} -k ${KUBERNETES_FINANCE_OSS_SECRET} -H oss-${reg}.aliyuncs.com put ${bin} oss://aliacs-k8s-${reg}/public/pkg/edgehub/${VERSION}/${TARGET}/
+      else
+        echo "normal region $reg"
+        retry 5 osscmd -i ${KUBERNETES_OSS_KEY} -k ${KUBERNETES_OSS_SECRET} -H oss-${reg}.aliyuncs.com put ${bin} oss://aliacs-k8s-${reg}/public/pkg/edgehub/${VERSION}/${TARGET}/
+      fi
     done
 }
- 
+
+echo "regions are: $REGIONS"
 push_oss_bin
