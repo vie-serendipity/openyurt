@@ -1,0 +1,13 @@
+# multi-arch image building for cloud-hub
+
+FROM --platform=${BUILDPLATFORM} golang:1.18 as builder
+ADD . /build
+ARG TARGETOS TARGETARCH GIT_VERSION
+WORKDIR /build/
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} PROJECT_PREFIX=cloud- LABEL_PREFIX=alibabacloud.com NODEPOOL_LABEL_KEY=alibabacloud.com/nodepool-id GIT_VERSION=${GIT_VERSION} make build WHAT=cmd/yurthub
+
+FROM --platform=${TARGETPLATFORM} registry.cn-hangzhou.aliyuncs.com/acs/alpine:3.16-update
+ARG TARGETOS TARGETARCH
+RUN apk add ca-certificates bash libc6-compat iptables ip6tables && update-ca-certificates && rm /var/cache/apk/*
+COPY --from=builder /build/_output/local/bin/${TARGETOS}/${TARGETARCH}/cloud-hub /usr/local/bin/cloud-hub
+ENTRYPOINT ["/usr/local/bin/cloud-hub"]
