@@ -161,6 +161,10 @@ func (options *YurtHubOptions) Validate() error {
 		}
 	}
 
+	if len(options.HubAgentDummyIfName) > 15 {
+		return fmt.Errorf("the length of dummy interface name should be under 15, the length of %s is %d", options.HubAgentDummyIfName, len(options.HubAgentDummyIfName))
+	}
+
 	if !util.IsSupportedLBMode(options.LBMode) {
 		return fmt.Errorf("lb mode(%s) is not supported", options.LBMode)
 	}
