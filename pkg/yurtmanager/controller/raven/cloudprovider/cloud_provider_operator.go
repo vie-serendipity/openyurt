@@ -94,7 +94,7 @@ func (r *ReconcileResource) CreateACL() error {
 		err = r.provider.CreateAccessControlList(context.TODO(), r.localModel.ACLModel)
 		if err != nil {
 			klog.Errorf(Format("create acl error %s", err.Error()))
-			return false, nil
+			return true, nil
 		}
 		return true, nil
 	})
@@ -110,7 +110,7 @@ func (r *ReconcileResource) CreateACL() error {
 		})
 		if err != nil {
 			klog.Errorf(Format("tag acl error %s", err.Error()))
-			return false, nil
+			return true, nil
 		}
 		return true, nil
 	})

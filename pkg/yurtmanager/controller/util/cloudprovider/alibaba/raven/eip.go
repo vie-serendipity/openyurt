@@ -23,7 +23,6 @@ type VPCProvider struct {
 
 func (v *VPCProvider) DescribeEipAddresses(ctx context.Context, mdl *ravenmodel.ElasticIPAttribute) error {
 	req := vpc.CreateDescribeEipAddressesRequest()
-	req.Scheme = "https"
 	req.AllocationId = mdl.AllocationId
 	req.EipName = mdl.String()
 	resp, err := v.auth.EIP.DescribeEipAddresses(req)
@@ -52,7 +51,6 @@ func (v *VPCProvider) DescribeEipAddresses(ctx context.Context, mdl *ravenmodel.
 
 func (v *VPCProvider) AllocateEipAddress(ctx context.Context, mdl *ravenmodel.ElasticIPAttribute) error {
 	req := vpc.CreateAllocateEipAddressRequest()
-	req.Scheme = "https"
 	req.Name = mdl.String()
 	req.RegionId = mdl.Region
 	req.Bandwidth = mdl.Bandwidth
@@ -71,7 +69,6 @@ func (v *VPCProvider) AllocateEipAddress(ctx context.Context, mdl *ravenmodel.El
 
 func (v *VPCProvider) AssociateEipAddress(ctx context.Context, mdl *ravenmodel.ElasticIPAttribute, instanceId string) error {
 	req := vpc.CreateAssociateEipAddressRequest()
-	req.Scheme = "https"
 	req.InstanceType = "SlbInstance"
 	req.AllocationId = mdl.AllocationId
 	req.InstanceId = instanceId
@@ -84,7 +81,6 @@ func (v *VPCProvider) AssociateEipAddress(ctx context.Context, mdl *ravenmodel.E
 
 func (v *VPCProvider) UnassociateEipAddress(ctx context.Context, mdl *ravenmodel.ElasticIPAttribute) error {
 	req := vpc.CreateUnassociateEipAddressRequest()
-	req.Scheme = "https"
 	req.InstanceType = "SlbInstance"
 	req.AllocationId = mdl.AllocationId
 	req.InstanceId = mdl.InstanceId
@@ -97,7 +93,6 @@ func (v *VPCProvider) UnassociateEipAddress(ctx context.Context, mdl *ravenmodel
 
 func (v *VPCProvider) ReleaseEipAddress(ctx context.Context, mdl *ravenmodel.ElasticIPAttribute) error {
 	req := vpc.CreateReleaseEipAddressRequest()
-	req.Scheme = "https"
 	req.AllocationId = mdl.AllocationId
 	_, err := v.auth.EIP.ReleaseEipAddress(req)
 	if err != nil {

@@ -29,7 +29,6 @@ type SLBProvider struct {
 
 func (s *SLBProvider) DescribeLoadBalancers(ctx context.Context, mdl *ravenmodel.LoadBalancerAttribute) error {
 	req := slb.CreateDescribeLoadBalancersRequest()
-	req.Scheme = "https"
 	req.RegionId = mdl.Region
 	req.LoadBalancerName = mdl.NamedKey.String()
 	resp, err := s.auth.SLB.DescribeLoadBalancers(req)
@@ -54,7 +53,6 @@ func (s *SLBProvider) DescribeLoadBalancers(ctx context.Context, mdl *ravenmodel
 
 func (s *SLBProvider) TagResource(ctx context.Context, tags *ravenmodel.TagList, instance *ravenmodel.Instance) error {
 	req := slb.CreateTagResourcesRequest()
-	req.Scheme = "https"
 	req.RegionId = instance.InstanceRegion
 	req.ResourceId = &[]string{instance.InstanceId}
 	req.ResourceType = instance.InstanceType
@@ -69,7 +67,6 @@ func (s *SLBProvider) TagResource(ctx context.Context, tags *ravenmodel.TagList,
 
 func (s *SLBProvider) CreateLoadBalancer(ctx context.Context, mdl *ravenmodel.LoadBalancerAttribute) error {
 	req := slb.CreateCreateLoadBalancerRequest()
-	req.Scheme = "https"
 	req.LoadBalancerName = mdl.String()
 	req.RegionId = mdl.Region
 	req.LoadBalancerSpec = mdl.Spec
@@ -90,7 +87,6 @@ func (s *SLBProvider) CreateLoadBalancer(ctx context.Context, mdl *ravenmodel.Lo
 
 func (s *SLBProvider) DeleteLoadBalancer(ctx context.Context, mdl *ravenmodel.LoadBalancerAttribute) error {
 	req := slb.CreateDeleteLoadBalancerRequest()
-	req.Scheme = "https"
 	req.LoadBalancerId = mdl.LoadBalancerId
 	_, err := s.auth.SLB.DeleteLoadBalancer(req)
 	if err != nil {
@@ -101,7 +97,6 @@ func (s *SLBProvider) DeleteLoadBalancer(ctx context.Context, mdl *ravenmodel.Lo
 
 func (s *SLBProvider) DescribeLoadBalancer(ctx context.Context, mdl *ravenmodel.LoadBalancerAttribute) error {
 	req := slb.CreateDescribeLoadBalancerAttributeRequest()
-	req.Scheme = "https"
 	req.LoadBalancerId = mdl.LoadBalancerId
 	resp, err := s.auth.SLB.DescribeLoadBalancerAttribute(req)
 	if err != nil {
@@ -128,7 +123,6 @@ func (s *SLBProvider) DescribeLoadBalancer(ctx context.Context, mdl *ravenmodel.
 
 func (s *SLBProvider) DescribeAccessControlLists(ctx context.Context, mdl *ravenmodel.AccessControlListAttribute) error {
 	req := slb.CreateDescribeAccessControlListsRequest()
-	req.Scheme = "https"
 	req.RegionId = mdl.Region
 	req.AclName = mdl.NamedKey.String()
 	resp, err := s.auth.SLB.DescribeAccessControlLists(req)
@@ -147,7 +141,6 @@ func (s *SLBProvider) DescribeAccessControlLists(ctx context.Context, mdl *raven
 
 func (s *SLBProvider) CreateAccessControlList(ctx context.Context, mdl *ravenmodel.AccessControlListAttribute) error {
 	req := slb.CreateCreateAccessControlListRequest()
-	req.Scheme = "https"
 	req.RegionId = mdl.Region
 	req.AclName = mdl.NamedKey.String()
 	resp, err := s.auth.SLB.CreateAccessControlList(req)
@@ -163,7 +156,6 @@ func (s *SLBProvider) CreateAccessControlList(ctx context.Context, mdl *ravenmod
 
 func (s *SLBProvider) DeleteAccessControlList(ctx context.Context, mdl *ravenmodel.AccessControlListAttribute) error {
 	req := slb.CreateDeleteAccessControlListRequest()
-	req.Scheme = "https"
 	req.RegionId = mdl.Region
 	req.AclId = mdl.AccessControlListId
 	_, err := s.auth.SLB.DeleteAccessControlList(req)
@@ -178,7 +170,6 @@ func (s *SLBProvider) AddAccessControlListEntry(ctx context.Context, mdl *ravenm
 		return nil
 	}
 	req := slb.CreateAddAccessControlListEntryRequest()
-	req.Scheme = "https"
 	req.RegionId = mdl.Region
 	req.AclId = mdl.AccessControlListId
 	req.AclEntrys = entry
@@ -194,7 +185,6 @@ func (s *SLBProvider) RemoveAccessControlListEntry(ctx context.Context, mdl *rav
 		return nil
 	}
 	req := slb.CreateRemoveAccessControlListEntryRequest()
-	req.Scheme = "https"
 	req.RegionId = mdl.Region
 	req.AclId = mdl.AccessControlListId
 	req.AclEntrys = entry
@@ -207,7 +197,6 @@ func (s *SLBProvider) RemoveAccessControlListEntry(ctx context.Context, mdl *rav
 
 func (s *SLBProvider) DescribeAccessControlListAttribute(ctx context.Context, mdl *ravenmodel.AccessControlListAttribute) error {
 	req := slb.CreateDescribeAccessControlListAttributeRequest()
-	req.Scheme = "https"
 	req.RegionId = mdl.Region
 	req.AclId = mdl.AccessControlListId
 	resp, err := s.auth.SLB.DescribeAccessControlListAttribute(req)

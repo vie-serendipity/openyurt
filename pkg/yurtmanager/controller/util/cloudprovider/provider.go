@@ -33,6 +33,8 @@ type IMetaData interface {
 	GetUID() (string, error)
 	GetAccessID() (string, error)
 	GetAccessSecret() (string, error)
+	RoleName() (string, error)
+	RamRoleToken(role string) (RoleAuth, error)
 }
 
 type ILoadBalancer interface {

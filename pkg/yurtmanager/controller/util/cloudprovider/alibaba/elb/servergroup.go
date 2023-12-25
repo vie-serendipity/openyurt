@@ -10,7 +10,6 @@ import (
 
 func (e ELBProvider) FindBackendFromLoadBalancer(ctx context.Context, lbId string, sg *elbmodel.EdgeServerGroup) error {
 	req := ens.CreateDescribeLoadBalancerAttributeRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.LoadBalancerId = lbId
@@ -31,7 +30,6 @@ func (e ELBProvider) UpdateEdgeServerGroup(ctx context.Context, lbId string, sg 
 		})
 	}
 	req := ens.CreateSetBackendServersRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.LoadBalancerId = lbId
@@ -55,7 +53,6 @@ func (e ELBProvider) AddBackendToEdgeServerGroup(ctx context.Context, lbId strin
 		})
 	}
 	req := ens.CreateAddBackendServersRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.LoadBalancerId = lbId
@@ -79,7 +76,6 @@ func (e ELBProvider) RemoveBackendFromEdgeServerGroup(ctx context.Context, lbId 
 		})
 	}
 	req := ens.CreateRemoveBackendServersRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.LoadBalancerId = lbId
