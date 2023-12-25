@@ -1,14 +1,13 @@
-package slb
+package raven
 
 import (
 	"context"
 	"fmt"
-	"strings"
+	provider "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/base"
+	ravenmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/raven"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/slb"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util/model"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util/provider"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util/provider/base"
 )
 
 func NewLBProvider(auth *base.ClientMgr) *SLBProvider {
@@ -28,14 +27,14 @@ type SLBProvider struct {
 	auth *base.ClientMgr
 }
 
-func (s *SLBProvider) DescribeLoadBalancers(ctx context.Context, mdl *model.LoadBalancerAttribute) error {
+func (s *SLBProvider) DescribeLoadBalancers(ctx context.Context, mdl *ravenmodel.LoadBalancerAttribute) error {
 	req := slb.CreateDescribeLoadBalancersRequest()
 	req.Scheme = "https"
 	req.RegionId = mdl.Region
 	req.LoadBalancerName = mdl.NamedKey.String()
 	resp, err := s.auth.SLB.DescribeLoadBalancers(req)
 	if err != nil {
-		return SDKError("DescribeLoadBalancers", err)
+		return CLBSDKError("DescribeLoadBalancers", err)
 	}
 	if resp == nil {
 		return fmt.Errorf("DescribeLoadBalancers response is empty")
@@ -53,7 +52,7 @@ func (s *SLBProvider) DescribeLoadBalancers(ctx context.Context, mdl *model.Load
 	return nil
 }
 
-func (s *SLBProvider) TagResource(ctx context.Context, tags *model.TagList, instance *model.Instance) error {
+func (s *SLBProvider) TagResource(ctx context.Context, tags *ravenmodel.TagList, instance *ravenmodel.Instance) error {
 	req := slb.CreateTagResourcesRequest()
 	req.Scheme = "https"
 	req.RegionId = instance.InstanceRegion
@@ -63,12 +62,12 @@ func (s *SLBProvider) TagResource(ctx context.Context, tags *model.TagList, inst
 	req.Tag = &resourceTags
 	_, err := s.auth.SLB.TagResources(req)
 	if err != nil {
-		return SDKError("TagResources", err)
+		return CLBSDKError("TagResources", err)
 	}
 	return nil
 }
 
-func (s *SLBProvider) CreateLoadBalancer(ctx context.Context, mdl *model.LoadBalancerAttribute) error {
+func (s *SLBProvider) CreateLoadBalancer(ctx context.Context, mdl *ravenmodel.LoadBalancerAttribute) error {
 	req := slb.CreateCreateLoadBalancerRequest()
 	req.Scheme = "https"
 	req.LoadBalancerName = mdl.String()
@@ -79,7 +78,7 @@ func (s *SLBProvider) CreateLoadBalancer(ctx context.Context, mdl *model.LoadBal
 	req.VSwitchId = mdl.VSwitchId
 	resp, err := s.auth.SLB.CreateLoadBalancer(req)
 	if err != nil {
-		return SDKError("CreateLoadBalancer", err)
+		return CLBSDKError("CreateLoadBalancer", err)
 	}
 	if resp == nil || resp.LoadBalancerId == "" || resp.Address == "" {
 		return fmt.Errorf("CreateLoadBalancer response is empty")
@@ -89,29 +88,29 @@ func (s *SLBProvider) CreateLoadBalancer(ctx context.Context, mdl *model.LoadBal
 	return nil
 }
 
-func (s *SLBProvider) DeleteLoadBalancer(ctx context.Context, mdl *model.LoadBalancerAttribute) error {
+func (s *SLBProvider) DeleteLoadBalancer(ctx context.Context, mdl *ravenmodel.LoadBalancerAttribute) error {
 	req := slb.CreateDeleteLoadBalancerRequest()
 	req.Scheme = "https"
 	req.LoadBalancerId = mdl.LoadBalancerId
 	_, err := s.auth.SLB.DeleteLoadBalancer(req)
 	if err != nil {
-		return SDKError("DeleteLoadBalancer", err)
+		return CLBSDKError("DeleteLoadBalancer", err)
 	}
 	return nil
 }
 
-func (s *SLBProvider) DescribeLoadBalancer(ctx context.Context, mdl *model.LoadBalancerAttribute) error {
+func (s *SLBProvider) DescribeLoadBalancer(ctx context.Context, mdl *ravenmodel.LoadBalancerAttribute) error {
 	req := slb.CreateDescribeLoadBalancerAttributeRequest()
 	req.Scheme = "https"
 	req.LoadBalancerId = mdl.LoadBalancerId
 	resp, err := s.auth.SLB.DescribeLoadBalancerAttribute(req)
 	if err != nil {
-		return SDKError("DescribeLoadBalancerAttribute", err)
+		return CLBSDKError("DescribeLoadBalancerAttribute", err)
 	}
 	if resp == nil {
 		return fmt.Errorf("DescribeLoadBalancer is nil")
 	}
-	key, err := model.LoadNamedKey(resp.LoadBalancerName)
+	key, err := ravenmodel.LoadNamedKey(resp.LoadBalancerName)
 	if err != nil {
 		return fmt.Errorf("LoadBalancer name is not compliant")
 	}
@@ -127,14 +126,14 @@ func (s *SLBProvider) DescribeLoadBalancer(ctx context.Context, mdl *model.LoadB
 	return nil
 }
 
-func (s *SLBProvider) DescribeAccessControlLists(ctx context.Context, mdl *model.AccessControlListAttribute) error {
+func (s *SLBProvider) DescribeAccessControlLists(ctx context.Context, mdl *ravenmodel.AccessControlListAttribute) error {
 	req := slb.CreateDescribeAccessControlListsRequest()
 	req.Scheme = "https"
 	req.RegionId = mdl.Region
 	req.AclName = mdl.NamedKey.String()
 	resp, err := s.auth.SLB.DescribeAccessControlLists(req)
 	if err != nil {
-		return SDKError("DescribeAccessControlLists", err)
+		return CLBSDKError("DescribeAccessControlLists", err)
 	}
 	if resp == nil {
 		return fmt.Errorf("DescribeAccessControlLists response is empty")
@@ -146,14 +145,14 @@ func (s *SLBProvider) DescribeAccessControlLists(ctx context.Context, mdl *model
 	return nil
 }
 
-func (s *SLBProvider) CreateAccessControlList(ctx context.Context, mdl *model.AccessControlListAttribute) error {
+func (s *SLBProvider) CreateAccessControlList(ctx context.Context, mdl *ravenmodel.AccessControlListAttribute) error {
 	req := slb.CreateCreateAccessControlListRequest()
 	req.Scheme = "https"
 	req.RegionId = mdl.Region
 	req.AclName = mdl.NamedKey.String()
 	resp, err := s.auth.SLB.CreateAccessControlList(req)
 	if err != nil {
-		return SDKError("CreateAccessControlList", err)
+		return CLBSDKError("CreateAccessControlList", err)
 	}
 	if resp == nil || resp.AclId == "" {
 		return fmt.Errorf("CreateAccessControlList response is empty")
@@ -162,19 +161,19 @@ func (s *SLBProvider) CreateAccessControlList(ctx context.Context, mdl *model.Ac
 	return nil
 }
 
-func (s *SLBProvider) DeleteAccessControlList(ctx context.Context, mdl *model.AccessControlListAttribute) error {
+func (s *SLBProvider) DeleteAccessControlList(ctx context.Context, mdl *ravenmodel.AccessControlListAttribute) error {
 	req := slb.CreateDeleteAccessControlListRequest()
 	req.Scheme = "https"
 	req.RegionId = mdl.Region
 	req.AclId = mdl.AccessControlListId
 	_, err := s.auth.SLB.DeleteAccessControlList(req)
 	if err != nil {
-		return SDKError("DeleteAccessControlList", err)
+		return CLBSDKError("DeleteAccessControlList", err)
 	}
 	return nil
 }
 
-func (s *SLBProvider) AddAccessControlListEntry(ctx context.Context, mdl *model.AccessControlListAttribute, entry string) error {
+func (s *SLBProvider) AddAccessControlListEntry(ctx context.Context, mdl *ravenmodel.AccessControlListAttribute, entry string) error {
 	if entry == "" || entry == "[]" {
 		return nil
 	}
@@ -185,12 +184,12 @@ func (s *SLBProvider) AddAccessControlListEntry(ctx context.Context, mdl *model.
 	req.AclEntrys = entry
 	_, err := s.auth.SLB.AddAccessControlListEntry(req)
 	if err != nil {
-		return SDKError("AddAccessControlListEntry", err)
+		return CLBSDKError("AddAccessControlListEntry", err)
 	}
 	return nil
 }
 
-func (s *SLBProvider) RemoveAccessControlListEntry(ctx context.Context, mdl *model.AccessControlListAttribute, entry string) error {
+func (s *SLBProvider) RemoveAccessControlListEntry(ctx context.Context, mdl *ravenmodel.AccessControlListAttribute, entry string) error {
 	if entry == "" || entry == "[]" {
 		return nil
 	}
@@ -201,19 +200,19 @@ func (s *SLBProvider) RemoveAccessControlListEntry(ctx context.Context, mdl *mod
 	req.AclEntrys = entry
 	_, err := s.auth.SLB.RemoveAccessControlListEntry(req)
 	if err != nil {
-		return SDKError("RemoveAccessControlListEntry", err)
+		return CLBSDKError("RemoveAccessControlListEntry", err)
 	}
 	return nil
 }
 
-func (s *SLBProvider) DescribeAccessControlListAttribute(ctx context.Context, mdl *model.AccessControlListAttribute) error {
+func (s *SLBProvider) DescribeAccessControlListAttribute(ctx context.Context, mdl *ravenmodel.AccessControlListAttribute) error {
 	req := slb.CreateDescribeAccessControlListAttributeRequest()
 	req.Scheme = "https"
 	req.RegionId = mdl.Region
 	req.AclId = mdl.AccessControlListId
 	resp, err := s.auth.SLB.DescribeAccessControlListAttribute(req)
 	if err != nil {
-		return SDKError("DescribeAccessControlListAttribute", err)
+		return CLBSDKError("DescribeAccessControlListAttribute", err)
 	}
 	if resp == nil {
 		return fmt.Errorf("DescribeAccessControlListAttribute response is empty")
@@ -223,15 +222,11 @@ func (s *SLBProvider) DescribeAccessControlListAttribute(ctx context.Context, md
 	return nil
 }
 
-func SDKError(api string, err error) error {
+func CLBSDKError(api string, err error) error {
 	return fmt.Errorf("[SDKError] API: slb:%s, Error: %s", api, err.Error())
 }
 
-func IsNotFound(err error) bool {
-	return strings.Contains(strings.ToLower(err.Error()), "not exist")
-}
-
-func loadTagResource(src *model.TagList) (dst []slb.TagResourcesTag) {
+func loadTagResource(src *ravenmodel.TagList) (dst []slb.TagResourcesTag) {
 	dst = make([]slb.TagResourcesTag, 0)
 	for _, tag := range src.Tags {
 		dst = append(dst, slb.TagResourcesTag{Key: tag.Key, Value: tag.Value})

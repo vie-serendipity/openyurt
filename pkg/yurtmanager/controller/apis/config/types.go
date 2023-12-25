@@ -17,6 +17,7 @@ limitations under the License.
 package config
 
 import (
+	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	componentbaseconfig "k8s.io/component-base/config"
 	"k8s.io/kube-controller-manager/config/v1alpha1"
@@ -88,6 +89,8 @@ type GenericConfiguration struct {
 	RestConfigBurst  int
 	WorkingNamespace string
 	Kubeconfig       string
+	Cloudconfig      string
+	CloudProvider    prvd.Provider
 	// Controllers is the list of controllers to enable or disable
 	// '*' means "all enabled by default controllers"
 	// 'foo' means "enable 'foo'"

@@ -19,7 +19,6 @@ package options
 import (
 	"github.com/spf13/pflag"
 
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util/config"
 )
 
@@ -56,9 +55,6 @@ func (g *CloudProviderControllerOptions) ApplyTo(cfg *config.RavenCloudProviderC
 func (g *CloudProviderControllerOptions) Validate() []error {
 	if g == nil {
 		return nil
-	}
-	if g.CloudConfigPath == "" {
-		g.CloudConfigPath = util.CloudConfigDefaultPath
 	}
 	var errs []error
 	return errs

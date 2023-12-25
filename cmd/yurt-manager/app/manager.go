@@ -158,6 +158,7 @@ func Run(c *config.CompletedConfig, stopCh <-chan struct{}) error {
 		}
 		cfg = config
 	}
+
 	setRestConfig(cfg, c)
 
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{

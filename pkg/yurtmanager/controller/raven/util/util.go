@@ -22,6 +22,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/raven"
 	"math/rand"
 	"net"
 	"strings"
@@ -91,6 +92,20 @@ func AddNodePoolToWorkQueue(npName string, q workqueue.RateLimitingInterface) {
 		q.Add(reconcile.Request{
 			NamespacedName: types.NamespacedName{Name: npName},
 		})
+	}
+}
+
+type Model struct {
+	ACLModel *raven.AccessControlListAttribute
+	SLBModel *raven.LoadBalancerAttribute
+	EIPModel *raven.ElasticIPAttribute
+}
+
+func NewModel(key raven.NamedKey, region string) *Model {
+	return &Model{
+		ACLModel: &raven.AccessControlListAttribute{NamedKey: key, Region: region},
+		SLBModel: &raven.LoadBalancerAttribute{NamedKey: key, Region: region},
+		EIPModel: &raven.ElasticIPAttribute{NamedKey: key, Region: region},
 	}
 }
 

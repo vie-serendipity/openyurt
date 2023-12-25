@@ -19,6 +19,9 @@ package cloudprovider
 import (
 	"context"
 	"fmt"
+	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
+	ravenprvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/raven"
+	ravenmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/raven"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -40,10 +43,6 @@ import (
 	"github.com/openyurtio/openyurt/cmd/yurt-manager/names"
 	"github.com/openyurtio/openyurt/pkg/apis/raven"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util/model"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util/provider/base"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util/provider/eip"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util/provider/slb"
 )
 
 func Format(format string, args ...interface{}) string {
@@ -54,7 +53,7 @@ func Format(format string, args ...interface{}) string {
 // Add creates a new Service Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(ctx context.Context, c *appconfig.CompletedConfig, mgr manager.Manager) error {
-	r, err := newReconciler(c, mgr)
+	r, err := newReconciler(ctx, c, mgr)
 	if err != nil {
 		klog.Error(Format("new reconcile error: %s", err.Error()))
 		return err
@@ -108,30 +107,24 @@ type ReconcileResource struct {
 	scheme   *runtime.Scheme
 	recorder record.EventRecorder
 	queue    workqueue.RateLimitingInterface
+	provider prvd.Provider
 
-	slbClient   *slb.SLBProvider
-	eipClient   *eip.VPCProvider
-	cloudClient *base.ClientMgr
-
-	localModel  *model.Model
-	remoteModel *model.Model
+	localModel  *util.Model
+	remoteModel *util.Model
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(c *appconfig.CompletedConfig, mgr manager.Manager) (*ReconcileResource, error) {
-	cloudClient, err := base.NewClientMgr(c.ComponentConfig.RavenCloudProviderController.CloudConfigPath)
-	if err != nil {
-		return nil, err
+func newReconciler(ctx context.Context, c *appconfig.CompletedConfig, mgr manager.Manager) (*ReconcileResource, error) {
+	if c.Config.ComponentConfig.Generic.CloudProvider == nil {
+		klog.Error("can not get alibaba provider")
+		return nil, fmt.Errorf("can not get alibaba provider")
 	}
-
 	return &ReconcileResource{
-		Client:      mgr.GetClient(),
-		scheme:      mgr.GetScheme(),
-		cloudClient: cloudClient,
-		slbClient:   slb.NewLBProvider(cloudClient),
-		eipClient:   eip.NewEIPProvider(cloudClient),
-		queue:       workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "RavenServiceQueue"),
-		recorder:    mgr.GetEventRecorderFor(names.RavenCloudProviderController),
+		Client:   mgr.GetClient(),
+		scheme:   mgr.GetScheme(),
+		provider: c.Config.ComponentConfig.Generic.CloudProvider,
+		queue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "RavenServiceQueue"),
+		recorder: mgr.GetEventRecorderFor(names.RavenCloudProviderController),
 	}, nil
 }
 
@@ -188,31 +181,28 @@ func (r *ReconcileResource) Reconcile(ctx context.Context, req reconcile.Request
 }
 
 func (r *ReconcileResource) buildModel() error {
-	if r.cloudClient == nil {
-		return fmt.Errorf("cloud client is not found")
-	}
-	clusterId, err := r.cloudClient.Meta.GetClusterID()
+	clusterId, err := r.provider.GetClusterID()
 	if err != nil {
 		return err
 	}
-	regionId, err := r.cloudClient.Meta.GetRegion()
+	regionId, err := r.provider.GetRegion()
 	if err != nil {
 		return err
 	}
-	vpcId, err := r.cloudClient.Meta.GetVpcID()
+	vpcId, err := r.provider.GetVpcID()
 	if err != nil {
 		return err
 	}
-	vswitch, err := r.cloudClient.Meta.GetVswitchID()
+	vswitch, err := r.provider.GetVswitchID()
 	if err != nil {
 		return err
 	}
-	nameKey := model.NewNamedKey(clusterId)
+	nameKey := ravenmodel.NewNamedKey(clusterId)
 	tag := map[string]string{util.ResourceUseForRavenComponentKey: util.ResourceUseForRavenComponentValue}
-	r.localModel = model.NewModel(nameKey, regionId)
-	r.localModel.ACLModel.Tags = model.NewTagList(tag)
-	r.localModel.EIPModel.Tags = model.NewTagList(tag)
-	r.localModel.SLBModel.Tags = model.NewTagList(tag)
+	r.localModel = util.NewModel(nameKey, regionId)
+	r.localModel.ACLModel.Tags = ravenmodel.NewTagList(tag)
+	r.localModel.EIPModel.Tags = ravenmodel.NewTagList(tag)
+	r.localModel.SLBModel.Tags = ravenmodel.NewTagList(tag)
 	r.localModel.SLBModel.Spec = "slb.s2.medium"
 	r.localModel.SLBModel.AddressType = "intranet"
 	r.localModel.SLBModel.VpcId = vpcId
@@ -221,7 +211,7 @@ func (r *ReconcileResource) buildModel() error {
 	r.localModel.EIPModel.InstanceChargeType = "PostPaid"
 	r.localModel.EIPModel.InternetChargeType = "PayByTraffic"
 
-	r.remoteModel = model.NewModel(nameKey, regionId)
+	r.remoteModel = util.NewModel(nameKey, regionId)
 	r.remoteModel.SLBModel.VpcId = vpcId
 	r.remoteModel.SLBModel.VSwitchId = vswitch
 	return nil
@@ -239,7 +229,7 @@ func (r *ReconcileResource) loadLocalModel(cm *corev1.ConfigMap) error {
 	if r.localModel.SLBModel.LoadBalancerId != "" {
 		err := r.DescribeSLBById()
 		if err != nil {
-			if !slb.IsNotFound(err) {
+			if !ravenprvd.IsNotFound(err) {
 				return fmt.Errorf("describe slb %s, error %s", r.localModel.SLBModel.LoadBalancerId, err.Error())
 			} else {
 				klog.Warningf(Format("slb id %s is not found recreate a slb", r.localModel.SLBModel.LoadBalancerId))
@@ -250,7 +240,7 @@ func (r *ReconcileResource) loadLocalModel(cm *corev1.ConfigMap) error {
 	if r.localModel.EIPModel.AllocationId != "" {
 		err := r.DescribeEIPById()
 		if err != nil {
-			if !eip.IsNotFound(err) {
+			if !ravenprvd.IsNotFound(err) {
 				return fmt.Errorf("describe eip %s, error %s", r.localModel.EIPModel.AllocationId, err.Error())
 			} else {
 				klog.Warningf(Format("eip id %s is not found recreate a eip", r.localModel.EIPModel.AllocationId))
@@ -262,7 +252,7 @@ func (r *ReconcileResource) loadLocalModel(cm *corev1.ConfigMap) error {
 	if r.localModel.ACLModel.AccessControlListId != "" {
 		err := r.DescribeACLById()
 		if err != nil {
-			if !slb.IsNotFound(err) {
+			if !ravenprvd.IsNotFound(err) {
 				return fmt.Errorf("describe acl %s, error %s", r.localModel.ACLModel.AccessControlListId, err.Error())
 			} else {
 				klog.Warningf(Format("acl id %s is not found recreate a slb", r.localModel.ACLModel.AccessControlListId))
@@ -364,7 +354,7 @@ func (r *ReconcileResource) cleanupCloudResource() error {
 		}
 	} else {
 		err := r.DescribeEIPByName()
-		if err != nil && !eip.IsNotFound(err) {
+		if err != nil && !ravenprvd.IsNotFound(err) {
 			return fmt.Errorf("describe eip by name error %s", err.Error())
 		}
 		if r.remoteModel.EIPModel.AllocationId != "" {
@@ -415,7 +405,7 @@ func (r *ReconcileResource) createCloudResource() error {
 
 	if r.localModel.EIPModel.AllocationId == "" {
 		err := r.DescribeEIPByName()
-		if err != nil && !eip.IsNotFound(err) {
+		if err != nil && !ravenprvd.IsNotFound(err) {
 			return fmt.Errorf("describe eip error %s", err.Error())
 		}
 		if r.remoteModel.EIPModel.AllocationId == "" {

@@ -1,17 +1,17 @@
-package eip
+package raven
 
 import (
 	"context"
 	"fmt"
+	provider "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/base"
+	ravenmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/raven"
 	"strings"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/vpc"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util/model"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util/provider"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util/provider/base"
 )
 
-func NewEIPProvider(auth *base.ClientMgr) *VPCProvider {
+func NewVPCProvider(auth *base.ClientMgr) *VPCProvider {
 	return &VPCProvider{auth: auth}
 }
 
@@ -21,14 +21,14 @@ type VPCProvider struct {
 	auth *base.ClientMgr
 }
 
-func (v *VPCProvider) DescribeEipAddresses(ctx context.Context, mdl *model.ElasticIPAttribute) error {
+func (v *VPCProvider) DescribeEipAddresses(ctx context.Context, mdl *ravenmodel.ElasticIPAttribute) error {
 	req := vpc.CreateDescribeEipAddressesRequest()
 	req.Scheme = "https"
 	req.AllocationId = mdl.AllocationId
 	req.EipName = mdl.String()
 	resp, err := v.auth.EIP.DescribeEipAddresses(req)
 	if err != nil {
-		return SDKError("DescribeEipAddresses", err)
+		return EIPSDKError("DescribeEipAddresses", err)
 	}
 	if resp == nil {
 		return fmt.Errorf("DescribeEipAddresses response is empty")
@@ -50,7 +50,7 @@ func (v *VPCProvider) DescribeEipAddresses(ctx context.Context, mdl *model.Elast
 	return nil
 }
 
-func (v *VPCProvider) AllocateEipAddress(ctx context.Context, mdl *model.ElasticIPAttribute) error {
+func (v *VPCProvider) AllocateEipAddress(ctx context.Context, mdl *ravenmodel.ElasticIPAttribute) error {
 	req := vpc.CreateAllocateEipAddressRequest()
 	req.Scheme = "https"
 	req.Name = mdl.String()
@@ -59,7 +59,7 @@ func (v *VPCProvider) AllocateEipAddress(ctx context.Context, mdl *model.Elastic
 
 	resp, err := v.auth.EIP.AllocateEipAddress(req)
 	if err != nil {
-		return SDKError("AllocateEipAddress", err)
+		return EIPSDKError("AllocateEipAddress", err)
 	}
 	if resp == nil || resp.AllocationId == "" || resp.EipAddress == "" {
 		return fmt.Errorf("CreateLoadBalancer response is empty")
@@ -69,7 +69,7 @@ func (v *VPCProvider) AllocateEipAddress(ctx context.Context, mdl *model.Elastic
 	return nil
 }
 
-func (v *VPCProvider) AssociateEipAddress(ctx context.Context, mdl *model.ElasticIPAttribute, instanceId string) error {
+func (v *VPCProvider) AssociateEipAddress(ctx context.Context, mdl *ravenmodel.ElasticIPAttribute, instanceId string) error {
 	req := vpc.CreateAssociateEipAddressRequest()
 	req.Scheme = "https"
 	req.InstanceType = "SlbInstance"
@@ -77,12 +77,12 @@ func (v *VPCProvider) AssociateEipAddress(ctx context.Context, mdl *model.Elasti
 	req.InstanceId = instanceId
 	_, err := v.auth.EIP.AssociateEipAddress(req)
 	if err != nil {
-		return SDKError("AssociateEipAddress", err)
+		return EIPSDKError("AssociateEipAddress", err)
 	}
 	return nil
 }
 
-func (v *VPCProvider) UnassociateEipAddress(ctx context.Context, mdl *model.ElasticIPAttribute) error {
+func (v *VPCProvider) UnassociateEipAddress(ctx context.Context, mdl *ravenmodel.ElasticIPAttribute) error {
 	req := vpc.CreateUnassociateEipAddressRequest()
 	req.Scheme = "https"
 	req.InstanceType = "SlbInstance"
@@ -90,26 +90,26 @@ func (v *VPCProvider) UnassociateEipAddress(ctx context.Context, mdl *model.Elas
 	req.InstanceId = mdl.InstanceId
 	_, err := v.auth.EIP.UnassociateEipAddress(req)
 	if err != nil {
-		return SDKError("UnassociateEipAddress", err)
+		return EIPSDKError("UnassociateEipAddress", err)
 	}
 	return nil
 }
 
-func (v *VPCProvider) ReleaseEipAddress(ctx context.Context, mdl *model.ElasticIPAttribute) error {
+func (v *VPCProvider) ReleaseEipAddress(ctx context.Context, mdl *ravenmodel.ElasticIPAttribute) error {
 	req := vpc.CreateReleaseEipAddressRequest()
 	req.Scheme = "https"
 	req.AllocationId = mdl.AllocationId
 	_, err := v.auth.EIP.ReleaseEipAddress(req)
 	if err != nil {
-		return SDKError("ReleaseEipAddress", err)
+		return EIPSDKError("ReleaseEipAddress", err)
 	}
 	return nil
 }
 
-func SDKError(api string, err error) error {
+func EIPSDKError(api string, err error) error {
 	return fmt.Errorf("[SDKError] API: vpc:%s, Error: %s", api, err.Error())
 }
 
 func IsNotFound(err error) bool {
-	return strings.Contains(strings.ToLower(err.Error()), "is not found")
+	return strings.Contains(strings.ToLower(err.Error()), "is not found") || strings.Contains(strings.ToLower(err.Error()), "not exist")
 }

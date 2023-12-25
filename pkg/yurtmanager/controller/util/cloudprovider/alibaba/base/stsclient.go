@@ -1,12 +1,27 @@
-package sts
+package base
 
 import (
+	"fmt"
+
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/responses"
 )
 
-// AssumeRole invokes the sts.AssumeRole API synchronously
-// api document: https://help.aliyun.com/api/sts/assumerole.html
+// Client is the sdk client struct, each func corresponds to an OpenAPI
+type Client struct {
+	sdk.Client
+}
+
+func NewClientWithAccessKey(regionId, accessKeyId, accessKeySecret string) (*Client, error) {
+	client := &Client{}
+	err := client.InitWithAccessKey(regionId, accessKeyId, accessKeySecret)
+	if regionId != "" {
+		client.Domain = fmt.Sprintf("sts-vpc.%s.aliyuncs.com", regionId)
+	}
+	return client, err
+}
+
 func (client *Client) AssumeRoleWithServiceIdentity(request *AssumeRoleWithServiceIdentityRequest) (response *AssumeRoleWithServiceIdentityResponse, err error) {
 	response = CreateAssumeRoleWithServiceIdentityResponse()
 	err = client.DoAction(request, response)
