@@ -48,8 +48,11 @@ type nodesInitializer struct {
 
 // NewNodesInitializer creates an filterInitializer object
 func NewNodesInitializer(enableNodeBucket bool, dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory) filter.Initializer {
-	nodesGetter, nodesSynced := createNodeGetterAndSyncedByNodeBucket(dynamicInformerFactory)
-	if !enableNodeBucket {
+	var nodesGetter filter.NodesInPoolGetter
+	var nodesSynced cache.InformerSynced
+	if enableNodeBucket {
+		nodesGetter, nodesSynced = createNodeGetterAndSyncedByNodeBucket(dynamicInformerFactory)
+	} else {
 		nodesGetter, nodesSynced = createNodeGetterAndSyncedByNodePool(dynamicInformerFactory)
 	}
 
