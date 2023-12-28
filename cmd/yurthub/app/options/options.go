@@ -32,6 +32,7 @@ import (
 
 	"github.com/openyurtio/openyurt/pkg/projectinfo"
 	"github.com/openyurtio/openyurt/pkg/yurthub/certificate"
+	"github.com/openyurtio/openyurt/pkg/yurthub/filter"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter/imagecustomization"
 	"github.com/openyurtio/openyurt/pkg/yurthub/storage/disk"
 	"github.com/openyurtio/openyurt/pkg/yurthub/util"
@@ -120,7 +121,7 @@ func NewYurtHubOptions() *YurtHubOptions {
 		DiskCachePath:             disk.CacheBaseDir,
 		AccessServerThroughHub:    true,
 		EnableResourceFilter:      true,
-		DisabledResourceFilters:   make([]string, 0),
+		DisabledResourceFilters:   []string{filter.InClusterConfigFilterName},
 		WorkingMode:               string(util.WorkingModeEdge),
 		KubeletHealthGracePeriod:  time.Second * 40,
 		EnableNodePool:            true,

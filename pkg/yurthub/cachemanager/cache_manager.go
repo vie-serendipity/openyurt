@@ -52,6 +52,11 @@ import (
 
 var (
 	ErrInMemoryCacheMiss = errors.New("in-memory cache miss")
+
+	nonCacheableResources = map[string]struct{}{
+		"certificatesigningrequests": {},
+		"subjectaccessreviews":       {},
+	}
 )
 
 // CacheManager is an adaptor to cache runtime object data into backend storage
@@ -444,7 +449,7 @@ func (cm *cacheManager) saveWatchObject(ctx context.Context, info *apirequest.Re
 			}
 		case watch.Bookmark:
 			rv, _ := accessor.ResourceVersion(obj)
-			klog.Infof("get bookmark with rv %s for %s watch %s", rv, comp, info.Resource)
+			klog.V(4).Infof("get bookmark with rv %s for %s watch %s", rv, comp, info.Resource)
 		case watch.Error:
 			klog.Infof("unable to understand watch event %#v", obj)
 		}
@@ -627,7 +632,7 @@ func (cm *cacheManager) storeObjectWithKey(key storage.Key, obj runtime.Object) 
 
 	newRv, err := accessor.ResourceVersion(obj)
 	if err != nil {
-		return fmt.Errorf("could not get new object resource version for %s, %v", key, err)
+		return fmt.Errorf("could not get new object resource version for %s, %v", key.Key(), err)
 	}
 
 	klog.V(4).Infof("try to store obj of key %s, obj: %v", key.Key(), obj)
@@ -641,13 +646,13 @@ func (cm *cacheManager) storeObjectWithKey(key storage.Key, obj runtime.Object) 
 		klog.V(4).Infof("find no cached obj of key: %s, create it with the coming obj with rv: %s", key.Key(), newRv)
 		if err := cm.storage.Create(key, obj); err != nil {
 			if err == storage.ErrStorageAccessConflict {
-				klog.V(2).Infof("skip to cache obj because key(%s) is under processing", key)
+				klog.V(2).Infof("skip to cache obj because key(%s) is under processing", key.Key())
 				return nil
 			}
 			return fmt.Errorf("could not create obj of key: %s, %v", key.Key(), err)
 		}
 	case storage.ErrStorageAccessConflict:
-		klog.V(2).Infof("skip to cache watch event because key(%s) is under processing", key)
+		klog.V(2).Infof("skip to cache watch event because key(%s) is under processing", key.Key())
 		return nil
 	default:
 		return fmt.Errorf("could not store obj with rv %s of key: %s, %v", newRv, key.Key(), err)
@@ -705,7 +710,7 @@ func isCreate(ctx context.Context) bool {
 // 1. component is not set
 // 2. delete/deletecollection/proxy request
 // 3. sub-resource request but is not status
-// 4. csr resource request
+// 4. csr and sar resource request
 func (cm *cacheManager) CanCacheFor(req *http.Request) bool {
 	ctx := req.Context()
 
@@ -740,6 +745,10 @@ func (cm *cacheManager) CanCacheFor(req *http.Request) bool {
 	}
 
 	if info.Subresource != "" && info.Subresource != "status" {
+		return false
+	}
+
+	if _, ok := nonCacheableResources[info.Resource]; ok {
 		return false
 	}
 

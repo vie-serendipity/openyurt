@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	apiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/apiserver/pkg/server/dynamiccertificates"
@@ -47,6 +48,7 @@ import (
 	"github.com/openyurtio/openyurt/pkg/yurthub/cachemanager"
 	"github.com/openyurtio/openyurt/pkg/yurthub/certificate"
 	certificatemgr "github.com/openyurtio/openyurt/pkg/yurthub/certificate/manager"
+	"github.com/openyurtio/openyurt/pkg/yurthub/filter/initializer"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter/manager"
 	"github.com/openyurtio/openyurt/pkg/yurthub/kubernetes/meta"
 	"github.com/openyurtio/openyurt/pkg/yurthub/kubernetes/serializer"
@@ -126,7 +128,7 @@ func Complete(options *options.YurtHubOptions) (*YurtHubConfiguration, error) {
 	}
 
 	workingMode := util.WorkingMode(options.WorkingMode)
-	proxiedClient, sharedFactory, dynamicSharedFactory, err := createClientAndSharedInformers(fmt.Sprintf("http://%s:%d", options.YurtHubProxyHost, options.YurtHubProxyPort), options.NodePoolName)
+	proxiedClient, sharedFactory, dynamicSharedFactory, err := createClientAndSharedInformers(fmt.Sprintf("http://%s:%d", options.YurtHubProxyHost, options.YurtHubProxyPort), options.NodePoolName, options.EnableNodeBucket)
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +237,7 @@ func parseRemoteServers(serverAddr string) ([]*url.URL, error) {
 }
 
 // createClientAndSharedInformers create kubeclient and sharedInformers from the given proxyAddr.
-func createClientAndSharedInformers(proxyAddr string, nodePoolName string) (kubernetes.Interface, informers.SharedInformerFactory, dynamicinformer.DynamicSharedInformerFactory, error) {
+func createClientAndSharedInformers(proxyAddr string, nodePoolName string, enableNodeBucket bool) (kubernetes.Interface, informers.SharedInformerFactory, dynamicinformer.DynamicSharedInformerFactory, error) {
 	var kubeConfig *rest.Config
 	var err error
 	kubeConfig, err = clientcmd.BuildConfigFromFlags(proxyAddr, "")
@@ -255,9 +257,15 @@ func createClientAndSharedInformers(proxyAddr string, nodePoolName string) (kube
 
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 24*time.Hour)
 	if len(nodePoolName) != 0 {
-		dynamicInformerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, 24*time.Hour, metav1.NamespaceAll, func(options *metav1.ListOptions) {
-			options.FieldSelector = fields.Set{"metadata.name": nodePoolName}.String()
-		})
+		if enableNodeBucket {
+			dynamicInformerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, 24*time.Hour, metav1.NamespaceAll, func(options *metav1.ListOptions) {
+				options.LabelSelector = labels.Set{initializer.LabelNodePoolName: nodePoolName}.String()
+			})
+		} else {
+			dynamicInformerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, 24*time.Hour, metav1.NamespaceAll, func(options *metav1.ListOptions) {
+				options.FieldSelector = fields.Set{"metadata.name": nodePoolName}.String()
+			})
+		}
 	}
 
 	return client, informers.NewSharedInformerFactory(client, 24*time.Hour), dynamicInformerFactory, nil
