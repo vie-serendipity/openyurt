@@ -2,6 +2,7 @@ package raven
 
 import (
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -13,10 +14,10 @@ const (
 )
 
 type NamedKey struct {
-	Prefix        string
-	CID           string
-	Namespace     string
-	ComponentName string
+	Prefix        string `json:"prefix"`
+	CID           string `json:"CID"`
+	Namespace     string `json:"namespace"`
+	ComponentName string `json:"componentName"`
 }
 
 func (n *NamedKey) Key() string {
@@ -30,7 +31,14 @@ func (n *NamedKey) String() string {
 	if n == nil {
 		return ""
 	}
+	if os.Getenv("ALIBABACLOUD_TYPE") == "Private" {
+		return DedicatedKey(n.Key())
+	}
 	return n.Key()
+}
+
+func DedicatedKey(key string) string {
+	return strings.Replace(key, "/", "_", -1)
 }
 
 func (n *NamedKey) DeepCopy() NamedKey {
@@ -88,39 +96,36 @@ type Instance struct {
 }
 
 type ElasticIPAttribute struct {
-	NamedKey
-	AllocationId       string
-	Name               string
-	Region             string
-	Bandwidth          string
-	InstanceChargeType string
-	InternetChargeType string
-	InstanceId         string
-	Address            string
-	Status             string
-	Tags               TagList
+	NamedKey           `json:"namedKey"`
+	AllocationId       string `json:"allocationId"`
+	Name               string `json:"name"`
+	Region             string `json:"region"`
+	Bandwidth          string `json:"bandwidth"`
+	InstanceChargeType string `json:"instanceChargeType"`
+	InternetChargeType string `json:"internetChargeType"`
+	InstanceId         string `json:"instanceId"`
+	Address            string `json:"address"`
+	Status             string `json:"status"`
 }
 
 type LoadBalancerAttribute struct {
-	NamedKey
-	LoadBalancerId string
-	Name           string
-	Region         string
-	Spec           string
-	Status         string
-	Address        string
-	AddressType    string
-	VpcId          string
-	VSwitchId      string
-	Tags           TagList
+	NamedKey       `json:"namedKey"`
+	LoadBalancerId string `json:"loadBalancerId"`
+	Name           string `json:"name"`
+	Region         string `json:"region"`
+	Spec           string `json:"spec"`
+	Status         string `json:"status"`
+	Address        string `json:"address"`
+	AddressType    string `json:"addressType"`
+	VpcId          string `json:"vpcId"`
+	VSwitchId      string `json:"VSwitchId"`
 }
 
 type AccessControlListAttribute struct {
-	NamedKey
-	AccessControlListId string
-	Name                string
-	Region              string
-	Tags                TagList
-	LocalEntries        []string
-	RemoteEntries       []string
+	NamedKey            `json:"namedKey"`
+	AccessControlListId string   `json:"accessControlListId"`
+	Name                string   `json:"name"`
+	Region              string   `json:"region"`
+	LocalEntries        []string `json:"localEntries"`
+	RemoteEntries       []string `json:"remoteEntries"`
 }

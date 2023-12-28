@@ -24,7 +24,7 @@ type VPCProvider struct {
 func (v *VPCProvider) DescribeEipAddresses(ctx context.Context, mdl *ravenmodel.ElasticIPAttribute) error {
 	req := vpc.CreateDescribeEipAddressesRequest()
 	req.AllocationId = mdl.AllocationId
-	req.EipName = mdl.String()
+	req.EipName = mdl.Name
 	resp, err := v.auth.EIP.DescribeEipAddresses(req)
 	if err != nil {
 		return EIPSDKError("DescribeEipAddresses", err)
@@ -35,17 +35,18 @@ func (v *VPCProvider) DescribeEipAddresses(ctx context.Context, mdl *ravenmodel.
 	if len(resp.EipAddresses.EipAddress) < 1 {
 		return fmt.Errorf("eip %s is not found", mdl.AllocationId)
 	}
-	for _, eip := range resp.EipAddresses.EipAddress {
-		mdl.AllocationId = eip.AllocationId
-		mdl.Address = eip.IpAddress
-		mdl.Region = eip.RegionId
-		mdl.Bandwidth = eip.Bandwidth
-		mdl.Status = eip.Status
-		mdl.InstanceId = eip.InstanceId
-		mdl.Name = eip.Name
-		return nil
-	}
 
+	for _, eip := range resp.EipAddresses.EipAddress {
+		if eip.Name == mdl.Name {
+			mdl.AllocationId = eip.AllocationId
+			mdl.Address = eip.IpAddress
+			mdl.Region = eip.RegionId
+			mdl.Bandwidth = eip.Bandwidth
+			mdl.Status = eip.Status
+			mdl.InstanceId = eip.InstanceId
+			break
+		}
+	}
 	return nil
 }
 

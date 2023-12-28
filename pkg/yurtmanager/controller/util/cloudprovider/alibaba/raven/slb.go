@@ -30,7 +30,7 @@ type SLBProvider struct {
 func (s *SLBProvider) DescribeLoadBalancers(ctx context.Context, mdl *ravenmodel.LoadBalancerAttribute) error {
 	req := slb.CreateDescribeLoadBalancersRequest()
 	req.RegionId = mdl.Region
-	req.LoadBalancerName = mdl.NamedKey.String()
+	req.LoadBalancerName = mdl.Name
 	resp, err := s.auth.SLB.DescribeLoadBalancers(req)
 	if err != nil {
 		return CLBSDKError("DescribeLoadBalancers", err)
@@ -39,13 +39,12 @@ func (s *SLBProvider) DescribeLoadBalancers(ctx context.Context, mdl *ravenmodel
 		return fmt.Errorf("DescribeLoadBalancers response is empty")
 	}
 	for _, lb := range resp.LoadBalancers.LoadBalancer {
-		if lb.VpcId != mdl.VpcId || lb.VSwitchId != mdl.VSwitchId {
+		if lb.VpcId != mdl.VpcId || lb.VSwitchId != mdl.VSwitchId || lb.LoadBalancerName != mdl.Name {
 			continue
 		}
 		mdl.LoadBalancerId = lb.LoadBalancerId
 		mdl.Address = lb.Address
 		mdl.Spec = lb.LoadBalancerSpec
-		mdl.Name = lb.LoadBalancerName
 		return nil
 	}
 	return nil
@@ -105,11 +104,11 @@ func (s *SLBProvider) DescribeLoadBalancer(ctx context.Context, mdl *ravenmodel.
 	if resp == nil {
 		return fmt.Errorf("DescribeLoadBalancer is nil")
 	}
-	key, err := ravenmodel.LoadNamedKey(resp.LoadBalancerName)
-	if err != nil {
-		return fmt.Errorf("LoadBalancer name is not compliant")
+	if resp.LoadBalancerName != mdl.Name {
+		mdl.LoadBalancerId = ""
+		mdl.Address = ""
+		return nil
 	}
-	mdl.NamedKey = key.DeepCopy()
 	mdl.Name = resp.LoadBalancerName
 	mdl.Region = resp.RegionId
 	mdl.Spec = resp.LoadBalancerSpec
@@ -124,7 +123,7 @@ func (s *SLBProvider) DescribeLoadBalancer(ctx context.Context, mdl *ravenmodel.
 func (s *SLBProvider) DescribeAccessControlLists(ctx context.Context, mdl *ravenmodel.AccessControlListAttribute) error {
 	req := slb.CreateDescribeAccessControlListsRequest()
 	req.RegionId = mdl.Region
-	req.AclName = mdl.NamedKey.String()
+	req.AclName = mdl.Name
 	resp, err := s.auth.SLB.DescribeAccessControlLists(req)
 	if err != nil {
 		return CLBSDKError("DescribeAccessControlLists", err)
@@ -133,8 +132,10 @@ func (s *SLBProvider) DescribeAccessControlLists(ctx context.Context, mdl *raven
 		return fmt.Errorf("DescribeAccessControlLists response is empty")
 	}
 	for _, acl := range resp.Acls.Acl {
-		mdl.AccessControlListId = acl.AclId
-		return nil
+		if acl.AclName == req.AclName {
+			mdl.AccessControlListId = acl.AclId
+			return nil
+		}
 	}
 	return nil
 }

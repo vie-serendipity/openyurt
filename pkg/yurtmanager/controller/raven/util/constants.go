@@ -55,5 +55,5 @@ const (
 	ResourceUseForRavenComponentKey   = "ack.edge.ecm"
 	ResourceUseForRavenComponentValue = "raven-agent-ds"
 	CloudConfigDefaultPath            = "/etc/kubernetes/config/cloud-config.json"
-	CentreGatewayExposedPorts         = "10280,10282,10283"
+	CentreGatewayExposedPorts         = "10280,10281,10282"
 )
