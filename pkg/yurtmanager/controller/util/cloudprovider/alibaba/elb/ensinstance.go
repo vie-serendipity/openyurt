@@ -13,7 +13,6 @@ func (e ELBProvider) GetEnsRegionIdByNetwork(ctx context.Context, networkId stri
 		return "", fmt.Errorf(" network id is empty")
 	}
 	req := ens.CreateDescribeNetworksRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.NetworkId = networkId
@@ -33,7 +32,6 @@ func (e ELBProvider) FindEnsInstancesByNetwork(ctx context.Context, mdl *elbmode
 	}
 	ret := make(map[string]string, 0)
 	req := ens.CreateDescribeInstancesRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.NetworkId = mdl.GetNetworkId()
@@ -51,7 +49,6 @@ func (e ELBProvider) FindEnsInstancesByNetwork(ctx context.Context, mdl *elbmode
 func (e ELBProvider) FindNetWorkAndVSwitchByLoadBalancerId(ctx context.Context, lbId string) ([]string, error) {
 	ret := make([]string, 0)
 	req := ens.CreateDescribeLoadBalancerAttributeRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.LoadBalancerId = lbId
@@ -69,7 +66,6 @@ func (e ELBProvider) DescribeNetwork(ctx context.Context, mdl *elbmodel.EdgeLoad
 	}
 	found := false
 	req := ens.CreateDescribeNetworksRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.NetworkId = mdl.GetNetworkId()

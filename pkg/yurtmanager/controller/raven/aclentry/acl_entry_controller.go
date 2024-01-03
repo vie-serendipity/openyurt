@@ -135,24 +135,15 @@ func (r *ReconcileACL) Reconcile(ctx context.Context, req reconcile.Request) (re
 	r.model.AccessControlListId = cm.Data[util.ACLId]
 	err = r.getLocalACLEntry(cm)
 	if err != nil {
-		if cm != nil {
-			r.recorder.Event(cm, corev1.EventTypeWarning, "InvalidFormatACLEntry", err.Error())
-		}
 		klog.Error(Format("invalid format acl entry error %s", err.Error()))
 		return reconcile.Result{Requeue: true, RequeueAfter: 2 * time.Second}, err
 	}
 	err = r.getRemoteACLEntry(ctx)
 	if err != nil {
-		if cm != nil {
-			r.recorder.Event(cm, corev1.EventTypeWarning, "FailedFindACLEntry", fmt.Sprintf("Can not find the acl entry, error %s", err.Error()))
-		}
 		return reconcile.Result{Requeue: true, RequeueAfter: 2 * time.Second}, err
 	}
 	err = r.updateACLEntry(ctx)
 	if err != nil {
-		if cm != nil {
-			r.recorder.Event(cm, corev1.EventTypeWarning, "FailedUpdateACLEntry", fmt.Sprintf("Can not update the acl entry, error %s", err.Error()))
-		}
 		klog.Error(Format("update acl entry error %s", err.Error()))
 		return reconcile.Result{Requeue: true, RequeueAfter: 2 * time.Second}, fmt.Errorf("update remote acl entry error %s", err.Error())
 	}

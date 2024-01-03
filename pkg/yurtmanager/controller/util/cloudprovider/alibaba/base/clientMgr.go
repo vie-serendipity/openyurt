@@ -2,10 +2,10 @@ package base
 
 import (
 	"fmt"
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/ens"
-	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
 	"net/http"
+	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -14,8 +14,10 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/ens"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/slb"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/vpc"
+	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
 )
 
 const (
@@ -137,26 +139,30 @@ func (mgr *ClientMgr) Start(settoken func(mgr *ClientMgr, token *DefaultToken) e
 }
 
 func (mgr *ClientMgr) GetTokenAuth() (TokenAuth, error) {
-	if mgr.Meta == nil {
-		return nil, fmt.Errorf("can not get token meta data is empty")
+	if CloudCFG.Global.AccessKeyID != "" && CloudCFG.Global.AccessKeySecret != "" {
+		if mgr.Meta == nil {
+			return nil, fmt.Errorf("can not get token meta data is empty")
+		}
+		uid, err := mgr.Meta.GetUID()
+		if err != nil {
+			return nil, fmt.Errorf("can not determin uid")
+		}
+		ak, err := mgr.Meta.GetAccessID()
+		if err != nil {
+			return nil, fmt.Errorf("can not determin access key id")
+		}
+		sk, err := mgr.Meta.GetAccessSecret()
+		if err != nil {
+			return nil, fmt.Errorf("can not determin access key secret")
+		}
+		region, err := mgr.Meta.GetRegion()
+		if err != nil {
+			return nil, fmt.Errorf("can not determin region")
+		}
+		return &MetaToken{UID: uid, AccessKeyID: ak, AccessKeySecret: sk, Region: region}, nil
 	}
-	uid, err := mgr.Meta.GetUID()
-	if err != nil {
-		return nil, fmt.Errorf("can not determin uid")
-	}
-	ak, err := mgr.Meta.GetAccessID()
-	if err != nil {
-		return nil, fmt.Errorf("can not determin access key id")
-	}
-	sk, err := mgr.Meta.GetAccessSecret()
-	if err != nil {
-		return nil, fmt.Errorf("can not determin access key secret")
-	}
-	region, err := mgr.Meta.GetRegion()
-	if err != nil {
-		return nil, fmt.Errorf("can not determin region")
-	}
-	return &MetaToken{UID: uid, AccessKeyID: ak, AccessKeySecret: sk, Region: region}, nil
+
+	return &RamRoleToken{mgr.Meta}, nil
 }
 
 func RefreshToken(mgr *ClientMgr, token *DefaultToken) error {
@@ -182,6 +188,7 @@ func RefreshToken(mgr *ClientMgr, token *DefaultToken) error {
 		return fmt.Errorf("init elb sts token config: %s", err.Error())
 	}
 
+	setCustomizedEndpoint(mgr)
 	return nil
 }
 
@@ -195,4 +202,28 @@ func clientCfg() *sdk.Config {
 		Transport: http.DefaultTransport,
 		Scheme:    scheme,
 	}
+}
+
+func setCustomizedEndpoint(mgr *ClientMgr) {
+	if vpcEndpoint, err := parseURL(os.Getenv("VPC_ENDPOINT")); err == nil && vpcEndpoint != "" {
+		mgr.EIP.Domain = vpcEndpoint
+	}
+	if slbEndpoint, err := parseURL(os.Getenv("SLB_ENDPOINT")); err == nil && slbEndpoint != "" {
+		mgr.SLB.Domain = slbEndpoint
+	}
+}
+
+func parseURL(str string) (string, error) {
+	if str == "" {
+		return "", nil
+	}
+
+	if !strings.HasPrefix(str, "http") {
+		str = "http://" + str
+	}
+	u, err := url.Parse(str)
+	if err != nil {
+		return "", err
+	}
+	return u.Host, nil
 }

@@ -96,9 +96,9 @@ func AddNodePoolToWorkQueue(npName string, q workqueue.RateLimitingInterface) {
 }
 
 type Model struct {
-	ACLModel *raven.AccessControlListAttribute
-	SLBModel *raven.LoadBalancerAttribute
-	EIPModel *raven.ElasticIPAttribute
+	ACLModel *raven.AccessControlListAttribute `json:"acl_model"`
+	SLBModel *raven.LoadBalancerAttribute      `json:"slb_model"`
+	EIPModel *raven.ElasticIPAttribute         `json:"eip_model"`
 }
 
 func NewModel(key raven.NamedKey, region string) *Model {
@@ -107,6 +107,50 @@ func NewModel(key raven.NamedKey, region string) *Model {
 		SLBModel: &raven.LoadBalancerAttribute{NamedKey: key, Region: region},
 		EIPModel: &raven.ElasticIPAttribute{NamedKey: key, Region: region},
 	}
+}
+
+type RequestContext struct {
+	Ctx       context.Context
+	Cm        *corev1.ConfigMap
+	ClusterId string
+	Region    string
+	VpcId     string
+	VswitchId string
+}
+
+func (r *RequestContext) GetEIPId() string {
+	if r.Cm == nil || r.Cm.Data == nil {
+		return ""
+	}
+	return r.Cm.Data[ElasticIPId]
+}
+
+func (r *RequestContext) GetLoadBalancerId() string {
+	if r.Cm == nil || r.Cm.Data == nil {
+		return ""
+	}
+	return r.Cm.Data[LoadBalancerId]
+}
+
+func (r *RequestContext) GetEIPAddress() string {
+	if r.Cm == nil || r.Cm.Data == nil {
+		return ""
+	}
+	return r.Cm.Data[ElasticIPIP]
+}
+
+func (r *RequestContext) GetLoadBalancerAddress() string {
+	if r.Cm == nil || r.Cm.Data == nil {
+		return ""
+	}
+	return r.Cm.Data[LoadBalancerIP]
+}
+
+func (r *RequestContext) GetACLId() string {
+	if r.Cm == nil || r.Cm.Data == nil {
+		return ""
+	}
+	return r.Cm.Data[ACLId]
 }
 
 func HashObject(o interface{}) string {

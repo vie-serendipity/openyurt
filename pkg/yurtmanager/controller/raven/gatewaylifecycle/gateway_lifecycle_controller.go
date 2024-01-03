@@ -19,6 +19,7 @@ package gatewaylifecycle
 import (
 	"context"
 	"fmt"
+	"k8s.io/kubernetes/cmd/kubeadm/app/constants"
 	"math"
 	"net"
 	"sort"
@@ -286,9 +287,15 @@ func (r *ReconcileGatewayLifeCycle) getCloudGatewayEndpoints(ctx context.Context
 		return endpoints
 	}
 	sort.Slice(nodeList.Items, func(i, j int) bool { return nodeList.Items[i].Name < nodeList.Items[j].Name })
-	num := int(math.Max(float64(len(nodeList.Items))*DefaultEndpointsProportion, 3))
+	num := int(math.Max(float64(len(nodeList.Items))*DefaultEndpointsProportion, 1))
 	for i := range nodeList.Items {
 		node := nodeList.Items[i]
+		if _, ok := node.Labels[constants.LabelNodeRoleControlPlane]; ok {
+			continue
+		}
+		if _, ok := node.Labels[constants.LabelNodeRoleOldControlPlane]; ok {
+			continue
+		}
 		if isGatewayEndpoint(&node) {
 			endpoints = append(endpoints, r.generateEndpoints(node.Name, publicAddress, privateAddress, false)...)
 		} else {

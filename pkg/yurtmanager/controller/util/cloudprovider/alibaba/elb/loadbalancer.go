@@ -35,7 +35,6 @@ func (e ELBProvider) FindHadLoadBalancerNetwork(ctx context.Context, lbName stri
 		return vpcId, vswitchId, fmt.Errorf("loadbalancer name is empty")
 	}
 	req := ens.CreateDescribeLoadBalancersRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.LoadBalancerName = lbName
@@ -72,7 +71,6 @@ func (e ELBProvider) FindEdgeLoadBalancer(ctx context.Context, mdl *elbmodel.Edg
 
 func (e ELBProvider) CreateEdgeLoadBalancer(ctx context.Context, mdl *elbmodel.EdgeLoadBalancer) error {
 	req := ens.CreateCreateLoadBalancerRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.NetworkId = mdl.GetNetworkId()
@@ -94,7 +92,6 @@ func (e ELBProvider) SetEdgeLoadBalancerStatus(ctx context.Context, status strin
 		return fmt.Errorf("loadbalancer id is empty")
 	}
 	req := ens.CreateSetLoadBalancerStatusRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.LoadBalancerId = mdl.GetLoadBalancerId()
@@ -109,7 +106,6 @@ func (e ELBProvider) SetEdgeLoadBalancerStatus(ctx context.Context, status strin
 
 func (e ELBProvider) DescribeEdgeLoadBalancerById(ctx context.Context, lbId string, mdl *elbmodel.EdgeLoadBalancer) error {
 	req := ens.CreateDescribeLoadBalancerAttributeRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.LoadBalancerId = lbId
@@ -133,7 +129,6 @@ func (e ELBProvider) DescribeEdgeLoadBalancerByName(ctx context.Context, lbName 
 		return fmt.Errorf("loadbalancer name is empty")
 	}
 	req := ens.CreateDescribeLoadBalancersRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.NetworkId = mdl.GetNetworkId()
@@ -159,7 +154,6 @@ func (e ELBProvider) DeleteEdgeLoadBalancer(ctx context.Context, mdl *elbmodel.E
 		return fmt.Errorf("loadbalancer id is empty")
 	}
 	req := ens.CreateReleaseInstanceRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.InstanceId = mdl.GetLoadBalancerId()

@@ -18,10 +18,8 @@ package cloudprovider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
-	ravenprvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/raven"
-	ravenmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/raven"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -43,6 +41,9 @@ import (
 	"github.com/openyurtio/openyurt/cmd/yurt-manager/names"
 	"github.com/openyurtio/openyurt/pkg/apis/raven"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util"
+	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
+	ravenprvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/raven"
+	ravenmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/raven"
 )
 
 func Format(format string, args ...interface{}) string {
@@ -108,9 +109,6 @@ type ReconcileResource struct {
 	recorder record.EventRecorder
 	queue    workqueue.RateLimitingInterface
 	provider prvd.Provider
-
-	localModel  *util.Model
-	remoteModel *util.Model
 }
 
 // newReconciler returns a new reconcile.Reconciler
@@ -139,14 +137,9 @@ func (r *ReconcileResource) Reconcile(ctx context.Context, req reconcile.Request
 		return reconcile.Result{Requeue: true, RequeueAfter: 2 * time.Second}, err
 	}
 
-	err = r.buildModel()
-	if err != nil {
-		klog.Error(Format("init model error: %s", err.Error()))
-		return reconcile.Result{Requeue: true, RequeueAfter: 2 * time.Second}, err
-	}
-	err = r.loadLocalModel(cm)
-	if err != nil {
-		klog.Error(Format("load local model error: %s", err.Error()))
+	reqCtx := &util.RequestContext{Ctx: ctx, Cm: cm}
+	if err = r.loadClusterAttribute(reqCtx); err != nil {
+		klog.Error(Format("load cluster attribute error %s", err.Error()))
 		return reconcile.Result{Requeue: true, RequeueAfter: 2 * time.Second}, err
 	}
 
@@ -156,14 +149,26 @@ func (r *ReconcileResource) Reconcile(ctx context.Context, req reconcile.Request
 		return reconcile.Result{Requeue: true, RequeueAfter: 2 * time.Second}, err
 	}
 
+	localModel, err := r.buildLocalModel(reqCtx)
+	if err != nil {
+		klog.Error(Format("build local model error %s", err.Error()))
+		return reconcile.Result{Requeue: true, RequeueAfter: 2 * time.Second}, err
+	}
+
+	remoteModel, err := r.buildRemoteModel(reqCtx)
+	if err != nil {
+		klog.Error(Format("build remote model error %s", err.Error()))
+		return reconcile.Result{Requeue: true, RequeueAfter: 2 * time.Second}, err
+	}
+
 	if cleanup {
-		err = r.cleanupCloudResource()
+		err = r.cleanupCloudResource(reqCtx, localModel, remoteModel)
 		if err != nil {
 			klog.Error(Format("cleanup cloud resource error %s", err.Error()))
 			return reconcile.Result{Requeue: true, RequeueAfter: 2 * time.Second}, err
 		}
 	} else {
-		err = r.createCloudResource()
+		err = r.createCloudResource(reqCtx, localModel, remoteModel)
 		if err != nil {
 			klog.Error(Format("create cloud resource error %s", err.Error()))
 			return reconcile.Result{Requeue: true, RequeueAfter: 2 * time.Second}, err
@@ -171,7 +176,7 @@ func (r *ReconcileResource) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	if cm != nil {
-		err = r.updateRavenConfig(cm)
+		err = r.updateRavenConfig(reqCtx, remoteModel)
 		if err != nil {
 			klog.Error(Format("update configmap %s/%s error %s", cm.GetNamespace(), cm.GetName(), err.Error()))
 			return reconcile.Result{Requeue: true, RequeueAfter: 2 * time.Second}, err
@@ -180,8 +185,21 @@ func (r *ReconcileResource) Reconcile(ctx context.Context, req reconcile.Request
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileResource) buildModel() error {
-	clusterId, err := r.provider.GetClusterID()
+func (r *ReconcileResource) getRavenConfig() (*corev1.ConfigMap, error) {
+	var cm corev1.ConfigMap
+	objKey := types.NamespacedName{Namespace: util.WorkingNamespace, Name: util.RavenGlobalConfig}
+	err := r.Client.Get(context.TODO(), objKey, &cm)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return nil, err
+	}
+	if apierrors.IsNotFound(err) || cm.DeletionTimestamp != nil {
+		return nil, nil
+	}
+	return cm.DeepCopy(), nil
+}
+
+func (r *ReconcileResource) loadClusterAttribute(reqCtx *util.RequestContext) error {
+	cluster, err := r.provider.GetClusterID()
 	if err != nil {
 		return err
 	}
@@ -197,90 +215,100 @@ func (r *ReconcileResource) buildModel() error {
 	if err != nil {
 		return err
 	}
-	nameKey := ravenmodel.NewNamedKey(clusterId)
-	tag := map[string]string{util.ResourceUseForRavenComponentKey: util.ResourceUseForRavenComponentValue}
-	r.localModel = util.NewModel(nameKey, regionId)
-	r.localModel.ACLModel.Tags = ravenmodel.NewTagList(tag)
-	r.localModel.EIPModel.Tags = ravenmodel.NewTagList(tag)
-	r.localModel.SLBModel.Tags = ravenmodel.NewTagList(tag)
-	r.localModel.SLBModel.Spec = "slb.s2.medium"
-	r.localModel.SLBModel.AddressType = "intranet"
-	r.localModel.SLBModel.VpcId = vpcId
-	r.localModel.SLBModel.VSwitchId = vswitch
-	r.localModel.EIPModel.Bandwidth = "100"
-	r.localModel.EIPModel.InstanceChargeType = "PostPaid"
-	r.localModel.EIPModel.InternetChargeType = "PayByTraffic"
-
-	r.remoteModel = util.NewModel(nameKey, regionId)
-	r.remoteModel.SLBModel.VpcId = vpcId
-	r.remoteModel.SLBModel.VSwitchId = vswitch
+	reqCtx.ClusterId = cluster
+	reqCtx.Region = regionId
+	reqCtx.VpcId = vpcId
+	reqCtx.VswitchId = vswitch
 	return nil
 }
 
-func (r *ReconcileResource) loadLocalModel(cm *corev1.ConfigMap) error {
-	if cm != nil && cm.Data != nil {
-		r.localModel.SLBModel.LoadBalancerId = cm.Data[util.LoadBalancerId]
-		r.localModel.SLBModel.Address = cm.Data[util.LoadBalancerIP]
-		r.localModel.EIPModel.AllocationId = cm.Data[util.ElasticIPId]
-		r.localModel.EIPModel.Address = cm.Data[util.ElasticIPIP]
-		r.localModel.ACLModel.AccessControlListId = cm.Data[util.ACLId]
+func (r *ReconcileResource) buildLocalModel(reqCtx *util.RequestContext) (*util.Model, error) {
+	nameKey := ravenmodel.NewNamedKey(reqCtx.ClusterId)
+	localModel := util.NewModel(nameKey, reqCtx.Region)
+	localModel.SLBModel.VpcId = reqCtx.VpcId
+	localModel.SLBModel.VSwitchId = reqCtx.VswitchId
+	localModel.SLBModel.Spec = "slb.s2.medium"
+	localModel.SLBModel.AddressType = "intranet"
+	localModel.EIPModel.Bandwidth = "100"
+	localModel.EIPModel.InstanceChargeType = "PostPaid"
+	localModel.EIPModel.InternetChargeType = "PayByTraffic"
+	localModel.SLBModel.Name = nameKey.String()
+	localModel.ACLModel.Name = nameKey.String()
+	localModel.EIPModel.Name = nameKey.String()
+
+	localModel.SLBModel.LoadBalancerId = reqCtx.GetLoadBalancerId()
+	localModel.SLBModel.Address = reqCtx.GetLoadBalancerAddress()
+	localModel.EIPModel.AllocationId = reqCtx.GetEIPId()
+	localModel.EIPModel.Address = reqCtx.GetEIPAddress()
+	localModel.ACLModel.AccessControlListId = reqCtx.GetACLId()
+
+	if localModel.SLBModel.LoadBalancerId != "" {
+		err := r.provider.DescribeLoadBalancer(reqCtx.Ctx, localModel.SLBModel)
+		if err != nil {
+			if !ravenprvd.IsNotFound(err) {
+				return localModel, fmt.Errorf("describe slb %s, error %s", localModel.SLBModel.LoadBalancerId, err.Error())
+			} else {
+				klog.Warningf(Format("slb id %s is not found, recreate a slb", localModel.SLBModel.LoadBalancerId))
+				localModel.SLBModel.LoadBalancerId = ""
+			}
+		}
 	}
 
-	if r.localModel.SLBModel.LoadBalancerId != "" {
-		err := r.DescribeSLBById()
+	if localModel.EIPModel.AllocationId != "" {
+		err := r.provider.DescribeEipAddresses(reqCtx.Ctx, localModel.EIPModel)
 		if err != nil {
 			if !ravenprvd.IsNotFound(err) {
-				return fmt.Errorf("describe slb %s, error %s", r.localModel.SLBModel.LoadBalancerId, err.Error())
+				return localModel, fmt.Errorf("describe eip %s, error %s", localModel.EIPModel.AllocationId, err.Error())
 			} else {
-				klog.Warningf(Format("slb id %s is not found recreate a slb", r.localModel.SLBModel.LoadBalancerId))
-				r.localModel.SLBModel.LoadBalancerId = ""
-			}
-		}
-	}
-	if r.localModel.EIPModel.AllocationId != "" {
-		err := r.DescribeEIPById()
-		if err != nil {
-			if !ravenprvd.IsNotFound(err) {
-				return fmt.Errorf("describe eip %s, error %s", r.localModel.EIPModel.AllocationId, err.Error())
-			} else {
-				klog.Warningf(Format("eip id %s is not found recreate a eip", r.localModel.EIPModel.AllocationId))
-				r.localModel.EIPModel.AllocationId = ""
+				klog.Warningf(Format("eip id %s is not found recreate a eip", localModel.EIPModel.AllocationId))
+				localModel.EIPModel.AllocationId = ""
 			}
 		}
 	}
 
-	if r.localModel.ACLModel.AccessControlListId != "" {
-		err := r.DescribeACLById()
+	if localModel.ACLModel.AccessControlListId != "" {
+		err := r.provider.DescribeAccessControlListAttribute(reqCtx.Ctx, localModel.ACLModel)
 		if err != nil {
 			if !ravenprvd.IsNotFound(err) {
-				return fmt.Errorf("describe acl %s, error %s", r.localModel.ACLModel.AccessControlListId, err.Error())
+				return localModel, fmt.Errorf("describe acl %s, error %s", localModel.ACLModel.AccessControlListId, err.Error())
 			} else {
-				klog.Warningf(Format("acl id %s is not found recreate a slb", r.localModel.ACLModel.AccessControlListId))
-				r.localModel.ACLModel.AccessControlListId = ""
+				klog.Warningf(Format("acl id %s is not found recreate a slb", localModel.ACLModel.AccessControlListId))
+				localModel.ACLModel.AccessControlListId = ""
 			}
 		}
 	}
-	return nil
+
+	lMdlJson, err := json.Marshal(localModel)
+	if err == nil {
+		klog.V(5).Info(Format("build local model %s", lMdlJson))
+	}
+
+	return localModel, nil
 }
 
-func (r *ReconcileResource) updateRavenConfig(cm *corev1.ConfigMap) error {
-	if cm.Data == nil {
-		cm.Data = make(map[string]string, 0)
+func (r *ReconcileResource) buildRemoteModel(reqCtx *util.RequestContext) (*util.Model, error) {
+	nameKey := ravenmodel.NewNamedKey(reqCtx.ClusterId)
+	remoteModel := util.NewModel(nameKey, reqCtx.Region)
+	remoteModel.SLBModel.VpcId = reqCtx.VpcId
+	remoteModel.SLBModel.VSwitchId = reqCtx.VswitchId
+	remoteModel.SLBModel.Name = nameKey.String()
+	remoteModel.ACLModel.Name = nameKey.String()
+	remoteModel.EIPModel.Name = nameKey.String()
+	if err := r.provider.DescribeLoadBalancers(reqCtx.Ctx, remoteModel.SLBModel); err != nil && !ravenprvd.IsNotFound(err) {
+		return remoteModel, err
 	}
-	cm.Data[util.LoadBalancerId] = r.localModel.SLBModel.LoadBalancerId
-	cm.Data[util.LoadBalancerIP] = r.localModel.SLBModel.Address
-	cm.Data[util.ElasticIPId] = r.localModel.EIPModel.AllocationId
-	cm.Data[util.ElasticIPIP] = r.localModel.EIPModel.Address
-	cm.Data[util.ACLId] = r.localModel.ACLModel.AccessControlListId
-	if r.localModel.SLBModel.LoadBalancerId == "" && r.localModel.EIPModel.AllocationId == "" && r.localModel.ACLModel.AccessControlListId == "" {
-		cm.Data[util.RavenEnableTunnel] = "false"
-		cm.Data[util.RavenEnableProxy] = "false"
+	if err := r.provider.DescribeAccessControlLists(reqCtx.Ctx, remoteModel.ACLModel); err != nil && !ravenprvd.IsNotFound(err) {
+		return remoteModel, err
 	}
-	err := r.Client.Update(context.TODO(), cm)
-	if err != nil {
-		return err
+	if err := r.provider.DescribeEipAddresses(reqCtx.Ctx, remoteModel.EIPModel); err != nil && !ravenprvd.IsNotFound(err) {
+		return remoteModel, err
 	}
-	return err
+
+	rMdlJson, err := json.Marshal(remoteModel)
+	if err == nil {
+		klog.V(5).Info(Format("build remote model %s", rMdlJson))
+	}
+	return remoteModel, nil
 }
 
 func (r *ReconcileResource) needCleanupResource() (bool, error) {
@@ -303,19 +331,17 @@ func (r *ReconcileResource) needCleanupResource() (bool, error) {
 	return false, nil
 }
 
-func (r *ReconcileResource) cleanupCloudResource() error {
-	if r.localModel.SLBModel.LoadBalancerId != "" {
-		err := r.CleanupSLB(r.localModel.SLBModel)
+func (r *ReconcileResource) cleanupCloudResource(reqCtx *util.RequestContext, lModel, rModel *util.Model) error {
+	if lModel.SLBModel.LoadBalancerId != "" {
+		err := r.CleanupSLB(reqCtx.Ctx, lModel.SLBModel)
 		if err != nil {
 			return fmt.Errorf("cleanup slb error %s", err.Error())
 		}
+		rModel.SLBModel.LoadBalancerId = ""
+		rModel.SLBModel.Address = ""
 	} else {
-		err := r.DescribeSLBByName()
-		if err != nil {
-			return fmt.Errorf("describe slb by name error %s", err.Error())
-		}
-		if r.remoteModel.SLBModel.LoadBalancerId != "" {
-			err = r.CleanupSLB(r.remoteModel.SLBModel)
+		if rModel.SLBModel.LoadBalancerId != "" {
+			err := r.CleanupSLB(reqCtx.Ctx, rModel.SLBModel)
 			if err != nil {
 				return fmt.Errorf("cleanup slb error %s", err.Error())
 			}
@@ -323,21 +349,16 @@ func (r *ReconcileResource) cleanupCloudResource() error {
 			klog.Infoln(Format("can not find slb id, skip cleanup it"))
 		}
 	}
-	r.localModel.SLBModel.LoadBalancerId = ""
-	r.localModel.SLBModel.Address = ""
 
-	if r.localModel.ACLModel.AccessControlListId != "" {
-		err := r.CleanupACL(r.localModel.ACLModel)
+	if lModel.ACLModel.AccessControlListId != "" {
+		err := r.CleanupACL(reqCtx.Ctx, lModel.ACLModel)
 		if err != nil {
 			return fmt.Errorf("cleanup acl error %s", err.Error())
 		}
+		rModel.ACLModel.AccessControlListId = ""
 	} else {
-		err := r.DescribeACLByName()
-		if err != nil {
-			return fmt.Errorf("describe acl by name error %s", err.Error())
-		}
-		if r.remoteModel.ACLModel.AccessControlListId != "" {
-			err := r.CleanupACL(r.remoteModel.ACLModel)
+		if rModel.ACLModel.AccessControlListId != "" {
+			err := r.CleanupACL(reqCtx.Ctx, rModel.ACLModel)
 			if err != nil {
 				return fmt.Errorf("cleanup acl error %s", err.Error())
 			}
@@ -345,20 +366,17 @@ func (r *ReconcileResource) cleanupCloudResource() error {
 			klog.Infoln(Format("can not find acl id, skip cleanup it"))
 		}
 	}
-	r.localModel.ACLModel.AccessControlListId = ""
 
-	if r.localModel.EIPModel.AllocationId != "" {
-		err := r.CleanupEIP(r.localModel.EIPModel)
+	if lModel.EIPModel.AllocationId != "" {
+		err := r.CleanupEIP(reqCtx.Ctx, lModel.EIPModel)
 		if err != nil {
 			return fmt.Errorf("cleanup eip error %s", err.Error())
 		}
+		rModel.EIPModel.AllocationId = ""
+		rModel.EIPModel.Address = ""
 	} else {
-		err := r.DescribeEIPByName()
-		if err != nil && !ravenprvd.IsNotFound(err) {
-			return fmt.Errorf("describe eip by name error %s", err.Error())
-		}
-		if r.remoteModel.EIPModel.AllocationId != "" {
-			err = r.CleanupEIP(r.remoteModel.EIPModel)
+		if rModel.EIPModel.AllocationId != "" {
+			err := r.CleanupEIP(reqCtx.Ctx, rModel.EIPModel)
 			if err != nil {
 				return fmt.Errorf("cleanup eip error %s", err.Error())
 			}
@@ -366,79 +384,71 @@ func (r *ReconcileResource) cleanupCloudResource() error {
 			klog.Infoln(Format("can not find eip id, skip cleanup it"))
 		}
 	}
-	r.localModel.EIPModel.AllocationId = ""
-	r.localModel.EIPModel.Address = ""
 	return nil
 }
 
-func (r *ReconcileResource) createCloudResource() error {
-	if r.localModel.SLBModel.LoadBalancerId == "" {
-		err := r.DescribeSLBByName()
-		if err != nil {
-			return fmt.Errorf("describe slb error %s", err.Error())
-		}
-		if r.remoteModel.SLBModel.LoadBalancerId == "" {
-			err = r.CreateSLB()
+func (r *ReconcileResource) createCloudResource(reqCtx *util.RequestContext, lModel, rModel *util.Model) error {
+	if rModel.SLBModel.LoadBalancerId == "" {
+		if lModel.SLBModel.LoadBalancerId == "" {
+			err := r.provider.CreateLoadBalancer(reqCtx.Ctx, lModel.SLBModel)
 			if err != nil {
 				return fmt.Errorf("create slb error %s", err.Error())
 			}
-		} else {
-			r.localModel.SLBModel.LoadBalancerId = r.remoteModel.SLBModel.LoadBalancerId
-			r.localModel.SLBModel.Address = r.remoteModel.SLBModel.Address
+
 		}
+		rModel.SLBModel.LoadBalancerId = lModel.SLBModel.LoadBalancerId
+		rModel.SLBModel.Address = lModel.SLBModel.Address
 	}
 
-	if r.localModel.ACLModel.AccessControlListId == "" {
-		err := r.DescribeACLByName()
-		if err != nil {
-			return fmt.Errorf("describe acl error %s", err.Error())
-		}
-		if r.remoteModel.ACLModel.AccessControlListId == "" {
-			err = r.CreateACL()
+	if rModel.ACLModel.AccessControlListId == "" {
+		if lModel.ACLModel.AccessControlListId == "" {
+			err := r.provider.CreateAccessControlList(reqCtx.Ctx, lModel.ACLModel)
 			if err != nil {
 				return fmt.Errorf("create acl error %s", err.Error())
 			}
-		} else {
-			r.localModel.ACLModel.AccessControlListId = r.remoteModel.ACLModel.AccessControlListId
 		}
+		rModel.ACLModel.AccessControlListId = lModel.ACLModel.AccessControlListId
 	}
 
-	if r.localModel.EIPModel.AllocationId == "" {
-		err := r.DescribeEIPByName()
-		if err != nil && !ravenprvd.IsNotFound(err) {
-			return fmt.Errorf("describe eip error %s", err.Error())
-		}
-		if r.remoteModel.EIPModel.AllocationId == "" {
-			err = r.CreateEIP()
+	if rModel.EIPModel.AllocationId == "" {
+		if lModel.EIPModel.AllocationId == "" {
+			err := r.provider.AllocateEipAddress(reqCtx.Ctx, lModel.EIPModel)
 			if err != nil {
 				return fmt.Errorf("create eip error %s", err.Error())
 			}
-		} else {
-			r.localModel.EIPModel.AllocationId = r.remoteModel.EIPModel.AllocationId
-			r.localModel.EIPModel.Address = r.remoteModel.EIPModel.Address
-			r.localModel.EIPModel.InstanceId = r.remoteModel.EIPModel.InstanceId
 		}
+		rModel.EIPModel.AllocationId = lModel.EIPModel.AllocationId
+		rModel.EIPModel.Address = lModel.EIPModel.Address
+		rModel.EIPModel.InstanceId = lModel.EIPModel.InstanceId
 	}
 
-	if r.localModel.EIPModel.InstanceId == "" && r.localModel.SLBModel.LoadBalancerId != "" {
-		err := r.AssociateInstance()
+	if rModel.EIPModel.InstanceId == "" && rModel.SLBModel.LoadBalancerId != "" {
+		err := r.AssociateInstance(reqCtx.Ctx, rModel.EIPModel, rModel.SLBModel.LoadBalancerId)
 		if err != nil {
 			return fmt.Errorf("associate eip to slb error %s", err.Error())
 		}
-		r.localModel.EIPModel.InstanceId = r.localModel.SLBModel.LoadBalancerId
+		rModel.EIPModel.InstanceId = rModel.SLBModel.LoadBalancerId
 	}
 	return nil
 }
 
-func (r *ReconcileResource) getRavenConfig() (*corev1.ConfigMap, error) {
-	var cm corev1.ConfigMap
-	objKey := types.NamespacedName{Namespace: util.WorkingNamespace, Name: util.RavenGlobalConfig}
-	err := r.Client.Get(context.TODO(), objKey, &cm)
-	if err != nil && !apierrors.IsNotFound(err) {
-		return nil, err
+func (r *ReconcileResource) updateRavenConfig(reqCtx *util.RequestContext, model *util.Model) error {
+	if reqCtx.Cm.Data == nil {
+		reqCtx.Cm.Data = make(map[string]string, 0)
 	}
-	if apierrors.IsNotFound(err) || cm.DeletionTimestamp != nil {
-		return nil, nil
+	reqCtx.Cm.Data[util.LoadBalancerId] = model.SLBModel.LoadBalancerId
+	reqCtx.Cm.Data[util.LoadBalancerIP] = model.SLBModel.Address
+	reqCtx.Cm.Data[util.ElasticIPId] = model.EIPModel.AllocationId
+	reqCtx.Cm.Data[util.ElasticIPIP] = model.EIPModel.Address
+	reqCtx.Cm.Data[util.ACLId] = model.ACLModel.AccessControlListId
+
+	if model.SLBModel.LoadBalancerId == "" && model.EIPModel.AllocationId == "" && model.ACLModel.AccessControlListId == "" {
+		reqCtx.Cm.Data[util.RavenEnableTunnel] = "false"
+		reqCtx.Cm.Data[util.RavenEnableProxy] = "false"
 	}
-	return cm.DeepCopy(), nil
+	err := r.Client.Update(context.TODO(), reqCtx.Cm)
+	if err != nil {
+		return err
+	}
+	return err
 }

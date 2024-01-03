@@ -13,7 +13,6 @@ import (
 
 func (e ELBProvider) FindEdgeLoadBalancerListener(ctx context.Context, lbId string, listeners *elbmodel.EdgeListeners) error {
 	req := ens.CreateDescribeLoadBalancerAttributeRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.LoadBalancerId = lbId
@@ -37,7 +36,6 @@ func (e ELBProvider) FindEdgeLoadBalancerListener(ctx context.Context, lbId stri
 
 func (e ELBProvider) DescribeEdgeLoadBalancerTCPListener(ctx context.Context, lbId string, port int, listener *elbmodel.EdgeListenerAttribute) error {
 	req := ens.CreateDescribeLoadBalancerTCPListenerAttributeRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.LoadBalancerId = lbId
@@ -51,7 +49,6 @@ func (e ELBProvider) DescribeEdgeLoadBalancerTCPListener(ctx context.Context, lb
 
 func (e ELBProvider) DescribeEdgeLoadBalancerUDPListener(ctx context.Context, lbId string, port int, listener *elbmodel.EdgeListenerAttribute) error {
 	req := ens.CreateDescribeLoadBalancerUDPListenerAttributeRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.LoadBalancerId = lbId
@@ -105,7 +102,6 @@ func LoadUDPListenResponse(resp *ens.DescribeLoadBalancerUDPListenerAttributeRes
 
 func (e ELBProvider) DescribeEdgeLoadBalancerHTTPListener(ctx context.Context, lbId string, port int, listener *elbmodel.EdgeListenerAttribute) error {
 	req := ens.CreateDescribeLoadBalancerHTTPListenerAttributeRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.LoadBalancerId = lbId
@@ -123,7 +119,6 @@ func (e ELBProvider) DescribeEdgeLoadBalancerHTTPListener(ctx context.Context, l
 
 func (e ELBProvider) DescribeEdgeLoadBalancerHTTPSListener(ctx context.Context, lbId string, port int, listener *elbmodel.EdgeListenerAttribute) error {
 	req := ens.CreateDescribeLoadBalancerHTTPSListenerAttributeRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.LoadBalancerId = lbId
@@ -140,7 +135,6 @@ func (e ELBProvider) DescribeEdgeLoadBalancerHTTPSListener(ctx context.Context, 
 
 func (e ELBProvider) StartEdgeLoadBalancerListener(ctx context.Context, lbId string, port int, protocol string) error {
 	req := ens.CreateStartLoadBalancerListenerRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.LoadBalancerId = lbId
@@ -155,7 +149,6 @@ func (e ELBProvider) StartEdgeLoadBalancerListener(ctx context.Context, lbId str
 
 func (e ELBProvider) StopEdgeLoadBalancerListener(ctx context.Context, lbId string, port int, protocol string) error {
 	req := ens.CreateStopLoadBalancerListenerRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.LoadBalancerId = lbId
@@ -170,7 +163,6 @@ func (e ELBProvider) StopEdgeLoadBalancerListener(ctx context.Context, lbId stri
 
 func (e ELBProvider) CreateEdgeLoadBalancerTCPListener(ctx context.Context, lbId string, listener *elbmodel.EdgeListenerAttribute) error {
 	req := ens.CreateCreateLoadBalancerTCPListenerRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.LoadBalancerId = lbId
@@ -197,7 +189,6 @@ func (e ELBProvider) CreateEdgeLoadBalancerTCPListener(ctx context.Context, lbId
 
 func (e ELBProvider) CreateEdgeLoadBalancerUDPListener(ctx context.Context, lbId string, listener *elbmodel.EdgeListenerAttribute) error {
 	req := ens.CreateCreateLoadBalancerUDPListenerRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.LoadBalancerId = lbId
@@ -220,7 +211,6 @@ func (e ELBProvider) CreateEdgeLoadBalancerUDPListener(ctx context.Context, lbId
 
 func (e ELBProvider) ModifyEdgeLoadBalancerTCPListener(ctx context.Context, lbId string, listener *elbmodel.EdgeListenerAttribute) error {
 	req := ens.CreateSetLoadBalancerTCPListenerAttributeRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.LoadBalancerId = lbId
@@ -246,7 +236,6 @@ func (e ELBProvider) ModifyEdgeLoadBalancerTCPListener(ctx context.Context, lbId
 
 func (e ELBProvider) ModifyEdgeLoadBalancerUDPListener(ctx context.Context, lbId string, listener *elbmodel.EdgeListenerAttribute) error {
 	req := ens.CreateSetLoadBalancerUDPListenerAttributeRequest()
-	req.Scheme = "https"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.LoadBalancerId = lbId
@@ -268,7 +257,6 @@ func (e ELBProvider) ModifyEdgeLoadBalancerUDPListener(ctx context.Context, lbId
 
 func (e ELBProvider) DeleteEdgeLoadBalancerListener(ctx context.Context, lbId string, port int, protocol string) error {
 	req := ens.CreateDeleteLoadBalancerListenerRequest()
-	req.Scheme = "http"
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.LoadBalancerId = lbId
