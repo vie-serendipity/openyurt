@@ -73,7 +73,17 @@ type IEnsLoadBalancer interface {
 	DescribeEdgeLoadBalancerById(ctx context.Context, lbId string, mdl *elb.EdgeLoadBalancer) error
 	DescribeEdgeLoadBalancerByName(ctx context.Context, lbName string, mdl *elb.EdgeLoadBalancer) error
 	SetEdgeLoadBalancerStatus(ctx context.Context, status string, mdl *elb.EdgeLoadBalancer) error
-	FindHadLoadBalancerNetwork(ctx context.Context, lbName string) (network, vswtich []string, err error)
+	FindHadLoadBalancerNetwork(ctx context.Context, lbName string) (network, vswtich, region []string, err error)
+
+	//EIP
+	CreateEip(ctx context.Context, mdl *elb.EdgeLoadBalancer) error
+	ReleaseEip(ctx context.Context, mdl *elb.EdgeLoadBalancer) error
+	ModifyEipAttribute(ctx context.Context, eipId string, mdl *elb.EdgeLoadBalancer) error
+	AssociateElbEipAddress(ctx context.Context, eipId, lbId string) error
+	UnAssociateElbEipAddress(ctx context.Context, eipId string) error
+	DescribeEnsEipByInstanceId(ctx context.Context, instanceId string, mdl *elb.EdgeLoadBalancer) error
+	DescribeEnsEipByName(ctx context.Context, eipName string, mdl *elb.EdgeLoadBalancer) error
+	DescribeEnsEipById(ctx context.Context, eipId string, mdl *elb.EdgeLoadBalancer) error
 
 	// Listener
 	FindEdgeLoadBalancerListener(ctx context.Context, lbId string, listeners *elb.EdgeListeners) error

@@ -18,5 +18,4 @@ package config
 
 // RavenCloudProviderConfiguration contains elements describing GatewayPickController.
 type RavenCloudProviderConfiguration struct {
-	CloudConfigPath string
 }

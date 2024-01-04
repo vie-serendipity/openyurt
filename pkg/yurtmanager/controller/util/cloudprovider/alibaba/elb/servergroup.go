@@ -8,7 +8,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ens"
 )
 
-func (e ELBProvider) FindBackendFromLoadBalancer(ctx context.Context, lbId string, sg *elbmodel.EdgeServerGroup) error {
+func (e *ELBProvider) FindBackendFromLoadBalancer(ctx context.Context, lbId string, sg *elbmodel.EdgeServerGroup) error {
 	req := ens.CreateDescribeLoadBalancerAttributeRequest()
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
@@ -20,7 +20,7 @@ func (e ELBProvider) FindBackendFromLoadBalancer(ctx context.Context, lbId strin
 	loadServerGroupResponse(resp, sg)
 	return nil
 }
-func (e ELBProvider) UpdateEdgeServerGroup(ctx context.Context, lbId string, sg *elbmodel.EdgeServerGroup) error {
+func (e *ELBProvider) UpdateEdgeServerGroup(ctx context.Context, lbId string, sg *elbmodel.EdgeServerGroup) error {
 	BackendServers := make([]ens.SetBackendServersBackendServers, 0, len(sg.Backends))
 	for _, backend := range sg.Backends {
 		BackendServers = append(BackendServers, ens.SetBackendServersBackendServers{
@@ -41,7 +41,7 @@ func (e ELBProvider) UpdateEdgeServerGroup(ctx context.Context, lbId string, sg 
 	return nil
 }
 
-func (e ELBProvider) AddBackendToEdgeServerGroup(ctx context.Context, lbId string, sg *elbmodel.EdgeServerGroup) error {
+func (e *ELBProvider) AddBackendToEdgeServerGroup(ctx context.Context, lbId string, sg *elbmodel.EdgeServerGroup) error {
 	BackendServers := make([]ens.AddBackendServersBackendServers, 0, len(sg.Backends))
 	for _, backend := range sg.Backends {
 		BackendServers = append(BackendServers, ens.AddBackendServersBackendServers{
@@ -64,7 +64,7 @@ func (e ELBProvider) AddBackendToEdgeServerGroup(ctx context.Context, lbId strin
 	return nil
 }
 
-func (e ELBProvider) RemoveBackendFromEdgeServerGroup(ctx context.Context, lbId string, sg *elbmodel.EdgeServerGroup) error {
+func (e *ELBProvider) RemoveBackendFromEdgeServerGroup(ctx context.Context, lbId string, sg *elbmodel.EdgeServerGroup) error {
 	BackendServers := make([]ens.RemoveBackendServersBackendServers, 0, len(sg.Backends))
 	for _, backend := range sg.Backends {
 		BackendServers = append(BackendServers, ens.RemoveBackendServersBackendServers{

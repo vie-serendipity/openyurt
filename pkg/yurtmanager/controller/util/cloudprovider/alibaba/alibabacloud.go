@@ -2,14 +2,13 @@ package alibaba
 
 import (
 	"fmt"
+
 	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/base"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/elb"
 	raven2 "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/raven"
 	metrics "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/metrics"
 )
-
-const Provider = "Provider"
 
 func NewAlibabaCloud(path string) (prvd.Provider, error) {
 	mgr, err := base.NewClientMgr(path)

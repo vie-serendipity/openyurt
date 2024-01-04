@@ -18,8 +18,6 @@ package options
 
 import (
 	"fmt"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba"
-	"k8s.io/klog/v2"
 	"strings"
 
 	"github.com/spf13/pflag"
@@ -27,9 +25,11 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	componentbaseconfig "k8s.io/component-base/config"
 	"k8s.io/component-base/config/options"
+	"k8s.io/klog/v2"
 
 	"github.com/openyurtio/openyurt/pkg/features"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/apis/config"
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba"
 )
 
 type GenericOptions struct {
@@ -149,6 +149,6 @@ func (o *GenericOptions) AddFlags(fs *pflag.FlagSet, allControllers, disabledByD
 	fs.StringSliceVar(&o.DisabledWebhooks, "disable-independent-webhooks", o.DisabledWebhooks, "A list of webhooks to disable. "+
 		"'*' disables all independent webhooks, 'foo' disables the independent webhook named 'foo'.")
 	fs.StringVar(&o.Kubeconfig, "kubeconfig", o.Kubeconfig, "Path to kubeconfig file with authorization and master location information")
-	fs.StringVar(&o.Cloudconfig, "cloudconfig", o.Cloudconfig, "Path to cloud provider configuration file with authorization.")
+	fs.StringVar(&o.Cloudconfig, "cloud-config", o.Cloudconfig, "Path to cloud provider configuration file with authorization.")
 	features.DefaultMutableFeatureGate.AddFlag(fs)
 }

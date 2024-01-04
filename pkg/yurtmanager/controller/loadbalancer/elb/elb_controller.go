@@ -22,7 +22,6 @@ import (
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/finalizer"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -72,38 +71,21 @@ func add(mgr manager.Manager, r *ReconcileELB) error {
 		return err
 	}
 
-	if err = c.Watch(&source.Kind{Type: &v1.Service{}}, &handler.EnqueueRequestForObject{},
-		predicate.Funcs{
-			CreateFunc: func(evt event.CreateEvent) bool {
-				svc, ok := evt.Object.(*v1.Service)
-				if ok && needAdd(svc) {
-					return true
-				}
-				return false
-			},
-			UpdateFunc: func(evt event.UpdateEvent) bool {
-				newSvc, ok1 := evt.ObjectNew.(*v1.Service)
-				oldSvc, ok2 := evt.ObjectOld.(*v1.Service)
-				if ok1 && ok2 && needUpdate(oldSvc, newSvc) {
-					return true
-				}
-				return false
-			},
-			DeleteFunc:  func(evt event.DeleteEvent) bool { return false },
-			GenericFunc: func(ect event.GenericEvent) bool { return false },
-		},
-	); err != nil {
+	if err = c.Watch(&source.Kind{Type: &v1.Service{}},
+		&handler.EnqueueRequestForObject{},
+		NewPredictionForServiceEvent(mgr.GetClient(), mgr.GetEventRecorderFor(names.EnsLoadBalancerController))); err != nil {
 		return fmt.Errorf("watch resource svc error: %s", err.Error())
 	}
 
 	if err = c.Watch(&source.Kind{Type: &discovery.EndpointSlice{}},
 		NewEnqueueRequestForEndpointSliceEvent(mgr.GetClient()),
-		NewPredictionForEndpointSliceEvent(mgr.GetClient())); err != nil {
+		NewPredictionForEndpointSliceEvent(mgr.GetClient(), mgr.GetEventRecorderFor(names.EnsLoadBalancerController))); err != nil {
 		return fmt.Errorf("watch resource endpointslice error: %s", err.Error())
 	}
 
 	if err = c.Watch(&source.Kind{Type: &v1.Node{}},
-		NewEnqueueRequestForNodeEvent(mgr.GetClient(), mgr.GetEventRecorderFor(names.EnsLoadBalancerController)), predicate.NewPredicateFuncs(
+		NewEnqueueRequestForNodeEvent(mgr.GetClient(), mgr.GetEventRecorderFor(names.EnsLoadBalancerController)),
+		predicate.NewPredicateFuncs(
 			func(object client.Object) bool {
 				node, ok := object.(*v1.Node)
 				if ok && IsENSNode(node) {
@@ -122,8 +104,7 @@ func add(mgr manager.Manager, r *ReconcileELB) error {
 				return true
 			}
 			return false
-		}),
-	); err != nil {
+		})); err != nil {
 		return fmt.Errorf("watch resource ens nodepools error: %s", err.Error())
 	}
 
@@ -163,11 +144,12 @@ func newReconciler(ctx context.Context, c *appconfig.CompletedConfig, mgr manage
 	}
 
 	elbManager := NewELBManager(recon.provider)
+	eipManager := NewEIPManager(recon.provider)
 	listenerManager := NewListenerManager(recon.provider)
 	serverGroupManager := NewServerGroupManager(recon.client, recon.provider)
 
-	recon.builder = NewModelBuilder(elbManager, listenerManager, serverGroupManager)
-	recon.applier = NewModelApplier(elbManager, listenerManager, serverGroupManager)
+	recon.builder = NewModelBuilder(elbManager, eipManager, listenerManager, serverGroupManager)
+	recon.applier = NewModelApplier(elbManager, eipManager, listenerManager, serverGroupManager)
 	err := recon.finalizer.Register(ELBFinalizer, NewLoadBalancerServiceFinalizer(mgr.GetClient()))
 	if err != nil {
 		klog.Info("new finalizer error %s, can ignore it", err.Error())
@@ -252,7 +234,7 @@ func (r *ReconcileELB) cleanupLoadBalancerResources(req *RequestContext) error {
 			return fmt.Errorf("%s failed to remove load balancer status, error: %s", Key(req.Service), err.Error())
 		}
 
-		if _, err := r.finalizer.Finalize(req.Ctx, req.Service); err != nil {
+		if err := Finalize(req.Ctx, req.Service, r.client, r.finalizer); err != nil {
 			r.record.Event(req.Service, v1.EventTypeWarning, FailedRemoveFinalizer,
 				fmt.Sprintf("Error removing load balancer finalizer: %v", err.Error()))
 			return fmt.Errorf("%s failed to remove service finalizer, error: %s", Key(req.Service), err.Error())
@@ -263,7 +245,7 @@ func (r *ReconcileELB) cleanupLoadBalancerResources(req *RequestContext) error {
 
 func (r *ReconcileELB) reconcileLoadBalancerResources(req *RequestContext) error {
 	// 1.add finalizer of elb
-	if _, err := r.finalizer.Finalize(req.Ctx, req.Service); err != nil {
+	if err := Finalize(req.Ctx, req.Service, r.client, r.finalizer); err != nil {
 		r.record.Event(req.Service, v1.EventTypeWarning, FailedAddFinalizer,
 			fmt.Sprintf("Error adding finalizer: %s", err.Error()))
 		return fmt.Errorf("%s failed to add service finalizer, error: %s", Key(req.Service), err.Error())
@@ -274,7 +256,6 @@ func (r *ReconcileELB) reconcileLoadBalancerResources(req *RequestContext) error
 	if len(errList) > 0 {
 		r.record.Event(req.Service, v1.EventTypeWarning, FailedSyncLB,
 			fmt.Sprintf("Error build load balancers for nodepool: %s", getEventMessage(mdl)))
-		return fmt.Errorf("%s failed to build load balancer, error %s", Key(req.Service), getErrorListMessage(errList))
 	}
 
 	// 3. add labels for service
@@ -290,6 +271,11 @@ func (r *ReconcileELB) reconcileLoadBalancerResources(req *RequestContext) error
 			fmt.Sprintf("Error updating load balancer status: %s", err.Error()))
 		return fmt.Errorf("%s failed to update load balancer status, error: %s", Key(req.Service), err.Error())
 	}
+
+	if len(errList) > 0 {
+		return fmt.Errorf("%s failed to build load balancer, error %s", Key(req.Service), getErrorListMessage(errList))
+	}
+
 	r.record.Event(req.Service, v1.EventTypeNormal, SucceedSyncLB, "Ensured all load balancers")
 	return nil
 }
@@ -342,21 +328,24 @@ func (r *ReconcileELB) buildModel(reqCtx *RequestContext) (*model, error) {
 		}
 	}
 
-	nw, vs, err := r.provider.FindHadLoadBalancerNetwork(reqCtx.Ctx, GetDefaultLoadBalancerName(reqCtx))
+	nw, vs, rg, err := r.provider.FindHadLoadBalancerNetwork(reqCtx.Ctx, GetDefaultLoadBalancerName(reqCtx))
 	if err != nil {
 		return nil, fmt.Errorf("find had loadbalancer network error %s", err.Error())
 	}
 
 	mdl := &model{poolIdentities: make(map[string]*elbmodel.PoolIdentity, 0)}
 	for idx := range nw {
-		mdl.poolIdentities[networks[nw[idx]]] = elbmodel.NewIdentity(networks[nw[idx]], nw[idx], vs[idx], elbmodel.Delete)
+		mdl.poolIdentities[networks[nw[idx]]] = elbmodel.NewIdentity(networks[nw[idx]], nw[idx], vs[idx], rg[idx], elbmodel.Delete)
 	}
 
 	if needDeleteLoadBalancer(reqCtx.Service) {
 		return mdl, nil
 	}
-
-	err = r.client.List(reqCtx.Ctx, &nodepoolList, &client.ListOptions{LabelSelector: getNodePoolSelector(reqCtx)})
+	selector := getNodePoolSelector(reqCtx)
+	if selector == nil {
+		return nil, fmt.Errorf("can not get nodepool selector, error lacks annotation %s", Annotation(NodePoolSelector))
+	}
+	err = r.client.List(reqCtx.Ctx, &nodepoolList, &client.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return nil, fmt.Errorf("list selected ens nodepool error %s", err.Error())
 	}
@@ -368,8 +357,7 @@ func (r *ReconcileELB) buildModel(reqCtx *RequestContext) (*model, error) {
 		if _, ok := mdl.poolIdentities[nodepool.Name]; ok {
 			mdl.poolIdentities[nodepool.Name].SetAction(elbmodel.Update)
 		} else {
-			mdl.poolIdentities[nodepool.Name] = elbmodel.NewIdentity(nodepool.Name, network, vswitch, elbmodel.Create)
-			mdl.poolIdentities[nodepool.Name].SetRegion(region)
+			mdl.poolIdentities[nodepool.Name] = elbmodel.NewIdentity(nodepool.Name, network, vswitch, region, elbmodel.Create)
 		}
 	}
 	return mdl, nil
@@ -424,7 +412,15 @@ func (r *ReconcileELB) buildAndApplyModel(reqCtx *RequestContext, pool *elbmodel
 		return fmt.Errorf("nodepool [%s] apply model error: %s", pool.GetName(), err.Error())
 	}
 	pool.SetLoadBalancer(rModel.GetLoadBalancerId())
-	pool.SetAddress(rModel.GetLoadBalancerAddress())
+	if rModel.GetEIPId() != "" {
+		pool.SetEIP(rModel.GetEIPId())
+	}
+	if lModel.GetAddressType() == elbmodel.IntranetAddressType {
+		pool.SetAddress(rModel.GetLoadBalancerAddress())
+	} else {
+		pool.SetAddress(rModel.GetEIPAddress())
+	}
+
 	return nil
 }
 
@@ -436,14 +432,20 @@ func (r *ReconcileELB) addServiceLabels(svc *v1.Service, mdl *model) error {
 	serviceHash := GetServiceHash(svc)
 	updated.Labels[LabelServiceHash] = serviceHash
 
-	var loadbalancers []string
+	var loadbalancers, eips []string
 	for key, val := range mdl.poolIdentities {
 		if val.GetAction() != elbmodel.Delete && val.GetError() == nil {
 			loadbalancers = append(loadbalancers, fmt.Sprintf("%s=%s", key, val.GetLoadBalancer()))
+			if val.GetEIP() != "" {
+				eips = append(eips, fmt.Sprintf("%s=%s", key, val.GetEIP()))
+			}
 		}
 	}
 	if len(loadbalancers) > 0 {
 		updated.Annotations[LabelLoadBalancerId] = strings.Join(loadbalancers, ",")
+	}
+	if len(eips) > 0 {
+		updated.Annotations[EipId] = strings.Join(eips, ",")
 	}
 	if err := r.client.Status().Patch(context.Background(), updated, client.MergeFrom(svc)); err != nil {
 		return fmt.Errorf("%s failed to add service hash:, error: %s", Key(svc), err.Error())
@@ -472,11 +474,20 @@ func (r *ReconcileELB) removeServiceLabels(svc *v1.Service) error {
 
 func (r *ReconcileELB) updateServiceStatus(reqCtx *RequestContext, svc *v1.Service, mdl *model) error {
 	preStatus := svc.Status.LoadBalancer.DeepCopy()
-	newStatus := &v1.LoadBalancerStatus{}
+	newStatus := &v1.LoadBalancerStatus{Ingress: make([]v1.LoadBalancerIngress, 0)}
 	if mdl == nil {
 		return fmt.Errorf("edge model not found, cannot not patch service status")
 	}
-	newStatus.Ingress = r.setIngress(reqCtx, mdl)
+	for _, v := range mdl.poolIdentities {
+		if v.GetAction() == elbmodel.Delete || v.GetError() != nil {
+			continue
+		}
+		if v.GetAddress() == "" {
+			return fmt.Errorf("eip address is empty, can not patch service status")
+		} else {
+			newStatus.Ingress = append(newStatus.Ingress, v1.LoadBalancerIngress{IP: v.GetAddress()})
+		}
+	}
 
 	// Write the state if changed
 	// TODO: Be careful here ... what if there were other changes to the service?
@@ -531,20 +542,6 @@ func (r *ReconcileELB) updateServiceStatus(reqCtx *RequestContext, svc *v1.Servi
 	return nil
 }
 
-func (r *ReconcileELB) setIngress(reqCtx *RequestContext, mdl *model) []v1.LoadBalancerIngress {
-	var ingress []v1.LoadBalancerIngress
-	if reqCtx.AnnoCtx.Get(AddressType) == elbmodel.InternetAddressType {
-		return ingress
-	}
-	for _, v := range mdl.poolIdentities {
-		if v.GetAction() == elbmodel.Delete || v.GetError() != nil {
-			continue
-		}
-		ingress = append(ingress, v1.LoadBalancerIngress{IP: v.GetAddress()})
-	}
-	return ingress
-}
-
 func (r *ReconcileELB) removeServiceStatus(reqCtx *RequestContext, svc *v1.Service) error {
 	preStatus := svc.Status.LoadBalancer.DeepCopy()
 	newStatus := &v1.LoadBalancerStatus{}
@@ -585,18 +582,16 @@ func getNodePoolSelector(reqCtx *RequestContext) labels.Selector {
 	set := make(map[string]string, 0)
 	nodePoolSelector := reqCtx.AnnoCtx.Get(NodePoolSelector)
 	if nodePoolSelector == "" {
-		selector = labels.SelectorFromSet(set)
-	} else {
-		labelSelector := strings.Split(nodePoolSelector, ",")
-		for idx := range labelSelector {
-			keyAndValue := strings.Split(labelSelector[idx], "=")
-			if len(keyAndValue) == 2 && keyAndValue[0] != "" && keyAndValue[1] != "" {
-				set[keyAndValue[0]] = keyAndValue[1]
-			}
-		}
-		selector = labels.SelectorFromSet(set)
+		return nil
 	}
-	selector = selector.Add(getDefaultRequired()...)
+	labelSelector := strings.Split(nodePoolSelector, ",")
+	for idx := range labelSelector {
+		keyAndValue := strings.Split(labelSelector[idx], "=")
+		if len(keyAndValue) == 2 && keyAndValue[0] != "" && keyAndValue[1] != "" {
+			set[keyAndValue[0]] = keyAndValue[1]
+		}
+	}
+	selector = labels.SelectorFromSet(set).Add(getDefaultRequired()...)
 	return selector
 }
 
@@ -625,7 +620,7 @@ func getEventMessage(mdl *model) string {
 			np = append(np, key)
 		}
 	}
-	return strings.Join(np, " ")
+	return fmt.Sprintf("[%s]", strings.Join(np, ","))
 }
 
 func getErrorListMessage(errList []error) string {

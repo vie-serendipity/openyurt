@@ -37,7 +37,6 @@ func (g *CloudProviderControllerOptions) AddFlags(fs *pflag.FlagSet) {
 	if g == nil {
 		return
 	}
-	fs.StringVar(&g.CloudConfigPath, "cloud-config", g.CloudConfigPath, "The path to the cloud provider configuration file.")
 
 }
 
@@ -46,7 +45,6 @@ func (g *CloudProviderControllerOptions) ApplyTo(cfg *config.RavenCloudProviderC
 	if g == nil {
 		return nil
 	}
-	cfg.CloudConfigPath = g.CloudConfigPath
 
 	return nil
 }

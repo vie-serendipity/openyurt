@@ -25,14 +25,20 @@ type ELBManager struct {
 }
 
 func (mgr *ELBManager) BuildLocalModel(reqCtx *RequestContext, pool *elbmodel.PoolIdentity) (*elbmodel.EdgeLoadBalancer, error) {
-	if pool.GetNetwork() == "" || pool.GetVSwitch() == "" {
-		return nil, fmt.Errorf("%s lacks annotation about edge private network or switch", Key(reqCtx.Service))
+	if pool.GetNetwork() == "" || pool.GetVSwitch() == "" || pool.GetRegion() == "" {
+		return nil, fmt.Errorf("nodepool %s lacks necessary information, please check network, vswitch, region", pool.GetName())
 	}
-	lModel := &elbmodel.EdgeLoadBalancer{}
-
-	lModel.LoadBalancerAttribute.NetworkId = pool.GetNetwork()
-	lModel.LoadBalancerAttribute.VSwitchId = pool.GetVSwitch()
-	lModel.LoadBalancerAttribute.EnsRegionId = pool.GetRegion()
+	lModel := &elbmodel.EdgeLoadBalancer{
+		NamespacedName: NamespacedName(reqCtx.Service),
+		LoadBalancerAttribute: elbmodel.EdgeLoadBalancerAttribute{
+			NetworkId:   pool.GetNetwork(),
+			VSwitchId:   pool.GetVSwitch(),
+			EnsRegionId: pool.GetRegion(),
+		},
+		EipAttribute: elbmodel.EdgeEipAttribute{},
+		ServerGroup:  elbmodel.EdgeServerGroup{},
+		Listeners:    elbmodel.EdgeListeners{},
+	}
 
 	if err := mgr.setELBFromDefaultConfig(reqCtx, lModel); err != nil {
 		return nil, err
@@ -124,13 +130,14 @@ func (mgr *ELBManager) checkBeforeCreate(reqCtx *RequestContext, mdl *elbmodel.E
 }
 
 func (mgr *ELBManager) setELBFromDefaultConfig(reqCtx *RequestContext, mdl *elbmodel.EdgeLoadBalancer) error {
-	mdl.NamespacedName = NamespacedName(reqCtx.Service)
 	mdl.LoadBalancerAttribute.PayType = elbmodel.ELBDefaultPayType
 	mdl.LoadBalancerAttribute.LoadBalancerSpec = elbmodel.ELBDefaultSpec
+	mdl.LoadBalancerAttribute.AddressType = elbmodel.InternetAddressType
 	mdl.LoadBalancerAttribute.IsUserManaged = false
 	mdl.LoadBalancerAttribute.IsReUse = false
 	return nil
 }
+
 func (mgr *ELBManager) setELBFromAnnotation(reqCtx *RequestContext, mdl *elbmodel.EdgeLoadBalancer, vpcId string) error {
 	lbId := getLoadBalancerId(vpcId, reqCtx.AnnoCtx.Get(LoadBalancerId))
 	if lbId != "" {
@@ -148,28 +155,22 @@ func (mgr *ELBManager) setELBFromAnnotation(reqCtx *RequestContext, mdl *elbmode
 			mdl.LoadBalancerAttribute.IsReUse = true
 		}
 		mdl.LoadBalancerAttribute.LoadBalancerId = lbId
-		ret, err := mgr.cloud.FindNetWorkAndVSwitchByLoadBalancerId(reqCtx.Ctx, mdl.LoadBalancerAttribute.LoadBalancerId)
-		if err != nil {
-			return fmt.Errorf("%s has incorrect annotation about %s to find network and vswitch, err: %s", Key(reqCtx.Service), lbId, err.Error())
-		}
-		mdl.LoadBalancerAttribute.NetworkId = ret[0]
-		mdl.LoadBalancerAttribute.VSwitchId = ret[1]
 		mdl.LoadBalancerAttribute.IsUserManaged = true
 
 	} else {
-		mdl.LoadBalancerAttribute.IsUserManaged = false
-		err := mgr.cloud.DescribeNetwork(reqCtx.Ctx, mdl)
-		if err != nil {
-			return fmt.Errorf("%s has incorrect annotation about network id %s and vswitch id %s to get region by network, err: %s",
-				Key(reqCtx.Service), mdl.GetNetworkId(), mdl.GetVSwitchId(), err.Error())
-		}
 		if spec := reqCtx.AnnoCtx.Get(Spec); spec != "" {
 			mdl.LoadBalancerAttribute.LoadBalancerSpec = spec
 		}
 		if payType := reqCtx.AnnoCtx.Get(PayType); payType != "" {
 			mdl.LoadBalancerAttribute.PayType = payType
 		}
+		mdl.LoadBalancerAttribute.IsUserManaged = false
 	}
+
+	if addressType := reqCtx.AnnoCtx.Get(AddressType); addressType != "" {
+		mdl.LoadBalancerAttribute.AddressType = addressType
+	}
+
 	return nil
 }
 
@@ -214,7 +215,6 @@ func (mgr *ELBManager) DeleteELB(reqCtx *RequestContext, mdl *elbmodel.EdgeLoadB
 	if err != nil {
 		return fmt.Errorf("delete elb [%s] error: %s", mdl.GetLoadBalancerId(), err.Error())
 	}
-	klog.InfoS(fmt.Sprintf("successfully delete elb %s", mdl.GetLoadBalancerId()), "service", Key(reqCtx.Service))
 	return nil
 }
 

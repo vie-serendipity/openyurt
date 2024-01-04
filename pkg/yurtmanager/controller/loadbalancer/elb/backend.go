@@ -7,6 +7,8 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	discovery "k8s.io/api/discovery/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -121,7 +123,7 @@ func getEndpointByEndpointSlice(reqCtx *RequestContext, kubeClient client.Client
 }
 
 func getEdgeENSNodes(reqCtx *RequestContext, kubeClient client.Client, nodepool string) ([]v1.Node, error) {
-	matchLabels := make(client.MatchingLabels)
+	matchLabels := make(map[string]string)
 	if reqCtx.AnnoCtx.Get(BackendLabel) != "" {
 		var err error
 		matchLabels, err = splitBackendLabel(reqCtx.AnnoCtx.Get(BackendLabel))
@@ -131,8 +133,13 @@ func getEdgeENSNodes(reqCtx *RequestContext, kubeClient client.Client, nodepool 
 	}
 	matchLabels[EdgeNodeLabel] = EdgeNodeValue
 	matchLabels[NodePoolLabel] = nodepool
+	selector := labels.SelectorFromSet(matchLabels)
+	req, err := labels.NewRequirement(ENSLabel, selection.Exists, []string{})
+	if err == nil {
+		selector = selector.Add(*req)
+	}
 	nodeList := v1.NodeList{}
-	err := kubeClient.List(reqCtx.Ctx, &nodeList, client.HasLabels{ENSLabel}, matchLabels)
+	err = kubeClient.List(reqCtx.Ctx, &nodeList, &client.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return nil, fmt.Errorf("get edge ens node error: %s", err.Error())
 	}
@@ -210,7 +217,7 @@ func shouldSkipNode(reqCtx *RequestContext, node *v1.Node) bool {
 }
 
 func isNodeExcludeFromEdgeLoadBalancer(node *v1.Node) bool {
-	if _, exclude := node.Labels[ExcludeBackendLabel]; exclude {
+	if _, exclude := node.Labels[v1.LabelNodeExcludeBalancers]; exclude {
 		return true
 	}
 	return false

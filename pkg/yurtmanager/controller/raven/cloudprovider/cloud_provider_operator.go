@@ -3,12 +3,13 @@ package cloudprovider
 import (
 	"context"
 	"fmt"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/raven"
-	ravenmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/raven"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
+
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/raven"
+	ravenmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/raven"
 )
 
 func (r *ReconcileResource) AssociateInstance(ctx context.Context, mdl *ravenmodel.ElasticIPAttribute, instanceId string) error {
