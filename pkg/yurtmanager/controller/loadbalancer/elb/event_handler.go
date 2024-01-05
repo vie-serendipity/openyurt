@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -13,28 +14,84 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	nodepoolv1beta1 "github.com/openyurtio/openyurt/pkg/apis/apps/v1beta1"
 )
 
-func NewPredictionForEndpointSliceEvent(client client.Client) *predicationForEndpointSliceEvent {
-	return &predicationForEndpointSliceEvent{client: client}
+const (
+	IncorrectAnnotation = "IncorrectAnnotations"
+)
+
+var _ predicate.Predicate = (*predicationForServiceEvent)(nil)
+
+type predicationForServiceEvent struct {
+	client   client.Client
+	recorder record.EventRecorder
 }
 
+func NewPredictionForServiceEvent(client client.Client, recorder record.EventRecorder) *predicationForServiceEvent {
+	return &predicationForServiceEvent{client: client, recorder: recorder}
+}
+
+func (p *predicationForServiceEvent) Create(evt event.CreateEvent) bool {
+	svc, ok := evt.Object.(*v1.Service)
+	if !ok || !needAdd(svc) {
+		return false
+	}
+	if err := validateAnnotation(svc); err != nil {
+		klog.Errorf("incorrect annotation, error %s", err.Error())
+		p.recorder.Event(svc, v1.EventTypeWarning, IncorrectAnnotation, err.Error())
+		return false
+	}
+	return true
+}
+
+func (p *predicationForServiceEvent) Update(evt event.UpdateEvent) bool {
+	newSvc, ok1 := evt.ObjectNew.(*v1.Service)
+	oldSvc, ok2 := evt.ObjectOld.(*v1.Service)
+	if !ok1 || !ok2 || !needUpdate(oldSvc, newSvc) {
+		return false
+	}
+	if err := validateAnnotation(newSvc); err != nil {
+		klog.Errorf("incorrect annotation, error %s", err.Error())
+		p.recorder.Event(newSvc, v1.EventTypeWarning, IncorrectAnnotation, err.Error())
+		return false
+	}
+	return true
+
+}
+
+func (p *predicationForServiceEvent) Delete(evt event.DeleteEvent) bool {
+	return false
+}
+
+func (p *predicationForServiceEvent) Generic(evt event.GenericEvent) bool {
+	return false
+}
+
+var _ predicate.Predicate = (*predicationForEndpointSliceEvent)(nil)
+
 type predicationForEndpointSliceEvent struct {
-	client client.Client
+	client   client.Client
+	recorder record.EventRecorder
+}
+
+func NewPredictionForEndpointSliceEvent(client client.Client, recorder record.EventRecorder) *predicationForEndpointSliceEvent {
+	return &predicationForEndpointSliceEvent{client: client, recorder: recorder}
 }
 
 func (p *predicationForEndpointSliceEvent) Create(evt event.CreateEvent) bool {
 	es, ok := evt.Object.(*discovery.EndpointSlice)
-	if ok && isELBEndpointSlice(es, p.client) {
+	if ok && canEnqueueEndpointSlice(es, p.client, p.recorder) {
 		return true
 	}
 	return false
@@ -43,7 +100,7 @@ func (p *predicationForEndpointSliceEvent) Create(evt event.CreateEvent) bool {
 func (p *predicationForEndpointSliceEvent) Update(evt event.UpdateEvent) bool {
 	es1, ok1 := evt.ObjectOld.(*discovery.EndpointSlice)
 	es2, ok2 := evt.ObjectNew.(*discovery.EndpointSlice)
-	if ok1 && ok2 && isELBEndpointSlice(es1, p.client) && isEndpointSliceChanged(es1, es2) {
+	if ok1 && ok2 && canEnqueueEndpointSlice(es1, p.client, p.recorder) && isEndpointSliceChanged(es1, es2) {
 		return true
 	}
 	return false
@@ -51,7 +108,7 @@ func (p *predicationForEndpointSliceEvent) Update(evt event.UpdateEvent) bool {
 
 func (p *predicationForEndpointSliceEvent) Delete(evt event.DeleteEvent) bool {
 	es, ok := evt.Object.(*discovery.EndpointSlice)
-	if ok && isELBEndpointSlice(es, p.client) {
+	if ok && canEnqueueEndpointSlice(es, p.client, p.recorder) {
 		return true
 	}
 	return false
@@ -60,8 +117,6 @@ func (p *predicationForEndpointSliceEvent) Delete(evt event.DeleteEvent) bool {
 func (p *predicationForEndpointSliceEvent) Generic(evt event.GenericEvent) bool {
 	return false
 }
-
-var _ predicate.Predicate = (*predicationForEndpointSliceEvent)(nil)
 
 // NewEnqueueRequestForEndpointSliceEvent, event handler for endpointslice event
 func NewEnqueueRequestForEndpointSliceEvent(client client.Client) *enqueueRequestForEndpointSliceEvent {
@@ -123,7 +178,7 @@ func (h *enqueueRequestForEndpointSliceEvent) enqueueManagedEndpointSlice(queue 
 	klog.Info("enqueue", "endpointslice", Key(endpointSlice), "queueLen", queue.Len())
 }
 
-func isELBEndpointSlice(es *discovery.EndpointSlice, client client.Client) bool {
+func canEnqueueEndpointSlice(es *discovery.EndpointSlice, client client.Client, recorder record.EventRecorder) bool {
 	if es == nil {
 		return false
 	}
@@ -149,10 +204,18 @@ func isELBEndpointSlice(es *discovery.EndpointSlice, client client.Client) bool 
 
 	if !isELBService(svc) {
 		// it is safe not to reconcile endpointslice which belongs to the non-loadbalancer svc
-		klog.V(4).Info("endpointslice change: loadBalancer is not needed, skip",
-			"endpointslice", Key(es))
+		klog.V(4).Info("endpointslice change: loadBalancer is not needed, skip ",
+			"endpointslice ", Key(es))
 		return false
 	}
+
+	err = validateAnnotation(svc)
+	if err != nil {
+		klog.Errorf("incorrect annotation, error %s", err.Error())
+		recorder.Event(svc, v1.EventTypeWarning, IncorrectAnnotation, err.Error())
+		return false
+	}
+
 	return true
 }
 
@@ -364,4 +427,65 @@ func needUpdate(oldSvc, newSvc *v1.Service) bool {
 	}
 
 	return false
+}
+
+func validateAnnotation(svc *v1.Service) error {
+	if !isELBService(svc) {
+		return nil
+	}
+
+	if !svc.DeletionTimestamp.IsZero() {
+		return nil
+	}
+
+	if svc.Annotations == nil {
+		svc.Annotations = make(map[string]string, 0)
+	}
+
+	if svc.Annotations[Annotation(NodePoolSelector)] == "" {
+		fldPath := field.NewPath("meta").Child("annotations")
+		return field.Required(fldPath, Annotation(NodePoolSelector))
+	}
+
+	if svc.Annotations[Annotation(NodePoolSelector)] != "" {
+		nodeSelectorKey := Annotation(NodePoolSelector)
+		nodeSelectorVal := svc.Annotations[nodeSelectorKey]
+		if !validateLabels(nodeSelectorVal) {
+			fldPath := field.NewPath("meta").Child("annotations").Key(nodeSelectorKey)
+			return field.Invalid(fldPath, nodeSelectorVal, fmt.Sprintf("correct format, e.g. key1=val1,key2=val2,..."))
+		}
+	}
+
+	if svc.Spec.Type == v1.ServiceTypeLoadBalancer && svc.Spec.ExternalTrafficPolicy == v1.ServiceExternalTrafficPolicyTypeLocal {
+		if svc.Annotations[Annotation(LoadBalancerId)] != "" {
+			if b, err := strconv.ParseBool(svc.Annotations[Annotation(ListenerOverride)]); err == nil && b {
+				fldPath := field.NewPath("meta").Child("annotations").Key(Annotation(ListenerOverride))
+				return field.Invalid(fldPath, b, fmt.Sprintf("the spec.externalTrafficPolicy must be specified %s if elb is reused", v1.ServiceExternalTrafficPolicyTypeLocal))
+			}
+			if b, err := strconv.ParseBool(svc.Annotations[Annotation(BackendOverride)]); err == nil && b {
+				fldPath := field.NewPath("meta").Child("annotations").Key(Annotation(BackendOverride))
+				return field.Invalid(fldPath, b, fmt.Sprintf("the spec.externalTrafficPolicy must be specified %s if elb is reused", v1.ServiceExternalTrafficPolicyTypeLocal))
+			}
+			loadBalancerKey := Annotation(LoadBalancerId)
+			loadBalancerVal := svc.Annotations[loadBalancerKey]
+			if !validateLabels(svc.Annotations[Annotation(LoadBalancerId)]) {
+				fldPath := field.NewPath("meta").Child("annotations").Key(loadBalancerKey)
+				return field.Invalid(fldPath, loadBalancerVal, fmt.Sprintf("correct format, e.g. key1=val1,key2=val2,..."))
+			}
+		}
+	}
+
+	if svc.Annotations[Annotation(BackendLabel)] != "" {
+		backendKey := Annotation(BackendLabel)
+		backendVal := svc.Annotations[backendKey]
+		if !validateLabels(backendVal) {
+			fldPath := field.NewPath("meta").Child("annotations").Key(backendKey)
+			return field.Invalid(fldPath, backendVal, fmt.Sprintf("correct format, e.g. key1=val1,key2=val2,..."))
+		}
+	}
+	return nil
+}
+
+func validateLabels(s string) bool {
+	return regexp.MustCompile("^([\\w.-]+)=([\\w.-]+)(,([\\w.-]+)=([\\w.-]+))*$").MatchString(s)
 }

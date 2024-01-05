@@ -18,6 +18,7 @@ type EdgeLoadBalancerAttribute struct {
 	CreateTime         string
 	AddressIPVersion   string
 	PayType            string
+	AddressType        string
 	IsUserManaged      bool
 	IsReUse            bool
 }
@@ -83,6 +84,7 @@ func LoadNamedKey(key string) (*NamedKey, error) {
 type EdgeLoadBalancer struct {
 	NamespacedName        types.NamespacedName
 	LoadBalancerAttribute EdgeLoadBalancerAttribute
+	EipAttribute          EdgeEipAttribute
 	ServerGroup           EdgeServerGroup
 	Listeners             EdgeListeners
 }
@@ -129,6 +131,27 @@ func (l *EdgeLoadBalancer) IsReUsed() bool {
 	return l.LoadBalancerAttribute.IsReUse
 }
 
+func (l *EdgeLoadBalancer) GetEIPId() string {
+	if l == nil {
+		return ""
+	}
+	return l.EipAttribute.AllocationId
+}
+
+func (l *EdgeLoadBalancer) GetEIPAddress() string {
+	if l == nil {
+		return ""
+	}
+	return l.EipAttribute.IpAddress
+}
+
+func (l *EdgeLoadBalancer) GetAddressType() string {
+	if l == nil {
+		return ""
+	}
+	return l.LoadBalancerAttribute.AddressType
+}
+
 type ActionType string
 
 const (
@@ -143,13 +166,14 @@ type PoolIdentity struct {
 	vswitch      string
 	region       string
 	loadbalancer string
+	eip          string
 	address      string
 	action       ActionType
 	err          error
 }
 
-func NewIdentity(name, network, vswitch string, action ActionType) *PoolIdentity {
-	return &PoolIdentity{name: name, network: network, vswitch: vswitch, action: action}
+func NewIdentity(name, network, vswitch, region string, action ActionType) *PoolIdentity {
+	return &PoolIdentity{name: name, network: network, vswitch: vswitch, region: region, action: action}
 }
 
 func (i *PoolIdentity) GetName() string {
@@ -162,6 +186,14 @@ func (i *PoolIdentity) SetLoadBalancer(lb string) {
 
 func (i *PoolIdentity) GetLoadBalancer() string {
 	return i.loadbalancer
+}
+
+func (i *PoolIdentity) SetEIP(eip string) {
+	i.eip = eip
+}
+
+func (i *PoolIdentity) GetEIP() string {
+	return i.eip
 }
 
 func (i *PoolIdentity) SetAddress(addr string) {

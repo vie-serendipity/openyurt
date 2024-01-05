@@ -3,14 +3,14 @@ package elb
 import (
 	"context"
 	"fmt"
-	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/base"
-	elbmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/elb"
 	"time"
 
 	"k8s.io/klog/v2"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ens"
+	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/base"
+	elbmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/elb"
 )
 
 const (
@@ -28,11 +28,11 @@ type ELBProvider struct {
 	auth *base.ClientMgr
 }
 
-func (e ELBProvider) FindHadLoadBalancerNetwork(ctx context.Context, lbName string) (vpcId, vswitchId []string, err error) {
+func (e *ELBProvider) FindHadLoadBalancerNetwork(ctx context.Context, lbName string) (vpcId, vswitchId, regionId []string, err error) {
 	vpcId = make([]string, 0)
 	vswitchId = make([]string, 0)
 	if lbName == "" {
-		return vpcId, vswitchId, fmt.Errorf("loadbalancer name is empty")
+		return vpcId, vswitchId, regionId, fmt.Errorf("loadbalancer name is empty")
 	}
 	req := ens.CreateDescribeLoadBalancersRequest()
 	req.ConnectTimeout = connectionTimeout
@@ -40,20 +40,21 @@ func (e ELBProvider) FindHadLoadBalancerNetwork(ctx context.Context, lbName stri
 	req.LoadBalancerName = lbName
 	resp, err := e.auth.ELB.DescribeLoadBalancers(req)
 	if err != nil {
-		return vpcId, vswitchId, SDKError("DescribeLoadBalancers", err)
+		return vpcId, vswitchId, regionId, SDKError("DescribeLoadBalancers", err)
 	}
 	if len(resp.LoadBalancers.LoadBalancer) < 1 {
-		return vpcId, vswitchId, nil
+		return vpcId, vswitchId, regionId, nil
 	}
 
 	for _, lb := range resp.LoadBalancers.LoadBalancer {
 		vpcId = append(vpcId, lb.NetworkId)
 		vswitchId = append(vswitchId, lb.VSwitchId)
+		regionId = append(regionId, lb.EnsRegionId)
 	}
-	return vpcId, vswitchId, nil
+	return vpcId, vswitchId, regionId, nil
 }
 
-func (e ELBProvider) FindEdgeLoadBalancer(ctx context.Context, mdl *elbmodel.EdgeLoadBalancer) error {
+func (e *ELBProvider) FindEdgeLoadBalancer(ctx context.Context, mdl *elbmodel.EdgeLoadBalancer) error {
 	if mdl.GetLoadBalancerId() == "" {
 		err := e.DescribeEdgeLoadBalancerByName(ctx, mdl.GetLoadBalancerName(), mdl)
 		if err != nil {
@@ -69,7 +70,7 @@ func (e ELBProvider) FindEdgeLoadBalancer(ctx context.Context, mdl *elbmodel.Edg
 	return nil
 }
 
-func (e ELBProvider) CreateEdgeLoadBalancer(ctx context.Context, mdl *elbmodel.EdgeLoadBalancer) error {
+func (e *ELBProvider) CreateEdgeLoadBalancer(ctx context.Context, mdl *elbmodel.EdgeLoadBalancer) error {
 	req := ens.CreateCreateLoadBalancerRequest()
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
@@ -87,7 +88,7 @@ func (e ELBProvider) CreateEdgeLoadBalancer(ctx context.Context, mdl *elbmodel.E
 	return nil
 }
 
-func (e ELBProvider) SetEdgeLoadBalancerStatus(ctx context.Context, status string, mdl *elbmodel.EdgeLoadBalancer) error {
+func (e *ELBProvider) SetEdgeLoadBalancerStatus(ctx context.Context, status string, mdl *elbmodel.EdgeLoadBalancer) error {
 	if mdl.GetLoadBalancerId() == "" {
 		return fmt.Errorf("loadbalancer id is empty")
 	}
@@ -104,7 +105,7 @@ func (e ELBProvider) SetEdgeLoadBalancerStatus(ctx context.Context, status strin
 	return nil
 }
 
-func (e ELBProvider) DescribeEdgeLoadBalancerById(ctx context.Context, lbId string, mdl *elbmodel.EdgeLoadBalancer) error {
+func (e *ELBProvider) DescribeEdgeLoadBalancerById(ctx context.Context, lbId string, mdl *elbmodel.EdgeLoadBalancer) error {
 	req := ens.CreateDescribeLoadBalancerAttributeRequest()
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
@@ -124,7 +125,7 @@ func (e ELBProvider) DescribeEdgeLoadBalancerById(ctx context.Context, lbId stri
 	return nil
 }
 
-func (e ELBProvider) DescribeEdgeLoadBalancerByName(ctx context.Context, lbName string, mdl *elbmodel.EdgeLoadBalancer) error {
+func (e *ELBProvider) DescribeEdgeLoadBalancerByName(ctx context.Context, lbName string, mdl *elbmodel.EdgeLoadBalancer) error {
 	if lbName == "" {
 		return fmt.Errorf("loadbalancer name is empty")
 	}
@@ -132,6 +133,7 @@ func (e ELBProvider) DescribeEdgeLoadBalancerByName(ctx context.Context, lbName 
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.NetworkId = mdl.GetNetworkId()
+	req.EnsRegionId = mdl.LoadBalancerAttribute.EnsRegionId
 	resp, err := e.auth.ELB.DescribeLoadBalancers(req)
 	if err != nil {
 		return SDKError("DescribeLoadBalancers", err)
@@ -149,7 +151,7 @@ func (e ELBProvider) DescribeEdgeLoadBalancerByName(ctx context.Context, lbName 
 	return nil
 }
 
-func (e ELBProvider) DeleteEdgeLoadBalancer(ctx context.Context, mdl *elbmodel.EdgeLoadBalancer) error {
+func (e *ELBProvider) DeleteEdgeLoadBalancer(ctx context.Context, mdl *elbmodel.EdgeLoadBalancer) error {
 	if mdl.GetLoadBalancerId() == "" {
 		return fmt.Errorf("loadbalancer id is empty")
 	}

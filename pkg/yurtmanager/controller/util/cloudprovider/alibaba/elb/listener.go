@@ -3,15 +3,15 @@ package elb
 import (
 	"context"
 	"fmt"
-	elbmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/elb"
 
 	"k8s.io/klog/v2"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ens"
+	elbmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/elb"
 )
 
-func (e ELBProvider) FindEdgeLoadBalancerListener(ctx context.Context, lbId string, listeners *elbmodel.EdgeListeners) error {
+func (e *ELBProvider) FindEdgeLoadBalancerListener(ctx context.Context, lbId string, listeners *elbmodel.EdgeListeners) error {
 	req := ens.CreateDescribeLoadBalancerAttributeRequest()
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
@@ -34,7 +34,7 @@ func (e ELBProvider) FindEdgeLoadBalancerListener(ctx context.Context, lbId stri
 	return nil
 }
 
-func (e ELBProvider) DescribeEdgeLoadBalancerTCPListener(ctx context.Context, lbId string, port int, listener *elbmodel.EdgeListenerAttribute) error {
+func (e *ELBProvider) DescribeEdgeLoadBalancerTCPListener(ctx context.Context, lbId string, port int, listener *elbmodel.EdgeListenerAttribute) error {
 	req := ens.CreateDescribeLoadBalancerTCPListenerAttributeRequest()
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
@@ -47,7 +47,7 @@ func (e ELBProvider) DescribeEdgeLoadBalancerTCPListener(ctx context.Context, lb
 	return loadTCPListenResponse(resp, listener)
 }
 
-func (e ELBProvider) DescribeEdgeLoadBalancerUDPListener(ctx context.Context, lbId string, port int, listener *elbmodel.EdgeListenerAttribute) error {
+func (e *ELBProvider) DescribeEdgeLoadBalancerUDPListener(ctx context.Context, lbId string, port int, listener *elbmodel.EdgeListenerAttribute) error {
 	req := ens.CreateDescribeLoadBalancerUDPListenerAttributeRequest()
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
@@ -100,7 +100,7 @@ func LoadUDPListenResponse(resp *ens.DescribeLoadBalancerUDPListenerAttributeRes
 	return nil
 }
 
-func (e ELBProvider) DescribeEdgeLoadBalancerHTTPListener(ctx context.Context, lbId string, port int, listener *elbmodel.EdgeListenerAttribute) error {
+func (e *ELBProvider) DescribeEdgeLoadBalancerHTTPListener(ctx context.Context, lbId string, port int, listener *elbmodel.EdgeListenerAttribute) error {
 	req := ens.CreateDescribeLoadBalancerHTTPListenerAttributeRequest()
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
@@ -117,7 +117,7 @@ func (e ELBProvider) DescribeEdgeLoadBalancerHTTPListener(ctx context.Context, l
 	return nil
 }
 
-func (e ELBProvider) DescribeEdgeLoadBalancerHTTPSListener(ctx context.Context, lbId string, port int, listener *elbmodel.EdgeListenerAttribute) error {
+func (e *ELBProvider) DescribeEdgeLoadBalancerHTTPSListener(ctx context.Context, lbId string, port int, listener *elbmodel.EdgeListenerAttribute) error {
 	req := ens.CreateDescribeLoadBalancerHTTPSListenerAttributeRequest()
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
@@ -133,7 +133,7 @@ func (e ELBProvider) DescribeEdgeLoadBalancerHTTPSListener(ctx context.Context, 
 	return nil
 }
 
-func (e ELBProvider) StartEdgeLoadBalancerListener(ctx context.Context, lbId string, port int, protocol string) error {
+func (e *ELBProvider) StartEdgeLoadBalancerListener(ctx context.Context, lbId string, port int, protocol string) error {
 	req := ens.CreateStartLoadBalancerListenerRequest()
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
@@ -147,7 +147,7 @@ func (e ELBProvider) StartEdgeLoadBalancerListener(ctx context.Context, lbId str
 	return nil
 }
 
-func (e ELBProvider) StopEdgeLoadBalancerListener(ctx context.Context, lbId string, port int, protocol string) error {
+func (e *ELBProvider) StopEdgeLoadBalancerListener(ctx context.Context, lbId string, port int, protocol string) error {
 	req := ens.CreateStopLoadBalancerListenerRequest()
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
@@ -161,7 +161,7 @@ func (e ELBProvider) StopEdgeLoadBalancerListener(ctx context.Context, lbId stri
 	return nil
 }
 
-func (e ELBProvider) CreateEdgeLoadBalancerTCPListener(ctx context.Context, lbId string, listener *elbmodel.EdgeListenerAttribute) error {
+func (e *ELBProvider) CreateEdgeLoadBalancerTCPListener(ctx context.Context, lbId string, listener *elbmodel.EdgeListenerAttribute) error {
 	req := ens.CreateCreateLoadBalancerTCPListenerRequest()
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
@@ -187,7 +187,7 @@ func (e ELBProvider) CreateEdgeLoadBalancerTCPListener(ctx context.Context, lbId
 	return nil
 }
 
-func (e ELBProvider) CreateEdgeLoadBalancerUDPListener(ctx context.Context, lbId string, listener *elbmodel.EdgeListenerAttribute) error {
+func (e *ELBProvider) CreateEdgeLoadBalancerUDPListener(ctx context.Context, lbId string, listener *elbmodel.EdgeListenerAttribute) error {
 	req := ens.CreateCreateLoadBalancerUDPListenerRequest()
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
@@ -209,7 +209,7 @@ func (e ELBProvider) CreateEdgeLoadBalancerUDPListener(ctx context.Context, lbId
 	return nil
 }
 
-func (e ELBProvider) ModifyEdgeLoadBalancerTCPListener(ctx context.Context, lbId string, listener *elbmodel.EdgeListenerAttribute) error {
+func (e *ELBProvider) ModifyEdgeLoadBalancerTCPListener(ctx context.Context, lbId string, listener *elbmodel.EdgeListenerAttribute) error {
 	req := ens.CreateSetLoadBalancerTCPListenerAttributeRequest()
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
@@ -234,7 +234,7 @@ func (e ELBProvider) ModifyEdgeLoadBalancerTCPListener(ctx context.Context, lbId
 	return nil
 }
 
-func (e ELBProvider) ModifyEdgeLoadBalancerUDPListener(ctx context.Context, lbId string, listener *elbmodel.EdgeListenerAttribute) error {
+func (e *ELBProvider) ModifyEdgeLoadBalancerUDPListener(ctx context.Context, lbId string, listener *elbmodel.EdgeListenerAttribute) error {
 	req := ens.CreateSetLoadBalancerUDPListenerAttributeRequest()
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
@@ -255,7 +255,7 @@ func (e ELBProvider) ModifyEdgeLoadBalancerUDPListener(ctx context.Context, lbId
 	return nil
 }
 
-func (e ELBProvider) DeleteEdgeLoadBalancerListener(ctx context.Context, lbId string, port int, protocol string) error {
+func (e *ELBProvider) DeleteEdgeLoadBalancerListener(ctx context.Context, lbId string, port int, protocol string) error {
 	req := ens.CreateDeleteLoadBalancerListenerRequest()
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout

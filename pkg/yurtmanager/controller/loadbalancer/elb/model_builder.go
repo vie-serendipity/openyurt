@@ -22,13 +22,15 @@ type IModelBuilder interface {
 
 type ModelBuilder struct {
 	ELBMgr *ELBManager
+	EIPMgr *EIPManager
 	LisMgr *ListenerManager
 	SGMgr  *ServerGroupManager
 }
 
-func NewModelBuilder(elbMgr *ELBManager, lisMgr *ListenerManager, sgMgr *ServerGroupManager) *ModelBuilder {
+func NewModelBuilder(elbMgr *ELBManager, eipMgr *EIPManager, lisMgr *ListenerManager, sgMgr *ServerGroupManager) *ModelBuilder {
 	return &ModelBuilder{
 		ELBMgr: elbMgr,
+		EIPMgr: eipMgr,
 		LisMgr: lisMgr,
 		SGMgr:  sgMgr,
 	}
@@ -50,10 +52,18 @@ func (builder *ModelBuilder) BuildModel(reqCtx *RequestContext, modelType ModelT
 
 type localModel struct{ *ModelBuilder }
 
-func (l localModel) Build(reqCtx *RequestContext, pool *elbmodel.PoolIdentity) (*elbmodel.EdgeLoadBalancer, error) {
+func (l *localModel) Build(reqCtx *RequestContext, pool *elbmodel.PoolIdentity) (*elbmodel.EdgeLoadBalancer, error) {
 	mdl, err := l.ELBMgr.BuildLocalModel(reqCtx, pool)
 	if err != nil {
 		return mdl, fmt.Errorf("build elb attribute error: %s", err.Error())
+	}
+
+	if err = l.EIPMgr.BuildLocalModel(reqCtx, mdl); err != nil {
+		return mdl, fmt.Errorf("build eip attribute error: %s", err.Error())
+	}
+
+	if pool.GetAction() == elbmodel.Delete {
+		return mdl, nil
 	}
 
 	if err = l.SGMgr.BuildLocalModel(reqCtx, pool.GetName(), mdl); err != nil {
@@ -68,17 +78,21 @@ func (l localModel) Build(reqCtx *RequestContext, pool *elbmodel.PoolIdentity) (
 
 type remoteModel struct{ *ModelBuilder }
 
-func (r remoteModel) Build(reqCtx *RequestContext, identity *elbmodel.PoolIdentity) (*elbmodel.EdgeLoadBalancer, error) {
+func (r *remoteModel) Build(reqCtx *RequestContext, identity *elbmodel.PoolIdentity) (*elbmodel.EdgeLoadBalancer, error) {
 	mdl, err := r.ELBMgr.BuildRemoteModel(reqCtx, identity)
 	if err != nil {
 		return mdl, fmt.Errorf("build elb attribute error: %s", err.Error())
 	}
 
-	if err := r.SGMgr.BuildRemoteModel(reqCtx, mdl); err != nil {
+	if err = r.EIPMgr.BuildRemoteModel(reqCtx, mdl); err != nil {
+		return mdl, fmt.Errorf("build eip attribute error: %s", err.Error())
+	}
+
+	if err = r.SGMgr.BuildRemoteModel(reqCtx, mdl); err != nil {
 		return mdl, fmt.Errorf("build server group error: %s", err.Error())
 	}
 
-	if err := r.LisMgr.BuildRemoteModel(reqCtx, mdl); err != nil {
+	if err = r.LisMgr.BuildRemoteModel(reqCtx, mdl); err != nil {
 		return mdl, fmt.Errorf("build elb listener error: %s", err.Error())
 	}
 

@@ -3,12 +3,12 @@ package elb
 import (
 	"context"
 	"fmt"
-	elbmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/elb"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ens"
+	elbmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/elb"
 )
 
-func (e ELBProvider) GetEnsRegionIdByNetwork(ctx context.Context, networkId string) (string, error) {
+func (e *ELBProvider) GetEnsRegionIdByNetwork(ctx context.Context, networkId string) (string, error) {
 	if networkId == "" {
 		return "", fmt.Errorf(" network id is empty")
 	}
@@ -26,7 +26,7 @@ func (e ELBProvider) GetEnsRegionIdByNetwork(ctx context.Context, networkId stri
 	return resp.Networks.Network[0].EnsRegionId, nil
 }
 
-func (e ELBProvider) FindEnsInstancesByNetwork(ctx context.Context, mdl *elbmodel.EdgeLoadBalancer) (map[string]string, error) {
+func (e *ELBProvider) FindEnsInstancesByNetwork(ctx context.Context, mdl *elbmodel.EdgeLoadBalancer) (map[string]string, error) {
 	if mdl.GetNetworkId() == "" || mdl.GetVSwitchId() == "" {
 		return nil, fmt.Errorf("edge loadbalancer mode lacks significant attribute: network and vitual switch")
 	}
@@ -46,7 +46,7 @@ func (e ELBProvider) FindEnsInstancesByNetwork(ctx context.Context, mdl *elbmode
 	return ret, nil
 }
 
-func (e ELBProvider) FindNetWorkAndVSwitchByLoadBalancerId(ctx context.Context, lbId string) ([]string, error) {
+func (e *ELBProvider) FindNetWorkAndVSwitchByLoadBalancerId(ctx context.Context, lbId string) ([]string, error) {
 	ret := make([]string, 0)
 	req := ens.CreateDescribeLoadBalancerAttributeRequest()
 	req.ConnectTimeout = connectionTimeout

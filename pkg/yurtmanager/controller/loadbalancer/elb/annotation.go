@@ -11,21 +11,27 @@ import (
 const (
 	AnnotationPrefix             = "service.openyurt.io/"
 	AnnotationLoadBalancerPrefix = "elb-"
+	AnnotationEIPPrefix          = "eip-"
 
 	NodePoolSelector          = "nodepool-labelselector"
 	NodePoolLabelSelectorTerm = "nodepool-labelselector-term"
+
+	ListenerOverride = AnnotationLoadBalancerPrefix + "force-override-listeners"
+	BackendOverride  = AnnotationLoadBalancerPrefix + "force-override-servers"
+	AddressType      = AnnotationLoadBalancerPrefix + "address-type"
 )
 
 const (
-	ListenerOverride = AnnotationLoadBalancerPrefix + "force-override-listeners"
-	BackendOverride  = AnnotationLoadBalancerPrefix + "force-override-servers"
-
 	VSwitch        = AnnotationLoadBalancerPrefix + "vswitch-id"
 	LoadBalancerId = AnnotationLoadBalancerPrefix + "loadbalancer-id"
-	AddressType    = AnnotationLoadBalancerPrefix + "address-type"
 	Spec           = AnnotationLoadBalancerPrefix + "spec"
 	IPVersion      = AnnotationLoadBalancerPrefix + "ip-version"
 	PayType        = AnnotationLoadBalancerPrefix + "pay-type"
+
+	EipBandwidth               = AnnotationLoadBalancerPrefix + AnnotationEIPPrefix + "bandwidth"
+	EipInternetChargeType      = AnnotationLoadBalancerPrefix + AnnotationEIPPrefix + "internet-chargetype"
+	EipInstanceChargeType      = AnnotationLoadBalancerPrefix + AnnotationEIPPrefix + "instance-chargetype"
+	EipInternetProviderService = AnnotationLoadBalancerPrefix + AnnotationEIPPrefix + "isp"
 
 	EdgeServerWeight    = AnnotationLoadBalancerPrefix + "backend-weight"
 	BackendLabel        = AnnotationLoadBalancerPrefix + "backend-label"
