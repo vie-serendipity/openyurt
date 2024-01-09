@@ -464,15 +464,15 @@ func validateAnnotation(svc *v1.Service) error {
 			return field.Invalid(fldPath, loadBalancerVal, fmt.Sprintf("correct format, e.g. key1=val1,key2=val2,..."))
 		}
 		if b, err := strconv.ParseBool(svc.Annotations[Annotation(ListenerOverride)]); err == nil && b {
-			if svc.Spec.ExternalTrafficPolicy != v1.ServiceExternalTrafficPolicyTypeLocal {
+			if svc.Spec.ExternalTrafficPolicy != v1.ServiceExternalTrafficPolicyTypeCluster {
 				fldPath := field.NewPath("meta").Child("annotations").Key(Annotation(ListenerOverride))
-				return field.Invalid(fldPath, b, fmt.Sprintf("the spec.externalTrafficPolicy must be specified %s if elb is reused", v1.ServiceExternalTrafficPolicyTypeLocal))
+				return field.Invalid(fldPath, b, fmt.Sprintf("the spec.externalTrafficPolicy must be specified %s if elb is reused", v1.ServiceExternalTrafficPolicyTypeCluster))
 			}
 		}
 		if b, err := strconv.ParseBool(svc.Annotations[Annotation(BackendOverride)]); err == nil && b {
-			if svc.Spec.ExternalTrafficPolicy != v1.ServiceExternalTrafficPolicyTypeLocal {
+			if svc.Spec.ExternalTrafficPolicy != v1.ServiceExternalTrafficPolicyTypeCluster {
 				fldPath := field.NewPath("meta").Child("annotations").Key(Annotation(BackendOverride))
-				return field.Invalid(fldPath, b, fmt.Sprintf("the spec.externalTrafficPolicy must be specified %s if elb is reused", v1.ServiceExternalTrafficPolicyTypeLocal))
+				return field.Invalid(fldPath, b, fmt.Sprintf("the spec.externalTrafficPolicy must be specified %s if elb is reused", v1.ServiceExternalTrafficPolicyTypeCluster))
 			}
 		}
 	}
