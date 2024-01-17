@@ -19,7 +19,6 @@ package gatewaylifecycle
 import (
 	"context"
 	"fmt"
-	"k8s.io/kubernetes/cmd/kubeadm/app/constants"
 	"math"
 	"net"
 	"sort"
@@ -36,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"k8s.io/kubernetes/cmd/kubeadm/app/constants"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -54,24 +54,26 @@ import (
 const (
 	InterconnectionModeAnnotationKey = "alibabacloud.com/interconnection-mode"
 	PoolNodesConnectedAnnotationKey  = "alibabacloud.com/pool-nodes-connected"
-	SpecifiedGateway                 = "alibabacloud.com/belong-to-gateway"
-	GatewayExcludeNodePool           = "alibabacloud.com/gateway-exclude-nodepool"
-	AddressConflict                  = "alibabacloud.com/address-conflict"
-	BelongToNodePool                 = "alibabacloud.com/belong-to-nodepool"
+	EdgeNodeKey                      = "alibabacloud.com/is-edge-worker"
+	NodePoolKey                      = "alibabacloud.com/nodepool-id"
 
-	GatewayEndpoint = "alibabacloud.com/cross-domain-gateway-endpoint"
-	UnderNAT        = "alibabacloud.com/under-nat"
-
-	EdgeNodeKey = "alibabacloud.com/is-edge-worker"
-	NodePoolKey = "alibabacloud.com/nodepool-id"
+	BelongToNodePool = "raven.openyurt.io/nodepool-id"
+	GatewayEndpoint  = "raven.openyurt.io/gateway-node"
 
 	GatewayPrefix     = "gw-"
 	CloudNodePoolName = "cloud"
 	GatewayPrivateIP  = "internal-ip"
 	DedicatedLine     = "private"
-	PublicInternet    = "public"
+	Internet          = "public"
 
 	DefaultEndpointsProportion = 0.3
+
+	// not public
+	SpecifiedGateway              = "alibabacloud.com/belong-to-gateway"
+	GatewayExcludeNodePool        = "alibabacloud.com/gateway-exclude-nodepool"
+	AddressConflict               = "alibabacloud.com/address-conflict"
+	SoloNodePoolEnableRavenTunnel = "alibabacloud.com/enable-raven-tunnel"
+	UnderNAT                      = "alibabacloud.com/under-nat"
 )
 
 func Format(format string, args ...interface{}) string {
@@ -150,25 +152,27 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 // Reconcile reads that state of the cluster for a Gateway object and makes changes based on the state read
 // and what is in the Gateway.Spec
 func (r *ReconcileGatewayLifeCycle) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-
-	np, clear, err := needDeleteGateway(ctx, r.Client, req.Name)
+	var np nodepoolv1beta1.NodePool
+	err := r.Client.Get(ctx, req.NamespacedName, &np)
 	if err != nil {
-		klog.Error(Format("check whether the gateway for nodepool %s needs to be deleted, error %s", req.Name, err.Error()))
-		return reconcile.Result{Requeue: true, RequeueAfter: 2 * time.Second}, err
+		if !apierrors.IsNotFound(err) {
+			return reconcile.Result{Requeue: true, RequeueAfter: 2 * time.Second}, err
+		}
+		np = nodepoolv1beta1.NodePool{ObjectMeta: metav1.ObjectMeta{Name: req.Name}}
 	}
 
-	if isExclude(np) {
+	if isExclude(&np) {
 		klog.Info(Format("ignore nodepool %s, skip reconcile it", np.GetName()))
 		return reconcile.Result{}, nil
 	}
 
-	err = r.reconcileCloud(ctx, np)
+	err = r.reconcileCloud(ctx, &np)
 	if err != nil {
 		klog.Error(Format("reconcile cloud gateway for nodepool %s, error %s", np.GetName(), err.Error()))
 		return reconcile.Result{Requeue: true, RequeueAfter: 2 * time.Second}, fmt.Errorf("reconcile cloud gateway, error %s", err.Error())
 	}
 
-	err = r.reconcileEdge(ctx, np, clear)
+	err = r.reconcileEdge(ctx, &np)
 	if err != nil {
 		klog.Error(Format("reconcile edge gateway for nodepool %s, error %s", np.GetName(), err.Error()))
 		return reconcile.Result{Requeue: true, RequeueAfter: 2 * time.Second}, fmt.Errorf("reconcile edge %s gateway, error %s", np.GetName(), err.Error())
@@ -176,30 +180,19 @@ func (r *ReconcileGatewayLifeCycle) Reconcile(ctx context.Context, req reconcile
 	return reconcile.Result{}, nil
 }
 
-func needDeleteGateway(ctx context.Context, client client.Client, nodePoolName string) (*nodepoolv1beta1.NodePool, bool, error) {
-	var clear bool
-	np := nodepoolv1beta1.NodePool{ObjectMeta: metav1.ObjectMeta{Name: nodePoolName}}
-	err := client.Get(ctx, types.NamespacedName{Name: nodePoolName}, &np)
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return np.DeepCopy(), clear, err
-		} else {
-			clear = true
-			return np.DeepCopy(), clear, nil
-		}
+func (r *ReconcileGatewayLifeCycle) needDeleteGateway(ctx context.Context, np *nodepoolv1beta1.NodePool) bool {
+	if !np.GetDeletionTimestamp().IsZero() {
+		return true
+	}
+	enableProxy, enableTunnel := util.CheckServer(ctx, r.Client)
+	if !enableProxy && !enableTunnel {
+		return true
 	}
 
-	if np.GetDeletionTimestamp() != nil {
-		clear = true
-		return np.DeepCopy(), clear, nil
+	if isSoloMode(np) && !soloNodePoolEnableTunnel(np) {
+		return true
 	}
-
-	enableProxy, enableTunnel := util.CheckServer(ctx, client)
-	if !(enableProxy && enableTunnel) {
-		clear = true
-		return np.DeepCopy(), clear, nil
-	}
-	return np.DeepCopy(), clear, nil
+	return false
 }
 
 func (r *ReconcileGatewayLifeCycle) reconcileCloud(ctx context.Context, np *nodepoolv1beta1.NodePool) error {
@@ -373,7 +366,7 @@ func (r *ReconcileGatewayLifeCycle) clearCloudGateway(ctx context.Context) error
 	return nil
 }
 
-func (r *ReconcileGatewayLifeCycle) reconcileEdge(ctx context.Context, np *nodepoolv1beta1.NodePool, isClear bool) error {
+func (r *ReconcileGatewayLifeCycle) reconcileEdge(ctx context.Context, np *nodepoolv1beta1.NodePool) error {
 	if !isEdgeNodePool(np) {
 		return nil
 	}
@@ -382,7 +375,7 @@ func (r *ReconcileGatewayLifeCycle) reconcileEdge(ctx context.Context, np *nodep
 		np.Annotations[SpecifiedGateway] = fmt.Sprintf("%s%s", GatewayPrefix, CloudNodePoolName)
 	}
 
-	if isClear {
+	if r.needDeleteGateway(ctx, np) {
 		return r.clearGateway(ctx, np, isSoloMode(np))
 	}
 
@@ -457,7 +450,8 @@ func (r *ReconcileGatewayLifeCycle) updateEdgeGateway(ctx context.Context, np *n
 		return nil
 	}
 
-	if isSoloMode(np) {
+	// The gateway cannot be created for a solo node pool
+	if isSoloMode(np) && soloNodePoolEnableTunnel(np) {
 		err := r.updateSoloGateways(ctx, np)
 		if err != nil {
 			return fmt.Errorf("failed to update edge solo gateway for nodepool %s, error %s", np.GetName(), err.Error())
@@ -651,9 +645,13 @@ func (r *ReconcileGatewayLifeCycle) clearGateway(ctx context.Context, np *nodepo
 	if isSoloMode {
 		for _, nodeName := range np.Status.Nodes {
 			gwName := fmt.Sprintf("%s%s", GatewayPrefix, nodeName)
-			err := r.Client.Delete(ctx, &ravenv1beta1.Gateway{ObjectMeta: metav1.ObjectMeta{Name: gwName}})
-			if err != nil && !apierrors.IsNotFound(err) {
-				return fmt.Errorf("failed to delete gateway %s, error %s", gwName, err.Error())
+			var gw ravenv1beta1.Gateway
+			err := r.Client.Get(ctx, client.ObjectKey{Name: gwName}, &gw)
+			if !apierrors.IsNotFound(err) {
+				err = r.Client.Delete(ctx, &ravenv1beta1.Gateway{ObjectMeta: metav1.ObjectMeta{Name: gwName}})
+				if err != nil {
+					return fmt.Errorf("failed to delete gateway %s, error %s", gwName, err.Error())
+				}
 			}
 			err = r.manageNodeLabel(ctx, nodeName, gwName, true)
 			if err != nil {
@@ -662,9 +660,13 @@ func (r *ReconcileGatewayLifeCycle) clearGateway(ctx context.Context, np *nodepo
 		}
 	} else {
 		gwName := fmt.Sprintf("%s%s", GatewayPrefix, np.GetName())
-		err := r.Client.Delete(ctx, &ravenv1beta1.Gateway{ObjectMeta: metav1.ObjectMeta{Name: gwName}})
-		if err != nil && !apierrors.IsNotFound(err) {
-			return fmt.Errorf("failed to delete gateway %s, error %s", gwName, err.Error())
+		var gw ravenv1beta1.Gateway
+		err := r.Client.Get(ctx, client.ObjectKey{Name: gwName}, &gw)
+		if !apierrors.IsNotFound(err) {
+			err = r.Client.Delete(ctx, &ravenv1beta1.Gateway{ObjectMeta: metav1.ObjectMeta{Name: gwName}})
+			if err != nil {
+				return fmt.Errorf("failed to delete gateway %s, error %s", gwName, err.Error())
+			}
 		}
 		err = r.manageNodesLabelByNodePool(ctx, np, "", true)
 		if err != nil {
@@ -764,4 +766,8 @@ func isUnderNAT(node *corev1.Node) bool {
 		return true
 	}
 	return ret
+}
+
+func soloNodePoolEnableTunnel(np *nodepoolv1beta1.NodePool) bool {
+	return strings.ToLower(np.Annotations[SoloNodePoolEnableRavenTunnel]) == "true"
 }
