@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -39,7 +40,6 @@ import (
 
 	appconfig "github.com/openyurtio/openyurt/cmd/yurt-manager/app/config"
 	"github.com/openyurtio/openyurt/cmd/yurt-manager/names"
-	"github.com/openyurtio/openyurt/pkg/apis/raven"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util"
 	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
 	ravenprvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/raven"
@@ -72,30 +72,27 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	err = c.Watch(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestForObject{}, predicate.NewPredicateFuncs(
+	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}}, &handler.EnqueueRequestForObject{}, predicate.NewPredicateFuncs(
 		func(object client.Object) bool {
-			svc, ok := object.(*corev1.Service)
+			cm, ok := object.(*corev1.ConfigMap)
 			if !ok {
 				return false
 			}
-			return isFocusedObject(svc)
+			return isFocusedObject(cm)
 		}))
 	if err != nil {
-		klog.Error(Format("watch resource corev1.Service error: %s", err.Error()))
+		klog.Error(Format("watch resource corev1.Configmap error: %s", err.Error()))
 		return err
 	}
 
 	return nil
 }
 
-func isFocusedObject(svc *corev1.Service) bool {
-	if svc.Namespace != util.WorkingNamespace {
+func isFocusedObject(cm *corev1.ConfigMap) bool {
+	if cm.Namespace != util.WorkingNamespace {
 		return false
 	}
-	if svc.Spec.Type != corev1.ServiceTypeLoadBalancer {
-		return false
-	}
-	if _, ok := svc.Labels[raven.LabelCurrentGateway]; !ok {
+	if cm.Name != util.RavenGlobalConfig {
 		return false
 	}
 	return true
@@ -129,9 +126,8 @@ func newReconciler(ctx context.Context, c *appconfig.CompletedConfig, mgr manage
 // Reconcile reads that state of the cluster for a Gateway object and makes changes based on the state read
 // and what is in the Gateway.Spec
 func (r *ReconcileResource) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	klog.V(2).Info(Format("started reconciling cloud resource for configmap %s/%s", util.WorkingNamespace, util.RavenGlobalConfig))
-	defer klog.V(2).Info(Format("finished reconciling cloud resource for configmap %s/%s", util.WorkingNamespace, util.RavenGlobalConfig))
-	cm, err := r.getRavenConfig()
+	klog.V(2).Info(Format("started reconciling cloud resource for configmap %s ", req.NamespacedName.String()))
+	cm, err := r.getRavenConfig(req.NamespacedName)
 	if err != nil {
 		klog.Error(Format("get configmap %s/%s, error %s", util.WorkingNamespace, util.RavenGlobalConfig, err.Error()))
 		return reconcile.Result{Requeue: true, RequeueAfter: 2 * time.Second}, err
@@ -140,12 +136,6 @@ func (r *ReconcileResource) Reconcile(ctx context.Context, req reconcile.Request
 	reqCtx := &util.RequestContext{Ctx: ctx, Cm: cm}
 	if err = r.loadClusterAttribute(reqCtx); err != nil {
 		klog.Error(Format("load cluster attribute error %s", err.Error()))
-		return reconcile.Result{Requeue: true, RequeueAfter: 2 * time.Second}, err
-	}
-
-	cleanup, err := r.needCleanupResource()
-	if err != nil {
-		klog.Error(Format("check whether to cleanup resource error: %s", err.Error()))
 		return reconcile.Result{Requeue: true, RequeueAfter: 2 * time.Second}, err
 	}
 
@@ -161,7 +151,7 @@ func (r *ReconcileResource) Reconcile(ctx context.Context, req reconcile.Request
 		return reconcile.Result{Requeue: true, RequeueAfter: 2 * time.Second}, err
 	}
 
-	if cleanup {
+	if needCleanupResource(reqCtx) {
 		err = r.cleanupCloudResource(reqCtx, localModel, remoteModel)
 		if err != nil {
 			klog.Error(Format("cleanup cloud resource error %s", err.Error()))
@@ -185,14 +175,13 @@ func (r *ReconcileResource) Reconcile(ctx context.Context, req reconcile.Request
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileResource) getRavenConfig() (*corev1.ConfigMap, error) {
+func (r *ReconcileResource) getRavenConfig(key types.NamespacedName) (*corev1.ConfigMap, error) {
 	var cm corev1.ConfigMap
-	objKey := types.NamespacedName{Namespace: util.WorkingNamespace, Name: util.RavenGlobalConfig}
-	err := r.Client.Get(context.TODO(), objKey, &cm)
+	err := r.Client.Get(context.TODO(), key, &cm)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return nil, err
 	}
-	if apierrors.IsNotFound(err) || cm.DeletionTimestamp != nil {
+	if apierrors.IsNotFound(err) || !cm.DeletionTimestamp.IsZero() {
 		return nil, nil
 	}
 	return cm.DeepCopy(), nil
@@ -311,24 +300,18 @@ func (r *ReconcileResource) buildRemoteModel(reqCtx *util.RequestContext) (*util
 	return remoteModel, nil
 }
 
-func (r *ReconcileResource) needCleanupResource() (bool, error) {
-	svcList := &corev1.ServiceList{}
-	listOpt := &client.ListOptions{Namespace: util.WorkingNamespace}
-	client.HasLabels{raven.LabelCurrentGateway, raven.LabelCurrentGatewayType}.ApplyToList(listOpt)
-	err := r.Client.List(context.TODO(), svcList, listOpt)
-	if err != nil {
-		return false, err
+func needCleanupResource(reqCtx *util.RequestContext) bool {
+	if reqCtx.Cm == nil {
+		return true
 	}
-	newSvc := make([]corev1.Service, 0)
-	for idx := range svcList.Items {
-		if svcList.Items[idx].Spec.Type == corev1.ServiceTypeLoadBalancer {
-			newSvc = append(newSvc, *svcList.Items[idx].DeepCopy())
-		}
+	if reqCtx.Cm.Data == nil {
+		return true
 	}
-	if len(newSvc) == 0 {
-		return true, nil
+	if strings.ToLower(reqCtx.Cm.Data[util.RavenEnableProxy]) == "false" &&
+		strings.ToLower(reqCtx.Cm.Data[util.RavenEnableTunnel]) == "false" {
+		return true
 	}
-	return false, nil
+	return false
 }
 
 func (r *ReconcileResource) cleanupCloudResource(reqCtx *util.RequestContext, lModel, rModel *util.Model) error {
@@ -442,10 +425,6 @@ func (r *ReconcileResource) updateRavenConfig(reqCtx *util.RequestContext, model
 	reqCtx.Cm.Data[util.ElasticIPIP] = model.EIPModel.Address
 	reqCtx.Cm.Data[util.ACLId] = model.ACLModel.AccessControlListId
 
-	if model.SLBModel.LoadBalancerId == "" && model.EIPModel.AllocationId == "" && model.ACLModel.AccessControlListId == "" {
-		reqCtx.Cm.Data[util.RavenEnableTunnel] = "false"
-		reqCtx.Cm.Data[util.RavenEnableProxy] = "false"
-	}
 	err := r.Client.Update(context.TODO(), reqCtx.Cm)
 	if err != nil {
 		return err
