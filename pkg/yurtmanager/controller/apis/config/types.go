@@ -30,8 +30,6 @@ import (
 	gatewaypickupconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/gatewaypickup/config"
 	ravencloudproviderconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util/config"
 	uniteddeploymentconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/uniteddeployment/config"
-	yurtappdaemonconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/yurtappdaemon/config"
-	yurtappoverriderconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/yurtappoverrider/config"
 	yurtappsetconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/yurtappset/config"
 	yurtstaticsetconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/yurtstaticset/config"
 )
@@ -58,14 +56,8 @@ type YurtManagerConfiguration struct {
 	// YurtStaticSetControllerConfiguration holds configuration for YurtStaticSetController related features.
 	YurtStaticSetController yurtstaticsetconfig.YurtStaticSetControllerConfiguration
 
-	// YurtAppDaemonControllerConfiguration holds configuration for YurtAppDaemonController related features.
-	YurtAppDaemonController yurtappdaemonconfig.YurtAppDaemonControllerConfiguration
-
 	// PlatformAdminControllerConfiguration holds configuration for PlatformAdminController related features.
 	PlatformAdminController platformadminconfig.PlatformAdminControllerConfiguration
-
-	// YurtAppOverriderControllerConfiguration holds configuration for YurtAppOverriderController related features.
-	YurtAppOverriderController yurtappoverriderconfig.YurtAppOverriderControllerConfiguration
 
 	//RavenCloudProviderController holds configuration for RavenCloudProviderController related features
 	RavenCloudProviderController ravencloudproviderconfig.RavenCloudProviderConfiguration
