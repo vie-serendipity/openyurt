@@ -31,9 +31,7 @@ type YurtManagerOptions struct {
 	GatewayLifecycleController   *GatewayLifecycleControllerOptions
 	YurtStaticSetController      *YurtStaticSetControllerOptions
 	YurtAppSetController         *YurtAppSetControllerOptions
-	YurtAppDaemonController      *YurtAppDaemonControllerOptions
 	PlatformAdminController      *PlatformAdminControllerOptions
-	YurtAppOverriderController   *YurtAppOverriderControllerOptions
 	NodeLifeCycleController      *NodeLifecycleControllerOptions
 	UnitedDeploymentController   *UnitedDeploymentControllerOptions
 	RavenCloudProviderController *CloudProviderControllerOptions
@@ -50,9 +48,7 @@ func NewYurtManagerOptions() (*YurtManagerOptions, error) {
 		GatewayLifecycleController:   NewGatewayLifecycleControllerOptions(),
 		YurtStaticSetController:      NewYurtStaticSetControllerOptions(),
 		YurtAppSetController:         NewYurtAppSetControllerOptions(),
-		YurtAppDaemonController:      NewYurtAppDaemonControllerOptions(),
 		PlatformAdminController:      NewPlatformAdminControllerOptions(),
-		YurtAppOverriderController:   NewYurtAppOverriderControllerOptions(),
 		NodeLifeCycleController:      NewNodeLifecycleControllerOptions(),
 		UnitedDeploymentController:   NewUnitedDeploymentControllerOptions(),
 		RavenCloudProviderController: NewCloudProviderControllerOptions(),
@@ -69,9 +65,7 @@ func (y *YurtManagerOptions) Flags(allControllers, disabledByDefaultControllers 
 	y.GatewayPickupController.AddFlags(fss.FlagSet("gateway controller"))
 	y.GatewayLifecycleController.AddFlags(fss.FlagSet("gatewaylifecycle controller"))
 	y.YurtStaticSetController.AddFlags(fss.FlagSet("yurtstaticset controller"))
-	y.YurtAppDaemonController.AddFlags(fss.FlagSet("yurtappdaemon controller"))
 	y.PlatformAdminController.AddFlags(fss.FlagSet("iot controller"))
-	y.YurtAppOverriderController.AddFlags(fss.FlagSet("yurtappoverrider controller"))
 	y.NodeLifeCycleController.AddFlags(fss.FlagSet("nodelifecycle controller"))
 	y.RavenCloudProviderController.AddFlags(fss.FlagSet("cloudresource controller"))
 	y.NodeBucketController.AddFlags(fss.FlagSet("nodebucket controller"))
@@ -86,9 +80,7 @@ func (y *YurtManagerOptions) Validate(allControllers []string, controllerAliases
 	errs = append(errs, y.GatewayPickupController.Validate()...)
 	errs = append(errs, y.GatewayLifecycleController.Validate()...)
 	errs = append(errs, y.YurtStaticSetController.Validate()...)
-	errs = append(errs, y.YurtAppDaemonController.Validate()...)
 	errs = append(errs, y.PlatformAdminController.Validate()...)
-	errs = append(errs, y.YurtAppOverriderController.Validate()...)
 	errs = append(errs, y.NodeLifeCycleController.Validate()...)
 	errs = append(errs, y.RavenCloudProviderController.Validate()...)
 	errs = append(errs, y.NodeBucketController.Validate()...)
@@ -106,13 +98,7 @@ func (y *YurtManagerOptions) ApplyTo(c *config.Config, controllerAliases map[str
 	if err := y.YurtStaticSetController.ApplyTo(&c.ComponentConfig.YurtStaticSetController); err != nil {
 		return err
 	}
-	if err := y.YurtAppDaemonController.ApplyTo(&c.ComponentConfig.YurtAppDaemonController); err != nil {
-		return err
-	}
 	if err := y.PlatformAdminController.ApplyTo(&c.ComponentConfig.PlatformAdminController); err != nil {
-		return err
-	}
-	if err := y.YurtAppOverriderController.ApplyTo(&c.ComponentConfig.YurtAppOverriderController); err != nil {
 		return err
 	}
 	if err := y.GatewayPickupController.ApplyTo(&c.ComponentConfig.GatewayPickupController); err != nil {
