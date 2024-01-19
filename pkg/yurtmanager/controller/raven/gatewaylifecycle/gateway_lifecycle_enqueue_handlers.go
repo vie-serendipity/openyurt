@@ -60,7 +60,7 @@ func (h *EnqueueRequestForNodePoolEvent) Update(e event.UpdateEvent, q workqueue
 		return
 	}
 
-	if reflect.DeepEqual(newNodePool.Annotations, oldNodePool.Annotations) {
+	if !reflect.DeepEqual(newNodePool.Annotations, oldNodePool.Annotations) {
 		klog.V(2).Infof(Format("enqueue nodepool %s for update event", newNodePool.GetName()))
 		util.AddNodePoolToWorkQueue(newNodePool.GetName(), q)
 		return
