@@ -12,7 +12,7 @@ limitations under the License.
 */
 // +kubebuilder:docs-gen:collapse=Apache License
 
-package v1alpha1
+package v1beta1
 
 import (
 	"context"
