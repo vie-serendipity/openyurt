@@ -92,7 +92,7 @@ type YurtHubOptions struct {
 	CoordinatorStoragePrefix  string
 	CoordinatorStorageAddr    string
 	LeaderElection            componentbaseconfig.LeaderElectionConfiguration
-	EnableNodeBucket          bool
+	EnablePoolServiceTopology bool
 }
 
 // NewYurtHubOptions creates a new YurtHubOptions with a default config.
@@ -141,7 +141,7 @@ func NewYurtHubOptions() *YurtHubOptions {
 			ResourceName:      projectinfo.GetHubName(),
 			ResourceNamespace: "kube-system",
 		},
-		EnableNodeBucket: true,
+		EnablePoolServiceTopology: true,
 	}
 	return o
 }
@@ -223,6 +223,7 @@ func (o *YurtHubOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&o.WorkingMode, "working-mode", o.WorkingMode, "the working mode of yurthub(edge, cloud).")
 	fs.DurationVar(&o.KubeletHealthGracePeriod, "kubelet-health-grace-period", o.KubeletHealthGracePeriod, "the amount of time which we allow kubelet to be unresponsive before stop renew node lease")
 	fs.BoolVar(&o.EnableNodePool, "enable-node-pool", o.EnableNodePool, "enable list/watch nodepools resource or not for filters(only used for testing)")
+	fs.MarkDeprecated("enable-node-pool", "It is planned to be removed from OpenYurt in the future version, please use --enable-pool-service-topology instead")
 	fs.DurationVar(&o.MinRequestTimeout, "min-request-timeout", o.MinRequestTimeout, "An optional field indicating at least how long a proxy handler must keep a request open before timing it out. Currently only honored by the local watch request handler(use request parameter timeoutSeconds firstly), which picks a randomized value above this number as the connection timeout, to spread out load.")
 	fs.StringSliceVar(&o.CACertHashes, "discovery-token-ca-cert-hash", o.CACertHashes, "For token-based discovery, validate that the root CA public key matches this hash (format: \"<type>:<value>\").")
 	fs.BoolVar(&o.UnsafeSkipCAVerification, "discovery-token-unsafe-skip-ca-verification", o.UnsafeSkipCAVerification, "For token-based discovery, allow joining without --discovery-token-ca-cert-hash pinning.")
@@ -233,7 +234,7 @@ func (o *YurtHubOptions) AddFlags(fs *pflag.FlagSet) {
 	bindFlags(&o.LeaderElection, fs)
 	fs.StringVar(&o.ECSRegion, "ecs-region", o.ECSRegion, "the registry region of system component pods. If it doesn't set, YurtHub will not do the modification.")
 	fs.StringVar(&o.ImageRepoType, "image-repo-type", o.ImageRepoType, "the registry type of system component pods: private or public.")
-	fs.BoolVar(&o.EnableNodeBucket, "enable-node-bucket", o.EnableNodeBucket, "enable yurthub to use node buckets to get nodes in the same node pool.")
+	fs.BoolVar(&o.EnablePoolServiceTopology, "enable-pool-service-topology", o.EnablePoolServiceTopology, "enable service topology feature in the node pool.")
 }
 
 // bindFlags binds the LeaderElectionConfiguration struct fields to a flagset

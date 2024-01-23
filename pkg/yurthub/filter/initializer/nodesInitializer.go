@@ -37,28 +37,38 @@ const (
 
 // WantsNodesGetterAndSynced is an interface for setting nodes getter and synced
 type WantsNodesGetterAndSynced interface {
-	SetNodesGetterAndSynced(filter.NodesInPoolGetter, cache.InformerSynced) error
+	SetNodesGetterAndSynced(filter.NodesInPoolGetter, cache.InformerSynced, bool) error
 }
 
 // imageCustomizationInitializer is responsible for initializing extra filters(except discardcloudservice, masterservice, servicetopology)
 type nodesInitializer struct {
-	nodesGetter filter.NodesInPoolGetter
-	nodesSynced cache.InformerSynced
+	enablePoolTopology bool
+	nodesGetter        filter.NodesInPoolGetter
+	nodesSynced        cache.InformerSynced
 }
 
 // NewNodesInitializer creates an filterInitializer object
-func NewNodesInitializer(enableNodeBucket bool, dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory) filter.Initializer {
+func NewNodesInitializer(enableNodePool, enablePoolServiceTopology bool, dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory) filter.Initializer {
 	var nodesGetter filter.NodesInPoolGetter
 	var nodesSynced cache.InformerSynced
-	if enableNodeBucket {
+	var enablePoolTopology bool
+	if enablePoolServiceTopology {
+		enablePoolTopology = true
 		nodesGetter, nodesSynced = createNodeGetterAndSyncedByNodeBucket(dynamicInformerFactory)
-	} else {
+	} else if enableNodePool {
+		enablePoolTopology = true
 		nodesGetter, nodesSynced = createNodeGetterAndSyncedByNodePool(dynamicInformerFactory)
+	} else {
+		enablePoolTopology = false
+		nodesSynced = func() bool {
+			return true
+		}
 	}
 
 	return &nodesInitializer{
-		nodesGetter: nodesGetter,
-		nodesSynced: nodesSynced,
+		enablePoolTopology: enablePoolTopology,
+		nodesGetter:        nodesGetter,
+		nodesSynced:        nodesSynced,
 	}
 }
 
@@ -131,7 +141,7 @@ func createNodeGetterAndSyncedByNodePool(dynamicInformerFactory dynamicinformer.
 
 func (ni *nodesInitializer) Initialize(ins filter.ObjectFilter) error {
 	if wants, ok := ins.(WantsNodesGetterAndSynced); ok {
-		if err := wants.SetNodesGetterAndSynced(ni.nodesGetter, ni.nodesSynced); err != nil {
+		if err := wants.SetNodesGetterAndSynced(ni.nodesGetter, ni.nodesSynced, ni.enablePoolTopology); err != nil {
 			return err
 		}
 	}
