@@ -128,7 +128,7 @@ func Complete(options *options.YurtHubOptions) (*YurtHubConfiguration, error) {
 	}
 
 	workingMode := util.WorkingMode(options.WorkingMode)
-	proxiedClient, sharedFactory, dynamicSharedFactory, err := createClientAndSharedInformers(fmt.Sprintf("http://%s:%d", options.YurtHubProxyHost, options.YurtHubProxyPort), options.NodePoolName, options.EnableNodeBucket)
+	proxiedClient, sharedFactory, dynamicSharedFactory, err := createClientAndSharedInformers(options)
 	if err != nil {
 		return nil, err
 	}
@@ -237,10 +237,10 @@ func parseRemoteServers(serverAddr string) ([]*url.URL, error) {
 }
 
 // createClientAndSharedInformers create kubeclient and sharedInformers from the given proxyAddr.
-func createClientAndSharedInformers(proxyAddr string, nodePoolName string, enableNodeBucket bool) (kubernetes.Interface, informers.SharedInformerFactory, dynamicinformer.DynamicSharedInformerFactory, error) {
+func createClientAndSharedInformers(options *options.YurtHubOptions) (kubernetes.Interface, informers.SharedInformerFactory, dynamicinformer.DynamicSharedInformerFactory, error) {
 	var kubeConfig *rest.Config
 	var err error
-	kubeConfig, err = clientcmd.BuildConfigFromFlags(proxyAddr, "")
+	kubeConfig, err = clientcmd.BuildConfigFromFlags(fmt.Sprintf("http://%s:%d", options.YurtHubProxyHost, options.YurtHubProxyPort), "")
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -256,14 +256,14 @@ func createClientAndSharedInformers(proxyAddr string, nodePoolName string, enabl
 	}
 
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 24*time.Hour)
-	if len(nodePoolName) != 0 {
-		if enableNodeBucket {
-			dynamicInformerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, 24*time.Hour, metav1.NamespaceAll, func(options *metav1.ListOptions) {
-				options.LabelSelector = labels.Set{initializer.LabelNodePoolName: nodePoolName}.String()
+	if len(options.NodePoolName) != 0 {
+		if options.EnablePoolServiceTopology {
+			dynamicInformerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, 24*time.Hour, metav1.NamespaceAll, func(opts *metav1.ListOptions) {
+				opts.LabelSelector = labels.Set{initializer.LabelNodePoolName: options.NodePoolName}.String()
 			})
-		} else {
-			dynamicInformerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, 24*time.Hour, metav1.NamespaceAll, func(options *metav1.ListOptions) {
-				options.FieldSelector = fields.Set{"metadata.name": nodePoolName}.String()
+		} else if options.EnableNodePool {
+			dynamicInformerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, 24*time.Hour, metav1.NamespaceAll, func(opts *metav1.ListOptions) {
+				opts.FieldSelector = fields.Set{"metadata.name": options.NodePoolName}.String()
 			})
 		}
 	}

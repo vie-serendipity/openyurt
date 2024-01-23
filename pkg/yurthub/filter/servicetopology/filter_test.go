@@ -81,13 +81,14 @@ func TestFilter(t *testing.T) {
 	nodeName3 := "node3"
 
 	testcases := map[string]struct {
-		enableNodeBucket bool
-		poolName         string
-		nodeName         string
-		responseObject   runtime.Object
-		kubeClient       *k8sfake.Clientset
-		yurtClient       *fake.FakeDynamicClient
-		expectObject     runtime.Object
+		enableNodePool            bool
+		enablePoolServiceTopology bool
+		poolName                  string
+		nodeName                  string
+		responseObject            runtime.Object
+		kubeClient                *k8sfake.Clientset
+		yurtClient                *fake.FakeDynamicClient
+		expectObject              runtime.Object
 	}{
 		"v1beta1.EndpointSliceList: topologyKeys is kubernetes.io/hostname": {
 			poolName: "hangzhou",
@@ -235,7 +236,8 @@ func TestFilter(t *testing.T) {
 			},
 		},
 		"v1beta1.EndpointSliceList: topologyKeys is openyurt.io/nodepool": {
-			poolName: "hangzhou",
+			enableNodePool: true,
+			poolName:       "hangzhou",
 			responseObject: &discoveryV1beta1.EndpointSliceList{
 				Items: []discoveryV1beta1.EndpointSlice{
 					{
@@ -388,6 +390,7 @@ func TestFilter(t *testing.T) {
 			},
 		},
 		"v1beta1.EndpointSliceList: topologyKeys is kubernetes.io/zone": {
+			enableNodePool: true,
 			responseObject: &discoveryV1beta1.EndpointSliceList{
 				Items: []discoveryV1beta1.EndpointSlice{
 					{
@@ -698,6 +701,7 @@ func TestFilter(t *testing.T) {
 			},
 		},
 		"v1beta1.EndpointSliceList: currentNode is not in any nodepool": {
+			enableNodePool: true,
 			responseObject: &discoveryV1beta1.EndpointSliceList{
 				Items: []discoveryV1beta1.EndpointSlice{
 					{
@@ -965,6 +969,7 @@ func TestFilter(t *testing.T) {
 			},
 		},
 		"v1beta1.EndpointSliceList: currentNode has no endpoints in nodepool": {
+			enableNodePool: true,
 			responseObject: &discoveryV1beta1.EndpointSliceList{
 				Items: []discoveryV1beta1.EndpointSlice{
 					{
@@ -1377,6 +1382,7 @@ func TestFilter(t *testing.T) {
 			},
 		},
 		"v1.EndpointSliceList: topologyKeys is openyurt.io/nodepool": {
+			enableNodePool: true,
 			responseObject: &discovery.EndpointSliceList{
 				Items: []discovery.EndpointSlice{
 					{
@@ -1515,6 +1521,7 @@ func TestFilter(t *testing.T) {
 			},
 		},
 		"v1.EndpointSliceList: topologyKeys is kubernetes.io/zone": {
+			enableNodePool: true,
 			responseObject: &discovery.EndpointSliceList{
 				Items: []discovery.EndpointSlice{
 					{
@@ -1795,6 +1802,7 @@ func TestFilter(t *testing.T) {
 			},
 		},
 		"v1.EndpointSliceList: currentNode is not in any nodepool": {
+			enableNodePool: true,
 			responseObject: &discovery.EndpointSliceList{
 				Items: []discovery.EndpointSlice{
 					{
@@ -2030,6 +2038,7 @@ func TestFilter(t *testing.T) {
 			},
 		},
 		"v1.EndpointSliceList: currentNode has no endpoints in nodePool": {
+			enableNodePool: true,
 			responseObject: &discovery.EndpointSliceList{
 				Items: []discovery.EndpointSlice{
 					{
@@ -2266,6 +2275,7 @@ func TestFilter(t *testing.T) {
 			},
 		},
 		"v1.EndpointsList: topologyKeys is openyurt.io/nodepool": {
+			enableNodePool: true,
 			responseObject: &corev1.EndpointsList{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "EndpointsList",
@@ -2400,6 +2410,7 @@ func TestFilter(t *testing.T) {
 			},
 		},
 		"v1.EndpointsList: topologyKeys is kubernetes.io/zone": {
+			enableNodePool: true,
 			responseObject: &corev1.EndpointsList{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "EndpointsList",
@@ -2670,6 +2681,7 @@ func TestFilter(t *testing.T) {
 			},
 		},
 		"v1.EndpointsList: currentNode is not in any nodepool": {
+			enableNodePool: true,
 			responseObject: &corev1.EndpointsList{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "EndpointsList",
@@ -2905,6 +2917,7 @@ func TestFilter(t *testing.T) {
 			},
 		},
 		"v1.EndpointsList: currentNode has no endpoints in nodepool": {
+			enableNodePool: true,
 			responseObject: &corev1.EndpointsList{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "EndpointsList",
@@ -3213,8 +3226,8 @@ func TestFilter(t *testing.T) {
 			},
 		},
 		"v1beta1.EndpointSliceList use node bucket: topologyKeys is openyurt.io/nodepool": {
-			enableNodeBucket: true,
-			poolName:         "hangzhou",
+			enablePoolServiceTopology: true,
+			poolName:                  "hangzhou",
 			responseObject: &discoveryV1beta1.EndpointSliceList{
 				Items: []discoveryV1beta1.EndpointSlice{
 					{
@@ -3369,8 +3382,8 @@ func TestFilter(t *testing.T) {
 			},
 		},
 		"v1beta1.EndpointSliceList use multiple node buckets: topologyKeys is openyurt.io/nodepool": {
-			enableNodeBucket: true,
-			poolName:         "hangzhou",
+			enablePoolServiceTopology: true,
+			poolName:                  "hangzhou",
 			responseObject: &discoveryV1beta1.EndpointSliceList{
 				Items: []discoveryV1beta1.EndpointSlice{
 					{
@@ -3550,7 +3563,7 @@ func TestFilter(t *testing.T) {
 			factory.WaitForCacheSync(stopper)
 
 			yurtFactory := dynamicinformer.NewDynamicSharedInformerFactory(tt.yurtClient, 24*time.Hour)
-			nodesInitializer := initializer.NewNodesInitializer(tt.enableNodeBucket, yurtFactory)
+			nodesInitializer := initializer.NewNodesInitializer(tt.enableNodePool, tt.enablePoolServiceTopology, yurtFactory)
 
 			stopper2 := make(chan struct{})
 			defer close(stopper2)

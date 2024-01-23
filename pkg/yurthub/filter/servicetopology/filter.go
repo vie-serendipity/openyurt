@@ -44,7 +44,7 @@ const (
 )
 
 var (
-	topologyValueSets = sets.NewString(AnnotationServiceTopologyValueNode, AnnotationServiceTopologyValueZone, AnnotationServiceTopologyValueNodePool)
+	poolTopologyValueSets = sets.NewString(AnnotationServiceTopologyValueZone, AnnotationServiceTopologyValueNodePool)
 )
 
 // Register registers a filter
@@ -59,14 +59,14 @@ func NewServiceTopologyFilter() (filter.ObjectFilter, error) {
 }
 
 type serviceTopologyFilter struct {
-	serviceLister    listers.ServiceLister
-	serviceSynced    cache.InformerSynced
-	nodesGetter      filter.NodesInPoolGetter
-	nodesSynced      cache.InformerSynced
-	nodePoolName     string
-	nodeName         string
-	client           kubernetes.Interface
-	enableNodeBucket bool
+	serviceLister      listers.ServiceLister
+	serviceSynced      cache.InformerSynced
+	enablePoolTopology bool
+	nodesGetter        filter.NodesInPoolGetter
+	nodesSynced        cache.InformerSynced
+	nodePoolName       string
+	nodeName           string
+	client             kubernetes.Interface
 }
 
 func (stf *serviceTopologyFilter) Name() string {
@@ -87,9 +87,10 @@ func (stf *serviceTopologyFilter) SetSharedInformerFactory(factory informers.Sha
 	return nil
 }
 
-func (stf *serviceTopologyFilter) SetNodesGetterAndSynced(nodesGetter filter.NodesInPoolGetter, nodesSynced cache.InformerSynced) error {
+func (stf *serviceTopologyFilter) SetNodesGetterAndSynced(nodesGetter filter.NodesInPoolGetter, nodesSynced cache.InformerSynced, enablePoolTopology bool) error {
 	stf.nodesGetter = nodesGetter
 	stf.nodesSynced = nodesSynced
+	stf.enablePoolTopology = enablePoolTopology
 	return nil
 }
 
@@ -162,8 +163,8 @@ func (stf *serviceTopologyFilter) Filter(obj runtime.Object, stopCh <-chan struc
 }
 
 func (stf *serviceTopologyFilter) serviceTopologyHandler(obj runtime.Object) runtime.Object {
-	needHandle, serviceTopologyType := stf.resolveServiceTopologyType(obj)
-	if !needHandle || len(serviceTopologyType) == 0 {
+	serviceTopologyType := stf.resolveServiceTopologyType(obj)
+	if len(serviceTopologyType) == 0 {
 		return obj
 	}
 
@@ -179,7 +180,7 @@ func (stf *serviceTopologyFilter) serviceTopologyHandler(obj runtime.Object) run
 	}
 }
 
-func (stf *serviceTopologyFilter) resolveServiceTopologyType(obj runtime.Object) (bool, string) {
+func (stf *serviceTopologyFilter) resolveServiceTopologyType(obj runtime.Object) string {
 	var svcNamespace, svcName string
 	switch v := obj.(type) {
 	case *discoveryV1beta1.EndpointSlice:
@@ -192,19 +193,24 @@ func (stf *serviceTopologyFilter) resolveServiceTopologyType(obj runtime.Object)
 		svcNamespace = v.Namespace
 		svcName = v.Name
 	default:
-		return false, ""
+		return ""
 	}
 
 	svc, err := stf.serviceLister.Services(svcNamespace).Get(svcName)
 	if err != nil {
 		klog.Warningf("serviceTopologyFilterHandler: could not get service %s/%s, err: %v", svcNamespace, svcName, err)
-		return false, ""
+		return ""
 	}
 
-	if topologyValueSets.Has(svc.Annotations[AnnotationServiceTopologyKey]) {
-		return true, svc.Annotations[AnnotationServiceTopologyKey]
+	// node topology for service
+	if svc.Annotations[AnnotationServiceTopologyKey] == AnnotationServiceTopologyValueNode {
+		return AnnotationServiceTopologyValueNode
+	} else if poolTopologyValueSets.Has(svc.Annotations[AnnotationServiceTopologyKey]) {
+		if stf.enablePoolTopology {
+			return svc.Annotations[AnnotationServiceTopologyKey]
+		}
 	}
-	return false, ""
+	return ""
 }
 
 func (stf *serviceTopologyFilter) nodeTopologyHandler(obj runtime.Object) runtime.Object {
