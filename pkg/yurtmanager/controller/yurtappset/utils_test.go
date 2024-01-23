@@ -48,8 +48,8 @@ func TestFilterOutCondition(t *testing.T) {
 	matchedCondition := &unitv1beta1.YurtAppSetCondition{Type: unitv1beta1.AppSetAppDeleted}
 	conditions = []unitv1beta1.YurtAppSetCondition{
 		{Type: unitv1beta1.AppSetPoolFound},
-		{Type: unitv1beta1.AppSetAppDispatchced},
 		*matchedCondition,
+		{Type: unitv1beta1.AppSetAppDispatchced},
 	}
 	expectedNewConditions = []unitv1beta1.YurtAppSetCondition{
 		{Type: unitv1beta1.AppSetPoolFound},

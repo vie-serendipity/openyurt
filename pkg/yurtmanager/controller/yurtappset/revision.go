@@ -287,3 +287,11 @@ func getYurtAppSetPatch(yas *appsbetav1.YurtAppSet) ([]byte, error) {
 	patch, err := json.Marshal(objCopy)
 	return patch, err
 }
+
+func isRevisionInvalid(revision *apps.ControllerRevision) bool {
+	return revision.Revision == -1
+}
+
+func setRevisionInvalid(revision *apps.ControllerRevision) {
+	revision.Revision = -1
+}

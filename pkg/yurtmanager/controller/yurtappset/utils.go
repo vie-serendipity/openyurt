@@ -57,12 +57,12 @@ func RemoveYurtAppSetCondition(status *unitv1beta1.YurtAppSetStatus, condType un
 // filterOutCondition returns a tuple containing the first matching condition and a new slice of conditions without conditions with the provided type
 func filterOutCondition(conditions []unitv1beta1.YurtAppSetCondition, condType unitv1beta1.YurtAppSetConditionType) (outCondition *unitv1beta1.YurtAppSetCondition, newConditions []unitv1beta1.YurtAppSetCondition) {
 	newConditions = []unitv1beta1.YurtAppSetCondition{}
-	for _, c := range conditions {
+	for i, c := range conditions {
 		if c.Type == condType {
-			outCondition = &c
-			continue
+			outCondition = &conditions[i]
+		} else {
+			newConditions = append(newConditions, c)
 		}
-		newConditions = append(newConditions, c)
 	}
 	return outCondition, newConditions
 }

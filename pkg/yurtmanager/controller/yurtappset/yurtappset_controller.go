@@ -129,7 +129,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 			if !ok {
 				return false
 			}
-			// only enqueue if labels changed
+			// only enqueue if nodepool labels changed
 			if !reflect.DeepEqual(oldNodePool.Labels, newNodePool.Labels) {
 				return true
 			}
@@ -209,7 +209,7 @@ func (r *ReconcileYurtAppSet) Reconcile(_ context.Context, request reconcile.Req
 	yas := &unitv1beta1.YurtAppSet{}
 	err = r.Get(context.TODO(), client.ObjectKey{Namespace: request.Namespace, Name: request.Name}, yas)
 	if err != nil {
-		klog.V(4).Infof("YurtAppSet %s/%s get fail, %v", request.Namespace, request.Name, err)
+		klog.Infof("YurtAppSet %s/%s get fail, %v", request.Namespace, request.Name, err)
 		return reconcile.Result{}, client.IgnoreNotFound(err)
 	} else {
 		klog.V(4).Infof("YurtAppSet %s/%s get success", request.Namespace, request.Name)
@@ -226,7 +226,7 @@ func (r *ReconcileYurtAppSet) Reconcile(_ context.Context, request reconcile.Req
 	allRevisions, expectedRevision, collisionCount, err := r.constructYurtAppSetRevisions(yas)
 	yasStatus.CollisionCount = &collisionCount
 	if err != nil {
-		klog.Errorf("could not construct controller revision of YurtAppDaemon %s/%s: %s", yas.Namespace, yas.Name, err)
+		klog.Errorf("could not construct controller revision of YurtAppSet %s/%s: %s", yas.Namespace, yas.Name, err)
 		r.recorder.Event(yas.DeepCopy(), corev1.EventTypeWarning, fmt.Sprintf("Failed%s", eventTypeRevisionProvision), err.Error())
 		return
 	}
@@ -254,19 +254,20 @@ func (r *ReconcileYurtAppSet) Reconcile(_ context.Context, request reconcile.Req
 
 	// Conciliate workloads, udpate yas related workloads (deploy/sts)
 	// this may infect yas appdispatched/appupdated condition
-	if err = r.conciliateWorkloads(yas, expectedNps, expectedRevision, curWorkloads, workloadManager, yasStatus); err != nil {
-		if expectedRevision.Revision != -1 {
-			// if expectedRevision is -1, it means the yas workload template is not valid, we should not retry
+	// if err, retry after 1s
+	if nErr := r.conciliateWorkloads(yas, expectedNps, expectedRevision, curWorkloads, workloadManager, yasStatus); nErr != nil {
+		if !isRevisionInvalid(expectedRevision) {
+			// if expectedRevision is invalid, we should not retry
 			res.RequeueAfter = 1 * time.Second
 		}
-		klog.Warningf("YurtAppSet[%s/%s] conciliate workloads error: %v", yas.Namespace, yas.Name, err)
+		klog.Warningf("YurtAppSet[%s/%s] conciliate workloads error: %v", yas.Namespace, yas.Name, nErr)
 	}
 
 	// Concilaiate yas, update yas status and clean yas related revisions
-	// if error, retry after 5s
 	if nErr := r.conciliateYurtAppSet(yas, curWorkloads, allRevisions, expectedRevision, expectedNps, yasStatus); nErr != nil {
+		// if err, retry after 1s to wait for latest updates synced
 		res.RequeueAfter = 1 * time.Second
-		return
+		klog.Warningf("YurtAppSet[%s/%s] conciliate yurtappset error: %v", yas.GetNamespace(), yas.GetName(), nErr)
 	}
 
 	return
@@ -323,7 +324,7 @@ func classifyWorkloads(yas *unitv1beta1.YurtAppSet, currentWorkloads []metav1.Ob
 			// if not, add workload to needUpdate list
 			if curRevision := workloadmanager.GetWorkloadHash(load); curRevision != "" {
 				if curRevision != expectedRevision {
-					klog.V(4).Infof("YurtAppSet[%s/%s] need update [%s/%s/%s]", yas.GetNamespace(),
+					klog.V(4).Infof("YurtAppSet[%s/%s] need update [%s/%s]", yas.GetNamespace(),
 						yas.GetName(), load.GetNamespace(), load.GetName())
 					needUpdate = append(needUpdate, load)
 				}
@@ -334,8 +335,8 @@ func classifyWorkloads(yas *unitv1beta1.YurtAppSet, currentWorkloads []metav1.Ob
 		} else {
 			// workload not exist in expectedNp, add workload to needDelete list
 			needDeleted = append(needDeleted, load)
-			klog.V(4).Infof("YurtAppSet[%s/%s] need delete [%s/%s/%s]", yas.GetNamespace(),
-				yas.GetName(), load, load.GetNamespace(), load.GetName())
+			klog.V(4).Infof("YurtAppSet[%s/%s] need delete [%s/%s]", yas.GetNamespace(),
+				yas.GetName(), load.GetNamespace(), load.GetName())
 		}
 	}
 
@@ -367,20 +368,20 @@ func (r *ReconcileYurtAppSet) conciliateWorkloads(yas *unitv1beta1.YurtAppSet, e
 			nodepoolName := needCreateNodePools[idx]
 			err := workloadManager.Create(yas, nodepoolName, expectedRevision.GetName())
 			if err != nil {
-				klog.Errorf("YurtAppDaemon[%s/%s] templatetype %s create workload by nodepool %s error: %s",
+				klog.Errorf("YurtAppSet[%s/%s] templatetype %s create workload by nodepool %s error: %s",
 					yas.GetNamespace(), yas.GetName(), templateType, nodepoolName, err.Error())
 				if !errors.IsTimeout(err) {
 					if errors.IsInvalid(err) {
 						// notify users provided workload template+tweak is not valid
 						r.recorder.Event(yas.DeepCopy(), corev1.EventTypeWarning, fmt.Sprintf("Failed %s: invalid workload template in YurtAppSet", eventTypeWorkloadsCreated), err.Error())
 						// make this revision invalid by setting Revision=-1
-						expectedRevision.Revision = -1
+						setRevisionInvalid(expectedRevision)
 					}
-					return fmt.Errorf("YurtAppDaemon[%s/%s] templatetype %s create workload by nodepool %s error: %s",
+					return fmt.Errorf("YurtAppSet[%s/%s] templatetype %s create workload by nodepool %s error: %s",
 						yas.GetNamespace(), yas.GetName(), templateType, nodepoolName, err.Error())
 				}
 			}
-			klog.Infof("YurtAppDaemon[%s/%s] create workload %s[%s/%s] success",
+			klog.Infof("YurtAppSet[%s/%s] create workload %s[%s/%s] success",
 				yas.GetNamespace(), yas.GetName(), templateType, nodepoolName)
 			return nil
 		})
@@ -400,14 +401,14 @@ func (r *ReconcileYurtAppSet) conciliateWorkloads(yas *unitv1beta1.YurtAppSet, e
 			workloadTobeDeleted := needDelWorkloads[idx]
 			err := workloadManager.Delete(yas, workloadTobeDeleted)
 			if err != nil {
-				klog.Errorf("YurtAppDaemon[%s/%s] delete %s[%s/%s] error: %s",
+				klog.Errorf("YurtAppSet[%s/%s] delete %s[%s/%s] error: %s",
 					yas.GetNamespace(), yas.GetName(), templateType, workloadTobeDeleted.GetNamespace(), workloadTobeDeleted.GetName(), err.Error())
 				if !errors.IsTimeout(err) {
-					return fmt.Errorf("YurtAppDaemon[%s/%s] delete %s[%s/%s] error: %s",
+					return fmt.Errorf("YurtAppSet[%s/%s] delete %s[%s/%s] error: %s",
 						yas.GetNamespace(), yas.GetName(), templateType, workloadTobeDeleted.GetNamespace(), workloadTobeDeleted.GetName(), err.Error())
 				}
 			}
-			klog.Infof("YurtAppDaemon[%s/%s] templatetype delete %s[%s/%s] success",
+			klog.Infof("YurtAppSet[%s/%s] templatetype delete %s[%s/%s] success",
 				yas.GetNamespace(), yas.GetName(), templateType, workloadTobeDeleted.GetNamespace(), workloadTobeDeleted.GetName())
 			return nil
 		})
@@ -431,14 +432,14 @@ func (r *ReconcileYurtAppSet) conciliateWorkloads(yas *unitv1beta1.YurtAppSet, e
 					// notify users provided workload template+tweak is not valid
 					r.recorder.Event(yas.DeepCopy(), corev1.EventTypeWarning, fmt.Sprintf("Failed %s: invalid workload template in YurtAppSet", eventTypeWorkloadsUpdated), err.Error())
 					// make this revision invalid by setting Revision=-1
-					expectedRevision.Revision = -1
+					setRevisionInvalid(expectedRevision)
 				}
 				r.recorder.Event(yas.DeepCopy(), corev1.EventTypeWarning, fmt.Sprintf("Failed %s", eventTypeWorkloadsUpdated),
 					fmt.Sprintf("Error updating %s %s when updating: %s", templateType, workloadTobeUpdated.GetName(), err))
-				klog.Errorf("YurtAppDaemon[%s/%s] update workload[%s/%s/%s] error %v", yas.GetNamespace(), yas.GetName(),
+				klog.Errorf("YurtAppSet[%s/%s] update workload[%s/%s/%s] error %v", yas.GetNamespace(), yas.GetName(),
 					templateType, workloadTobeUpdated.GetNamespace(), workloadTobeUpdated.GetName(), err)
 			}
-			klog.Infof("YurtAppDaemon[%s/%s] templatetype %s update workload by nodepool %s success",
+			klog.Infof("YurtAppSet[%s/%s] templatetype %s update workload by nodepool %s success",
 				yas.GetNamespace(), yas.GetName(), templateType, workloadmanager.GetWorkloadRefNodePool(workloadTobeUpdated))
 			return err
 		})
@@ -459,6 +460,10 @@ func (r *ReconcileYurtAppSet) conciliateWorkloads(yas *unitv1beta1.YurtAppSet, e
 func (r *ReconcileYurtAppSet) conciliateYurtAppSet(yas *unitv1beta1.YurtAppSet, curWorkloads []metav1.Object, allRevisions []*apps.ControllerRevision, expecteddRevison *appsv1.ControllerRevision, expectedNps sets.String, newStatus *unitv1beta1.YurtAppSetStatus) error {
 	if err := r.conciliateYurtAppSetStatus(yas, curWorkloads, expecteddRevison, expectedNps, newStatus); err != nil {
 		return err
+	}
+	if isRevisionInvalid(expecteddRevison) {
+		// donot clean revisions, when it is invalid, because it will trigger a new reconcile which will lead to endless loop
+		return nil
 	}
 	return cleanRevisions(r.Client, yas, allRevisions)
 }
@@ -482,7 +487,7 @@ func (r *ReconcileYurtAppSet) conciliateYurtAppSetStatus(yas *unitv1beta1.YurtAp
 	newStatus.TotalWorkloads = int32(len(curWorkloads))
 	newStatus.UpdatedWorkloads = int32(updatedWorkloads)
 
-	if expecteddRevison.Revision == -1 {
+	if isRevisionInvalid(expecteddRevison) {
 		klog.Infof("YurtAppSet[%s/%s] expected revision is invalid, no need to update revision", yas.GetNamespace(), yas.GetName())
 	} else {
 		newStatus.CurrentRevision = expecteddRevison.GetName()
@@ -491,7 +496,7 @@ func (r *ReconcileYurtAppSet) conciliateYurtAppSetStatus(yas *unitv1beta1.YurtAp
 	if newStatus.TotalWorkloads == 0 {
 		SetYurtAppSetCondition(newStatus, NewYurtAppSetCondition(unitv1beta1.AppSetAppReady, corev1.ConditionFalse, "NoWorkloadFound", ""))
 	} else if newStatus.TotalWorkloads == newStatus.UpdatedWorkloads {
-		SetYurtAppSetCondition(newStatus, NewYurtAppSetCondition(unitv1beta1.AppSetAppReady, corev1.ConditionTrue, "AllWorkloadsUpdated", ""))
+		SetYurtAppSetCondition(newStatus, NewYurtAppSetCondition(unitv1beta1.AppSetAppReady, corev1.ConditionTrue, "AllWorkloadsReady", ""))
 	} else {
 		SetYurtAppSetCondition(newStatus, NewYurtAppSetCondition(unitv1beta1.AppSetAppReady, corev1.ConditionFalse, "NotAllWorkloadsReady", ""))
 	}
@@ -507,13 +512,14 @@ func (r *ReconcileYurtAppSet) conciliateYurtAppSetStatus(yas *unitv1beta1.YurtAp
 		reflect.DeepEqual(oldStatus.Conditions, newStatus.Conditions) {
 		klog.Infof("YurtAppSet[%s/%s] oldStatus==newStatus, no need to update status", yas.GetNamespace(), yas.GetName())
 		return nil
+	} else {
+		klog.V(5).Infof("YurtAppSet[%s/%s] oldStatus=%+v, newStatus=%+v, need to update status", yas.GetNamespace(), yas.GetName(), oldStatus, newStatus)
 	}
 
 	newStatus.ObservedGeneration = yas.Generation
 
 	yas.Status = *newStatus
 	if err := r.Client.Status().Update(context.TODO(), yas); err != nil {
-		klog.Warningf("YurtAppSet[%s/%s] update status error: %v.", yas.GetNamespace(), yas.GetName(), err)
 		return err
 	}
 	klog.Infof("YurtAppSet[%s/%s] update status success.", yas.Namespace, yas.Name)

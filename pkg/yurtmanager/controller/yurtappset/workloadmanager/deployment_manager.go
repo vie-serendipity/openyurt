@@ -131,6 +131,7 @@ func (d *DeploymentManager) Update(yas *v1beta1.YurtAppSet, workload metav1.Obje
 		if updateError == nil {
 			break
 		}
+		klog.V(4).Info("update deployment failed, retry")
 	}
 
 	return updateError

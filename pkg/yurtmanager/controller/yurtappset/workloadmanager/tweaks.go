@@ -80,7 +80,6 @@ func applyBasicTweaksToDeployment(deployment *v1.Deployment, basicTweaks []*v1be
 
 	}
 
-	klog.V(4).Infof("Apply BasicTweaks successfully: patched deployment %s/%s", basicTweaks, deployment.GetNamespace(), deployment.GetName())
 }
 
 type patchOperation struct {
@@ -126,6 +125,6 @@ func applyAdvancedTweaksToDeployment(deployment *v1.Deployment, tweaks []*v1beta
 	}
 	json.Unmarshal(patchedData, deployment)
 
-	klog.V(4).Infof("Apply AdvancedTweaks %v successfully: patched deployment %v", tweaks, *deployment)
+	klog.V(4).Infof("Apply AdvancedTweaks %v successfully: patched deployment %+v", patchOperations, deployment)
 	return nil
 }
