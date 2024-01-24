@@ -139,6 +139,12 @@ func (mgr *ClientMgr) Start(settoken func(mgr *ClientMgr, token *DefaultToken) e
 }
 
 func (mgr *ClientMgr) GetTokenAuth() (TokenAuth, error) {
+	// priority: AddonToken > ServiceToken > AKMode > RamRoleToken
+	if _, err := os.Stat(AddonTokenFilePath); err == nil {
+		log.Info("use addon token mode to get token")
+		return &AddonToken{Region: mgr.Region}, nil
+	}
+
 	if CloudCFG.Global.AccessKeyID != "" && CloudCFG.Global.AccessKeySecret != "" {
 		if mgr.Meta == nil {
 			return nil, fmt.Errorf("can not get token meta data is empty")
