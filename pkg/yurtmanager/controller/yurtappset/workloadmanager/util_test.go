@@ -103,7 +103,7 @@ func TestGetLabelSelectorFromYurtAppSet(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			selector, err := GetLabelSelectorFromYurtAppSet(tt.yas)
+			selector, err := NewLabelSelectorForYurtAppSet(tt.yas)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetLabelSelectorFromYurtAppSet() error = %v, wantErr %v", err, tt.wantErr)
 				return

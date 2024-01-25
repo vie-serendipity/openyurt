@@ -20,13 +20,14 @@ import (
 	"context"
 	"testing"
 
-	unitapps "github.com/openyurtio/openyurt/pkg/apis/apps"
-	"github.com/openyurtio/openyurt/pkg/apis/apps/v1beta1"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/yurtappset/workloadmanager"
-	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/openyurtio/openyurt/pkg/apis/apps"
+	"github.com/openyurtio/openyurt/pkg/apis/apps/v1beta1"
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/yurtappset/workloadmanager"
+	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -106,7 +107,7 @@ func TestClassifyWorkloads(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-deployment-1",
 			Labels: map[string]string{
-				unitapps.PoolNameLabelKey: "test-np2",
+				apps.PoolNameLabelKey: "test-np2",
 			},
 		},
 	}
@@ -114,8 +115,8 @@ func TestClassifyWorkloads(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-deployment-2",
 			Labels: map[string]string{
-				unitapps.PoolNameLabelKey:               "test-np1",
-				unitapps.ControllerRevisionHashLabelKey: "test-revision-1",
+				apps.PoolNameLabelKey:               "test-np1",
+				apps.ControllerRevisionHashLabelKey: "test-revision-1",
 			},
 		},
 	}
@@ -238,8 +239,8 @@ func TestReconcile(t *testing.T) {
 						Name:      "test-deployment-1",
 						Namespace: "default",
 						Labels: map[string]string{
-							unitapps.PoolNameLabelKey:        "test-np2",
-							unitapps.YurtAppSetOwnerLabelKey: "test-yurtappset",
+							apps.PoolNameLabelKey:        "test-np2",
+							apps.YurtAppSetOwnerLabelKey: "test-yurtappset",
 						},
 					},
 				},
@@ -290,8 +291,8 @@ func TestReconcile(t *testing.T) {
 						Name:      "test-deployment-1",
 						Namespace: "default",
 						Labels: map[string]string{
-							unitapps.PoolNameLabelKey:        "test-np2",
-							unitapps.YurtAppSetOwnerLabelKey: "test-yurtappset",
+							apps.PoolNameLabelKey:        "test-np2",
+							apps.YurtAppSetOwnerLabelKey: "test-yurtappset",
 						},
 					},
 				},
@@ -347,9 +348,9 @@ func TestReconcile(t *testing.T) {
 						Name:      "test-deployment-1",
 						Namespace: "default",
 						Labels: map[string]string{
-							unitapps.PoolNameLabelKey:               "test-np1",
-							unitapps.YurtAppSetOwnerLabelKey:        "test-yurtappset",
-							unitapps.ControllerRevisionHashLabelKey: "test-revision-1",
+							apps.PoolNameLabelKey:               "test-np1",
+							apps.YurtAppSetOwnerLabelKey:        "test-yurtappset",
+							apps.ControllerRevisionHashLabelKey: "test-revision-1",
 						},
 					},
 				},
@@ -395,7 +396,7 @@ func TestReconcile(t *testing.T) {
 
 			if tt.isUpdated {
 				for _, deploy := range deployList.Items {
-					assert.NotEqual(t, deploy.Labels[unitapps.ControllerRevisionHashLabelKey], tt.yas.Status.CurrentRevision)
+					assert.NotEqual(t, deploy.Labels[apps.ControllerRevisionHashLabelKey], tt.yas.Status.CurrentRevision)
 				}
 			}
 		})

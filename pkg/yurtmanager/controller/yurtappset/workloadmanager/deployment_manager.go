@@ -152,7 +152,7 @@ func (d *DeploymentManager) Create(yas *v1beta1.YurtAppSet, nodepoolName, revisi
 func (d *DeploymentManager) List(yas *v1beta1.YurtAppSet) ([]metav1.Object, error) {
 
 	// get yas selector from yas name
-	yasSelector, err := GetLabelSelectorFromYurtAppSet(yas)
+	yasSelector, err := NewLabelSelectorForYurtAppSet(yas)
 	if err != nil {
 		return nil, err
 	}

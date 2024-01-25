@@ -297,7 +297,7 @@ var (
 		Data: runtime.RawExtension{
 			Raw: []byte(`{"a":"a"}`),
 		},
-		Revision: -1,
+		Revision: 0,
 	}
 
 	cr3 = apps.ControllerRevision{
@@ -321,6 +321,21 @@ var (
 		Data: runtime.RawExtension{
 			Raw: []byte("{\"spec\":{\"workload\":{\"$patch\":\"replace\",\"workloadTemplate\":{}}}}"),
 		},
+		Revision: 1,
+	}
+
+	cr5 = apps.ControllerRevision{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-yurtappset-694bbcc68",
+			Namespace: "default",
+			Labels: map[string]string{
+				yurtapps.YurtAppSetOwnerLabelKey: "test-yurtappset",
+			},
+		},
+		Data: runtime.RawExtension{
+			Raw: []byte("{\"spec\":{\"workload\":{\"$patch\":\"replace\",\"workloadTemplate\":{}}}}"),
+		},
+		Revision: 0,
 	}
 )
 
@@ -356,7 +371,7 @@ func TestCreateControllerRevision(t *testing.T) {
 					Namespace: "default",
 				},
 			},
-			revision:  &cr1,
+			revision:  cr1.DeepCopy(),
 			collision: &collisionCount,
 			err:       false,
 			cli:       fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects().Build(),
@@ -369,10 +384,10 @@ func TestCreateControllerRevision(t *testing.T) {
 					Namespace: "default",
 				},
 			},
-			revision:  &cr1,
+			revision:  cr1.DeepCopy(),
 			collision: &collisionCount,
 			err:       false,
-			cli:       fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects(&cr2).Build(),
+			cli:       fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects(cr2.DeepCopy()).Build(),
 		},
 		{
 			name: "create success with already exist and collison occurs",
@@ -382,10 +397,10 @@ func TestCreateControllerRevision(t *testing.T) {
 					Namespace: "default",
 				},
 			},
-			revision:  &cr1,
+			revision:  cr1.DeepCopy(),
 			collision: &collisionCount,
 			err:       false,
-			cli:       fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects(&cr3).Build(),
+			cli:       fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects(cr3.DeepCopy()).Build(),
 		},
 	}
 
@@ -423,12 +438,12 @@ func TestCleanRevisions(t *testing.T) {
 				},
 			},
 			revisions: []*apps.ControllerRevision{
-				&cr1, &cr2,
+				cr1.DeepCopy(), cr2.DeepCopy(),
 			},
 			err: false,
 			cli: fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects(
-				&cr1,
-				&cr2,
+				cr1.DeepCopy(),
+				cr2.DeepCopy(),
 			).Build(),
 		},
 		{
@@ -440,12 +455,12 @@ func TestCleanRevisions(t *testing.T) {
 				},
 			},
 			revisions: []*apps.ControllerRevision{
-				&cr1, &cr2,
+				cr1.DeepCopy(), cr2.DeepCopy(),
 			},
 			err: false,
 			cli: fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects(
-				&cr1,
-				&cr2,
+				cr1.DeepCopy(),
+				cr2.DeepCopy(),
 			).Build(),
 		},
 	}
@@ -481,7 +496,7 @@ func TestControlledHistories(t *testing.T) {
 		Data: runtime.RawExtension{
 			Raw: []byte(`{"a":"a"}`),
 		},
-		Revision: -1,
+		Revision: 0,
 	}
 	controllerutil.SetControllerReference(&yas, &cr_should_release, fakeScheme)
 
@@ -506,19 +521,25 @@ func TestConstructYurtAppSetRevisions(t *testing.T) {
 		{
 			name: "construct success and create new revision",
 			yas:  &yas,
-			cli:  fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects(&cr1, &cr2, &yas).Build(),
+			cli:  fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects(cr1.DeepCopy(), cr2.DeepCopy(), &yas).Build(),
 			err:  false,
 		},
 		{
 			name: "construct success and update old revision",
 			yas:  &yas,
-			cli:  fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects(&cr1, &cr4, &yas).Build(),
+			cli:  fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects(cr1.DeepCopy(), cr4.DeepCopy(), &yas).Build(),
+			err:  false,
+		},
+		{
+			name: "construct success and reuse invalid revision",
+			yas:  &yas,
+			cli:  fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects(cr1.DeepCopy(), cr5.DeepCopy(), &yas).Build(),
 			err:  false,
 		},
 		{
 			name: "construct success and no need to update old revision",
 			yas:  &yas,
-			cli:  fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects(&cr2, &cr4, &yas).Build(),
+			cli:  fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects(cr2.DeepCopy(), cr4.DeepCopy(), &yas).Build(),
 			err:  false,
 		},
 	}

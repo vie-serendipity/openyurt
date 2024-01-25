@@ -41,10 +41,11 @@ func SetYurtAppSetCondition(status *unitv1beta1.YurtAppSetStatus, condition *uni
 	if originalCondition != nil &&
 		originalCondition.Type == condition.Type &&
 		originalCondition.Status == condition.Status &&
-		originalCondition.Reason == condition.Reason {
-		// do not compare message, because it's easy to change
-		klog.V(4).Infof("Not updating condition %s status to %s because it is already set to %s", condition.Type, condition.Status, originalCondition.Status)
+		originalCondition.Reason == condition.Reason &&
+		originalCondition.Message == condition.Message {
+		klog.V(5).Infof("Not updating condition %s status to %s because it is already set to %s", condition.Type, condition.Status, originalCondition.Status)
 	} else {
+		klog.V(4).Infof("Updating condition %s status to %s: %s", condition.Type, condition.Status, condition.Message)
 		status.Conditions = append(newConditions, *condition)
 	}
 }
