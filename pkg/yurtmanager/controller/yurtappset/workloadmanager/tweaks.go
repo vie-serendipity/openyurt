@@ -66,13 +66,13 @@ func applyBasicTweaksToDeployment(deployment *v1.Deployment, basicTweaks []*v1be
 		for _, item := range item.ContainerImages {
 			for i := range deployment.Spec.Template.Spec.Containers {
 				if deployment.Spec.Template.Spec.Containers[i].Name == item.Name {
-					klog.V(4).Infof("Apply BasicTweaks successfully: overwrite container %s 's image to %s in deployment %s/%s", item.Name, item.TargetImage, deployment.Name, deployment.Namespace)
+					klog.V(5).Infof("Apply BasicTweaks successfully: overwrite container %s 's image to %s in deployment %s/%s", item.Name, item.TargetImage, deployment.Name, deployment.Namespace)
 					deployment.Spec.Template.Spec.Containers[i].Image = item.TargetImage
 				}
 			}
 			for i := range deployment.Spec.Template.Spec.InitContainers {
 				if deployment.Spec.Template.Spec.InitContainers[i].Name == item.Name {
-					klog.V(4).Infof("Apply BasicTweaks successfully: overwrite init container %s 's image to %s in deployment %s/%s", item.Name, item.TargetImage, deployment.Name, deployment.Namespace)
+					klog.V(5).Infof("Apply BasicTweaks successfully: overwrite init container %s 's image to %s in deployment %s/%s", item.Name, item.TargetImage, deployment.Name, deployment.Namespace)
 					deployment.Spec.Template.Spec.InitContainers[i].Image = item.TargetImage
 				}
 			}
@@ -80,7 +80,6 @@ func applyBasicTweaksToDeployment(deployment *v1.Deployment, basicTweaks []*v1be
 
 	}
 
-	klog.V(4).Infof("Apply BasicTweaks successfully: patched deployment %s/%s", basicTweaks, deployment.GetNamespace(), deployment.GetName())
 }
 
 type patchOperation struct {
@@ -126,6 +125,6 @@ func applyAdvancedTweaksToDeployment(deployment *v1.Deployment, tweaks []*v1beta
 	}
 	json.Unmarshal(patchedData, deployment)
 
-	klog.V(4).Infof("Apply AdvancedTweaks %v successfully: patched deployment %v", tweaks, *deployment)
+	klog.V(5).Infof("Apply AdvancedTweaks %v successfully: patched deployment %+v", patchOperations, deployment)
 	return nil
 }

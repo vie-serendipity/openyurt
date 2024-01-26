@@ -46,7 +46,7 @@ func CreateNodeSelectorByNodepoolName(nodepool string) map[string]string {
 }
 
 // Get label selector from yurtappset generated from yas name
-func GetLabelSelectorFromYurtAppSet(yas *v1beta1.YurtAppSet) (*metav1.LabelSelector, error) {
+func NewLabelSelectorForYurtAppSet(yas *v1beta1.YurtAppSet) (*metav1.LabelSelector, error) {
 	if yas == nil {
 		return nil, fmt.Errorf("yurtappset is nil")
 	} else if yas.Name == "" {
