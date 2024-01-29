@@ -40,6 +40,7 @@ const (
 	CloudNodepoolLifecycleController       = "cloud-nodepool-lifecycle-controller"
 	NodeBucketController                   = "node-bucket-controller"
 	EnsLoadBalancerController              = "ens-loadbalancer-controller"
+	CloudNodesLabelsController             = "cloud-nodes-labels-controller"
 )
 
 func YurtManagerControllerAliases() map[string]string {
@@ -68,5 +69,6 @@ func YurtManagerControllerAliases() map[string]string {
 		"cloudnodepoollifecycle":        CloudNodepoolLifecycleController,
 		"nodebucket":                    NodeBucketController,
 		"ensloadbalancer":               EnsLoadBalancerController,
+		"cloudnodeslabels":              CloudNodesLabelsController,
 	}
 }
