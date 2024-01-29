@@ -299,11 +299,13 @@ func (r *ReconcileService) manageService(ctx context.Context, gateway *ravenv1be
 			return fmt.Errorf("failed delete service for gateway %s type %s , error %s", gateway.GetName(), gatewayType, err.Error())
 		}
 	}
+
 	for i := 0; i < len(updateSvc); i++ {
 		if err := r.Update(ctx, updateSvc[i]); err != nil {
 			return fmt.Errorf("failed update service for gateway %s type %s , error %s", gateway.GetName(), gatewayType, err.Error())
 		}
 	}
+
 	for i := 0; i < len(addSvc); i++ {
 		if err := r.Create(ctx, addSvc[i]); err != nil {
 			if apierrs.IsAlreadyExists(err) {
@@ -383,6 +385,18 @@ func (r *ReconcileService) manageEndpoints(ctx context.Context, gateway *ravenv1
 	}
 	specEpsList := r.acquiredSpecEndpoints(ctx, gateway, gatewayType, record)
 	addEps, updateEps, deleteEps := classifyEndpoints(currEpsList, specEpsList)
+	for i := 0; i < len(deleteEps); i++ {
+		if err := r.Delete(ctx, deleteEps[i]); err != nil {
+			return fmt.Errorf("failed delete endpoints for gateway %s type %s , error %s", gateway.GetName(), gatewayType, err.Error())
+		}
+	}
+
+	for i := 0; i < len(updateEps); i++ {
+		if err := r.Update(ctx, updateEps[i]); err != nil {
+			return fmt.Errorf("failed update endpoints for gateway %s type %s , error %s", gateway.GetName(), gatewayType, err.Error())
+		}
+	}
+
 	for i := 0; i < len(addEps); i++ {
 		if err := r.Create(ctx, addEps[i]); err != nil {
 			if apierrs.IsAlreadyExists(err) {
@@ -392,16 +406,7 @@ func (r *ReconcileService) manageEndpoints(ctx context.Context, gateway *ravenv1
 			return fmt.Errorf("failed create endpoints for gateway %s type %s , error %s", gateway.GetName(), gatewayType, err.Error())
 		}
 	}
-	for i := 0; i < len(updateEps); i++ {
-		if err := r.Update(ctx, updateEps[i]); err != nil {
-			return fmt.Errorf("failed update endpoints for gateway %s type %s , error %s", gateway.GetName(), gatewayType, err.Error())
-		}
-	}
-	for i := 0; i < len(deleteEps); i++ {
-		if err := r.Delete(ctx, deleteEps[i]); err != nil {
-			return fmt.Errorf("failed delete endpoints for gateway %s type %s , error %s", gateway.GetName(), gatewayType, err.Error())
-		}
-	}
+
 	return nil
 }
 
