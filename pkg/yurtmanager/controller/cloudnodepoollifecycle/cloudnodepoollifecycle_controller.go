@@ -51,12 +51,6 @@ var (
 	controllerResource   = v1beta1.SchemeGroupVersion.WithResource("nodepools")
 )
 
-var (
-	cloudNodeDefaultLabels = map[string]string{
-		"alibabacloud.com/is-edge-worker": "false",
-	}
-)
-
 const (
 	cloudNodepoolLabelKey            = "alibabacloud.com/nodepool-id"
 	poolNodesConnectedAnnotationsKey = "alibabacloud.com/pool-nodes-connected"
@@ -155,10 +149,6 @@ func (r *ReconcileCloudNodepoolLifecycle) Reconcile(_ context.Context, request r
 		return reconcile.Result{}, errors.Errorf("failed to check to create or delete nodepool, error: %v", err)
 	}
 
-	if err := r.ensureLabelsWithAllCloudNodes(request.Name); err != nil {
-		return reconcile.Result{}, errors.Errorf("failed to ensure labels with all cloud nodes, error: %v", err)
-	}
-
 	return reconcile.Result{}, nil
 }
 
@@ -234,49 +224,4 @@ func newCloudNodepool(nodepoolName string) *v1beta1.NodePool {
 			HostNetwork: false,
 		},
 	}
-}
-
-func (r *ReconcileCloudNodepoolLifecycle) ensureLabelsWithAllCloudNodes(nodepoolName string) error {
-	selector := client.MatchingLabels{cloudNodepoolLabelKey: nodepoolName}
-	nodeList := &v1.NodeList{}
-
-	if err := r.List(context.Background(), nodeList, selector); err != nil {
-		return errors.Errorf("failed to list node with labels: %v, error: %s", selector, err)
-	}
-
-	for _, node := range nodeList.Items {
-		if err := r.labelsForCloudNode(&node); err != nil {
-			return errors.Errorf("failed to ensure labels for cloud node %s, error: %v", node.Name, err)
-		}
-	}
-	return nil
-}
-
-func (r *ReconcileCloudNodepoolLifecycle) labelsForCloudNode(node *v1.Node) error {
-	if node.Labels == nil {
-		node.Labels = make(map[string]string)
-	}
-
-	if r.isExistDefaultCloudLabels(node.Labels) {
-		return nil
-	}
-
-	for key, value := range cloudNodeDefaultLabels {
-		node.Labels[key] = value
-	}
-
-	if err := r.Update(context.Background(), node, &client.UpdateOptions{}); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (r *ReconcileCloudNodepoolLifecycle) isExistDefaultCloudLabels(nodeLabels map[string]string) bool {
-	for key, value := range cloudNodeDefaultLabels {
-		if v := nodeLabels[key]; v != value {
-			return false
-		}
-	}
-	return true
 }

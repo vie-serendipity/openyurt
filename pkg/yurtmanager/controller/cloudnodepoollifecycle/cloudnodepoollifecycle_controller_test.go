@@ -132,25 +132,6 @@ func TestReconcileCloudNodepoolLifecycle_Reconcile(t *testing.T) {
 		assertDeleteCount(t, 0, client.deleteCount)
 	})
 
-	t.Run("label nodes with cloud nodepool", func(t *testing.T) {
-		mockNodePool := newCloudNodepool(mockNodepoolName)
-		mockNode1 := newMockNode("test", "cn-beijing.i-2ze0rh9z4q62exljg99k", "", map[string]string{cloudNodepoolLabelKey: mockNodepoolName})
-		mockNode2 := newMockNode("test2", "cn-beijing.i-2ze0rh9z4q62exljg90k", "", map[string]string{cloudNodepoolLabelKey: mockNodepoolName2})
-
-		client := newFakeClient(mockNode1, mockNode2, mockNodePool)
-		r := &ReconcileCloudNodepoolLifecycle{
-			Client: client,
-		}
-
-		_, err := r.Reconcile(context.Background(), reconcile.Request{types.NamespacedName{
-			Name: mockNodepoolName,
-		}})
-
-		assertErrorNil(t, err)
-		assertCloudNodeDefaultLabelsExist(t, client, mockNode1.Name)
-		assertCloudNodeDefaultLabelsNotExist(t, client, mockNode2.Name)
-	})
-
 	t.Run("delete nodepool with no nodes", func(t *testing.T) {
 		mockNodePool := newCloudNodepool(mockNodepoolName)
 
@@ -226,46 +207,6 @@ func assertErrorNil(t testing.TB, err error) {
 
 	if err != nil {
 		t.Errorf("expected error is nil, but got %v", err)
-	}
-}
-
-func assertCloudNodeDefaultLabelsExist(t testing.TB, client client.Client, nodename string) {
-	t.Helper()
-
-	node := &v1.Node{}
-	err := client.Get(context.Background(), types.NamespacedName{
-		Name: nodename,
-	}, node)
-	assertErrorNil(t, err)
-
-	if node.Labels == nil {
-		t.Errorf("expected node labels is not nil")
-	}
-
-	for key, value := range cloudNodeDefaultLabels {
-		if v := node.Labels[key]; v != value {
-			t.Errorf("expected label %s key %s, but got: %s", key, value, v)
-		}
-	}
-}
-
-func assertCloudNodeDefaultLabelsNotExist(t testing.TB, client client.Client, nodename string) {
-	t.Helper()
-
-	node := &v1.Node{}
-	err := client.Get(context.Background(), types.NamespacedName{
-		Name: nodename,
-	}, node)
-	assertErrorNil(t, err)
-
-	if node.Labels == nil {
-		return
-	}
-
-	for key, value := range cloudNodeDefaultLabels {
-		if v := node.Labels[key]; v == value {
-			t.Errorf("expected label key %s not found", key)
-		}
 	}
 }
 
