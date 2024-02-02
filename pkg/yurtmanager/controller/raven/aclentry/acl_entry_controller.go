@@ -213,10 +213,12 @@ func (r *ReconcileACL) updateACLEntry(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	klog.Infoln(Format("successfully add acl entry: %v", added))
 	err = r.provider.RemoveAccessControlListEntry(ctx, r.model, entryConvertString(deleted))
 	if err != nil {
 		return err
 	}
+	klog.Infoln(Format("successfully delete acl entry: %v", deleted))
 	return nil
 }
 

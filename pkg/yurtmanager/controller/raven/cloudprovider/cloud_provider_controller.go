@@ -269,7 +269,7 @@ func (r *ReconcileResource) buildLocalModel(reqCtx *util.RequestContext) (*util.
 
 	lMdlJson, err := json.Marshal(localModel)
 	if err == nil {
-		klog.V(5).Info(Format("build local model %s", lMdlJson))
+		klog.V(2).Infoln(Format("build local model %s", lMdlJson))
 	}
 
 	return localModel, nil
@@ -295,7 +295,7 @@ func (r *ReconcileResource) buildRemoteModel(reqCtx *util.RequestContext) (*util
 
 	rMdlJson, err := json.Marshal(remoteModel)
 	if err == nil {
-		klog.V(5).Info(Format("build remote model %s", rMdlJson))
+		klog.V(2).Infoln(Format("build remote model %s", rMdlJson))
 	}
 	return remoteModel, nil
 }
@@ -377,7 +377,7 @@ func (r *ReconcileResource) createCloudResource(reqCtx *util.RequestContext, lMo
 			if err != nil {
 				return fmt.Errorf("create slb error %s", err.Error())
 			}
-
+			klog.Infoln(Format("successfully create slb: %s", lModel.SLBModel.LoadBalancerId))
 		}
 		rModel.SLBModel.LoadBalancerId = lModel.SLBModel.LoadBalancerId
 		rModel.SLBModel.Address = lModel.SLBModel.Address
@@ -389,6 +389,7 @@ func (r *ReconcileResource) createCloudResource(reqCtx *util.RequestContext, lMo
 			if err != nil {
 				return fmt.Errorf("create acl error %s", err.Error())
 			}
+			klog.Infoln(Format("successfully create slb: %s", lModel.ACLModel.AccessControlListId))
 		}
 		rModel.ACLModel.AccessControlListId = lModel.ACLModel.AccessControlListId
 	}
@@ -399,6 +400,7 @@ func (r *ReconcileResource) createCloudResource(reqCtx *util.RequestContext, lMo
 			if err != nil {
 				return fmt.Errorf("create eip error %s", err.Error())
 			}
+			klog.Infoln(Format("successfully create eip: %s", lModel.EIPModel.InstanceId))
 		}
 		rModel.EIPModel.AllocationId = lModel.EIPModel.AllocationId
 		rModel.EIPModel.Address = lModel.EIPModel.Address
@@ -410,6 +412,7 @@ func (r *ReconcileResource) createCloudResource(reqCtx *util.RequestContext, lMo
 		if err != nil {
 			return fmt.Errorf("associate eip to slb error %s", err.Error())
 		}
+		klog.Infoln(Format("successfully associate eip: %s into slb %s", rModel.EIPModel.InstanceId, rModel.SLBModel.LoadBalancerId))
 		rModel.EIPModel.InstanceId = rModel.SLBModel.LoadBalancerId
 	}
 	return nil
