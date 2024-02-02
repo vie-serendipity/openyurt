@@ -36,6 +36,7 @@ func (r *ReconcileResource) CleanupSLB(ctx context.Context, model *ravenmodel.Lo
 	if err != nil && !raven.IsNotFound(err) {
 		return err
 	}
+	klog.Infoln(Format("successfully delete slb: %s", model.LoadBalancerId))
 	model.LoadBalancerId = ""
 	model.Address = ""
 	return nil
@@ -50,6 +51,7 @@ func (r *ReconcileResource) CleanupACL(ctx context.Context, model *ravenmodel.Ac
 	if err != nil && !raven.IsNotFound(err) {
 		return err
 	}
+	klog.Infoln(Format("successfully delete acl: %s", model.AccessControlListId))
 	model.AccessControlListId = ""
 	return nil
 }
@@ -85,6 +87,7 @@ func (r *ReconcileResource) CleanupEIP(ctx context.Context, model *ravenmodel.El
 		klog.Error(Format("delete eip error %s", err.Error()))
 		return err
 	}
+	klog.Infoln(Format("successfully delete eip: %s", model.AllocationId))
 	model.AllocationId = ""
 	model.Address = ""
 	return nil
