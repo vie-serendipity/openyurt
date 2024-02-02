@@ -389,7 +389,7 @@ func (r *ReconcileResource) createCloudResource(reqCtx *util.RequestContext, lMo
 			if err != nil {
 				return fmt.Errorf("create acl error %s", err.Error())
 			}
-			klog.Infoln(Format("successfully create slb: %s", lModel.ACLModel.AccessControlListId))
+			klog.Infoln(Format("successfully create acl: %s", lModel.ACLModel.AccessControlListId))
 		}
 		rModel.ACLModel.AccessControlListId = lModel.ACLModel.AccessControlListId
 	}
