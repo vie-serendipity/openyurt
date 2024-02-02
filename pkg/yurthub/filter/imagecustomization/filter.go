@@ -64,19 +64,21 @@ var (
 			"node-exporter",
 		},
 	}
-	matchForOldRegistry = regexp.MustCompile(`^registry(-vpc)?\.(cn-\w+)\.aliyuncs\.com(.*)`)
-	matchForEERegistry  = regexp.MustCompile(`^registry-(cn-\w+)(-vpc)?\.ack\.aliyuncs\.com(.*)`)
+	regionRegex         = `(?P<region>(ap|cn|eu|rus|us|me)(-[a-z]+)(-finance|-gov)?(-\d+)?(-lr|-mybk|-gov)?(-\d+)?)`
+	imageRegex          = `(?P<image>(.*))`
+	matchForOldRegistry = regexp.MustCompile(`^registry(-vpc)?\.` + regionRegex + `\.aliyuncs\.com` + imageRegex)
+	matchForEERegistry  = regexp.MustCompile(`^registry-` + regionRegex + `(-vpc)?\.ack\.aliyuncs\.com` + imageRegex)
 )
 
 const (
-	conversionToOldPrivateRegistry              = "registry-vpc.%s.aliyuncs.com$3"
-	conversionToOldPrivateRegistryWithoutRegion = "registry-vpc.$2.aliyuncs.com$3"
-	conversionToOldPublicRegistry               = "registry.%s.aliyuncs.com$3"
-	conversionToOldPublicRegistryWithoutRegion  = "registry.$2.aliyuncs.com$3"
-	conversionToEEPrivateRegistry               = "registry-%s-vpc.ack.aliyuncs.com$3"
-	conversionToEEPrivateRegistryWithoutRegion  = "registry-$1-vpc.ack.aliyuncs.com$3"
-	conversionToEEPublicRegistry                = "registry-%s.ack.aliyuncs.com$3"
-	conversionToEEPublicRegistryWithoutRegion   = "registry-$1.ack.aliyuncs.com$3"
+	conversionToOldPrivateRegistry              = `registry-vpc.%s.aliyuncs.com${image}`
+	conversionToOldPrivateRegistryWithoutRegion = `registry-vpc.${region}.aliyuncs.com${image}`
+	conversionToOldPublicRegistry               = `registry.%s.aliyuncs.com${image}`
+	conversionToOldPublicRegistryWithoutRegion  = `registry.${region}.aliyuncs.com${image}`
+	conversionToEEPrivateRegistry               = `registry-%s-vpc.ack.aliyuncs.com${image}`
+	conversionToEEPrivateRegistryWithoutRegion  = `registry-${region}-vpc.ack.aliyuncs.com${image}`
+	conversionToEEPublicRegistry                = `registry-%s.ack.aliyuncs.com${image}`
+	conversionToEEPublicRegistryWithoutRegion   = `registry-${region}.ack.aliyuncs.com${image}`
 )
 
 // Register registers a filter
