@@ -679,6 +679,99 @@ func TestRuntimeObjectFilter(t *testing.T) {
 				},
 			},
 		},
+		"public repo: acr ee vpc image with financial region": {
+			imageRepoType: PublicImageRepo,
+			inputObj: &v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "csi-plugin",
+					Namespace: "kube-system",
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name:  "foo",
+							Image: "registry-cn-shanghai-finance-1-vpc.ack.aliyuncs.com/acs/csi-plugin:v1.0",
+						},
+					},
+				},
+			},
+			expectObj: &v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "csi-plugin",
+					Namespace: "kube-system",
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name:  "foo",
+							Image: "registry-cn-shanghai-finance-1.ack.aliyuncs.com/acs/csi-plugin:v1.0",
+						},
+					},
+				},
+			},
+		},
+		"public repo: acr ee vpc image with strange region": {
+			imageRepoType: PublicImageRepo,
+			inputObj: &v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "csi-plugin",
+					Namespace: "kube-system",
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name:  "foo",
+							Image: "registry-cn-north-2-gov-1-vpc.ack.aliyuncs.com/acs/csi-plugin:v1.0",
+						},
+					},
+				},
+			},
+			expectObj: &v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "csi-plugin",
+					Namespace: "kube-system",
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name:  "foo",
+							Image: "registry-cn-north-2-gov-1.ack.aliyuncs.com/acs/csi-plugin:v1.0",
+						},
+					},
+				},
+			},
+		},
+		"public repo: acr ee vpc image with foreign region": {
+			imageRepoType: PublicImageRepo,
+			inputObj: &v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "csi-plugin",
+					Namespace: "kube-system",
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name:  "foo",
+							Image: "registry-ap-south-1-vpc.ack.aliyuncs.com/acs/csi-plugin:v1.0",
+						},
+					},
+				},
+			},
+			expectObj: &v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "csi-plugin",
+					Namespace: "kube-system",
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name:  "foo",
+							Image: "registry-ap-south-1.ack.aliyuncs.com/acs/csi-plugin:v1.0",
+						},
+					},
+				},
+			},
+		},
 		"not ack image": {
 			region:        "cn-hangzhou",
 			imageRepoType: PublicImageRepo,
