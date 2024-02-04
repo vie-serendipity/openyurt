@@ -22,17 +22,22 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/raven"
+	"math/rand"
+	"net"
+	"strings"
+	"time"
+
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-	"math/rand"
-	"net"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"strings"
+
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/loadbalancer/elb"
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/raven"
 )
 
 // GetNodeInternalIP returns internal ip of the given `node`.
@@ -109,12 +114,8 @@ func NewModel(key raven.NamedKey, region string) *Model {
 }
 
 type RequestContext struct {
-	Ctx       context.Context
-	Cm        *corev1.ConfigMap
-	ClusterId string
-	Region    string
-	VpcId     string
-	VswitchId string
+	Ctx context.Context
+	Cm  *corev1.ConfigMap
 }
 
 func (r *RequestContext) GetEIPId() string {
@@ -177,4 +178,42 @@ func computeHash(target string) string {
 
 func FormatName(name string) string {
 	return strings.Join([]string{name, fmt.Sprintf("%08x", rand.Uint32())}, "-")
+}
+
+func GetResourceHash(model *Model) string {
+	var op []string
+	op = append(op, model.SLBModel.LoadBalancerId, model.SLBModel.Address)
+	op = append(op, model.ACLModel.AccessControlListId)
+	op = append(op, model.EIPModel.AllocationId, model.EIPModel.Address)
+	return elb.HashObject(op)
+}
+
+func Retry(
+	backoff *wait.Backoff,
+	fun func(cm *corev1.ConfigMap) error,
+	cm *corev1.ConfigMap,
+) error {
+	if backoff == nil {
+		backoff = &wait.Backoff{
+			Duration: 1 * time.Second,
+			Steps:    8,
+			Factor:   2,
+			Jitter:   4,
+		}
+	}
+	return wait.ExponentialBackoff(
+		*backoff,
+		func() (bool, error) {
+			err := fun(cm)
+			if err != nil &&
+				strings.Contains(err.Error(), "try again") {
+				klog.Errorf("retry with error: %s", err.Error())
+				return false, nil
+			}
+			if err != nil {
+				klog.Errorf("retry error: NotRetry, %s", err.Error())
+			}
+			return true, nil
+		},
+	)
 }
