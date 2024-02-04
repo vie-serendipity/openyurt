@@ -19,8 +19,9 @@ package yurtappset
 import (
 	"testing"
 
-	unitv1beta1 "github.com/openyurtio/openyurt/pkg/apis/apps/v1beta1"
 	"github.com/stretchr/testify/assert"
+
+	unitv1beta1 "github.com/openyurtio/openyurt/pkg/apis/apps/v1beta1"
 )
 
 func TestFilterOutCondition(t *testing.T) {

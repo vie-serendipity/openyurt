@@ -32,12 +32,11 @@ import (
 	apps "k8s.io/api/apps/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -310,7 +309,9 @@ func classifyWorkloads(yas *unitv1beta1.YurtAppSet, currentWorkloads []metav1.Ob
 					needUpdate = append(needUpdate, load)
 				}
 			} else {
-				klog.Warning("YurtAppSet[%s/%s] workload[%s/%s] has no revision")
+				klog.Warningf("YurtAppSet[%s/%s] workload[%s/%s] has no revision", yas.GetNamespace(),
+					yas.GetName(), load.GetNamespace(), load.GetName())
+				needUpdate = append(needUpdate, load)
 			}
 
 		} else {

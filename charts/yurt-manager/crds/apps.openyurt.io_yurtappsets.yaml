@@ -36,7 +36,7 @@ spec:
           name: OverriderRef
           type: string
       deprecated: true
-      deprecationWarning: apps.openyurt.io/v1alpha1 YurtAppSet is deprecated; use apps.openyurt.io/v1beta1 YurtAppSet
+      deprecationWarning: apps.openyurt.io/v1alpha1 YurtAppSet is deprecated; use apps.openyurt.io/v1beta1 YurtAppSet; v1alpha1 YurtAppSet.Status.WorkloadSummary should not be used
       name: v1alpha1
       schema:
         openAPIV3Schema:

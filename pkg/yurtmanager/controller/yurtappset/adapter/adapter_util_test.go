@@ -19,11 +19,12 @@ import (
 	"fmt"
 	"testing"
 
-	unitv1alpha1 "github.com/openyurtio/openyurt/pkg/apis/apps"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/openyurtio/openyurt/pkg/apis/apps"
 )
 
 func TestGetCurrentPartitionForStrategyOnDelete(t *testing.T) {
@@ -70,7 +71,7 @@ func buildPodList(ordinals []int, revisions []string, t *testing.T) []*corev1.Po
 		}
 		if revisions[i] != "" {
 			pod.Labels = map[string]string{
-				unitv1alpha1.ControllerRevisionHashLabelKey: revisions[i],
+				apps.ControllerRevisionHashLabelKey: revisions[i],
 			}
 		}
 		pods = append(pods, pod)

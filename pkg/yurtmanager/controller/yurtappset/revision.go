@@ -156,7 +156,7 @@ func cleanRevisions(cli client.Client, yas *appsbetav1.YurtAppSet, revisions []*
 	if yas.Spec.RevisionHistoryLimit != nil {
 		revisionLimit = int(*(yas.Spec.RevisionHistoryLimit))
 	} else {
-		klog.Warning("YurtAppSet [%s/%s] revisionHistoryLimit is nil, default to 10")
+		klog.Warningf("YurtAppSet [%s/%s] revisionHistoryLimit is nil, default to 10", yas.GetNamespace(), yas.GetName())
 		revisionLimit = 10
 	}
 
@@ -164,11 +164,11 @@ func cleanRevisions(cli client.Client, yas *appsbetav1.YurtAppSet, revisions []*
 		klog.V(4).Info("YurtAppSet [%s/%s] clean expired revisions", yas.GetNamespace(), yas.GetName())
 		for i := 0; i < len(validRevisions)-revisionLimit; i++ {
 			if validRevisions[i].GetName() == yas.Status.CurrentRevision {
-				klog.Warningf("YurtAppSet [%s/%s] current revision %s is expired, skip")
+				klog.Warningf("YurtAppSet [%s/%s] current revision %s is expired, skip", yas.GetNamespace(), yas.GetName(), validRevisions[i].GetName())
 				continue
 			}
 			if err := cli.Delete(context.TODO(), validRevisions[i]); err != nil {
-				klog.Errorf("YurtAppSet [%s/%s] delete expired revision %s error: %v")
+				klog.Errorf("YurtAppSet [%s/%s] delete expired revision %s error: %v", yas.GetNamespace(), yas.GetName(), validRevisions[i].GetName(), err)
 				return err
 			}
 			klog.Infof("YurtAppSet [%s/%s] delete expired revision %s", yas.GetNamespace(), yas.GetName(), validRevisions[i].Name)
