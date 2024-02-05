@@ -18,5 +18,6 @@ package config
 
 // GatewayLifecycleControllerConfiguration contains elements describing GatewayPickController.
 type GatewayLifecycleControllerConfiguration struct {
-	CentreExposedPorts string
+	CentreExposedProxyPorts []int
+	CentreExposedTunnelPort int
 }

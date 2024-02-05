@@ -120,6 +120,8 @@ func MockReconcile() *ReconcileService {
 				Data: map[string]string{
 					util.RavenEnableProxy:  "true",
 					util.RavenEnableTunnel: "true",
+					util.ACLId:             "acl-xxx",
+					util.LoadBalancerId:    "lb-xxx",
 				},
 			},
 		},

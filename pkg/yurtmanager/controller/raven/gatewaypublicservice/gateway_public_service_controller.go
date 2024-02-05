@@ -18,6 +18,7 @@ package gatewaypublicservice
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -291,15 +292,20 @@ func (r *ReconcileService) manageService(ctx context.Context, gateway *ravenv1be
 	proxyPort, tunnelPort := r.getTargetPort()
 	specSvcList := acquiredSpecService(gateway, gatewayType, proxyPort, tunnelPort)
 	addSvc, updateSvc, deleteSvc := classifyService(curSvcList, specSvcList)
-	addSvc = r.bindCloudProduct(addSvc)
-	updateSvc = r.bindCloudProduct(updateSvc)
+	err = r.InjectConfig(addSvc)
+	if err != nil {
+		return fmt.Errorf("failed inject service config for gateway %s type %s, error %s", gateway.GetName(), gatewayType, err.Error())
+	}
+	err = r.InjectConfig(updateSvc)
+	if err != nil {
+		return fmt.Errorf("failed inject service config for gateway %s type %s, error %s", gateway.GetName(), gatewayType, err.Error())
+	}
 	recordServiceNames(specSvcList.Items, record)
 	for i := 0; i < len(deleteSvc); i++ {
 		if err := r.Delete(ctx, deleteSvc[i]); err != nil {
 			return fmt.Errorf("failed delete service for gateway %s type %s , error %s", gateway.GetName(), gatewayType, err.Error())
 		}
 	}
-
 	for i := 0; i < len(updateSvc); i++ {
 		if err := r.Update(ctx, updateSvc[i]); err != nil {
 			return fmt.Errorf("failed update service for gateway %s type %s , error %s", gateway.GetName(), gatewayType, err.Error())
@@ -317,26 +323,27 @@ func (r *ReconcileService) manageService(ctx context.Context, gateway *ravenv1be
 	}
 	return nil
 }
-func (r *ReconcileService) bindCloudProduct(services []*corev1.Service) (ret []*corev1.Service) {
-	ret = make([]*corev1.Service, 0)
+
+func (r *ReconcileService) InjectConfig(services []*corev1.Service) error {
 	var cm corev1.ConfigMap
 	err := r.Client.Get(context.TODO(), types.NamespacedName{Namespace: util.WorkingNamespace, Name: util.RavenGlobalConfig}, &cm)
 	if err != nil {
-		return
+		return err
 	}
 	if cm.Data == nil {
-		return
+		return errors.New("lack of cloud resource configuration")
 	}
 	lb := cm.Data[util.LoadBalancerId]
 	if lb == "" {
-		lb = "waiting"
+		return errors.New("failed to find laodbalanacer id, waiting to buy it")
 	}
 	acl := cm.Data[util.ACLId]
 	if acl == "" {
-		acl = "waiting"
+		return errors.New("failed to find acl id, waiting to buy it")
 	}
+
 	for i := 0; i < len(services); i++ {
-		svc := services[i].DeepCopy()
+		svc := services[i]
 		if svc.Annotations == nil {
 			svc.Annotations = make(map[string]string)
 		}
@@ -345,8 +352,16 @@ func (r *ReconcileService) bindCloudProduct(services []*corev1.Service) (ret []*
 		svc.Annotations["service.beta.kubernetes.io/alicloud-loadbalancer-force-override-listeners"] = "true"
 		svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-acl-status"] = "on"
 		svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-acl-type"] = "white"
-		svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-health-check-switch"] = "off"
-		svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-hostname"] = fmt.Sprintf("%s.%s.svc", services[i].GetName(), services[i].GetNamespace())
+		svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-health-check-switch"] = "on"
+		svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-hostname"] = fmt.Sprintf("%s.%s.svc", svc.GetName(), svc.GetNamespace())
+
+		if svc.Annotations[raven.LabelCurrentGatewayType] == ravenv1beta1.Proxy {
+			svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-health-check-interval"] = "5"
+			svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-health-check-connect-timeout"] = "15"
+		} else {
+			svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-health-check-interval"] = "5"
+			svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-health-check-connect-timeout"] = "20"
+		}
 
 		ips := strings.Split(svc.Annotations[util.GatewayProxyPublicServiceExternalIP], ",")
 		ipMap := make(map[string]struct{})
@@ -373,9 +388,8 @@ func (r *ReconcileService) bindCloudProduct(services []*corev1.Service) (ret []*
 			}
 		}
 		svc.Annotations[util.GatewayProxyPublicServiceExternalIP] = strings.Join(newIps, ",")
-		ret = append(ret, svc)
 	}
-	return
+	return nil
 }
 
 func (r *ReconcileService) manageEndpoints(ctx context.Context, gateway *ravenv1beta1.Gateway, gatewayType string, record *serviceRecord) error {
@@ -447,7 +461,7 @@ func (r *ReconcileService) listService(ctx context.Context, gatewayName, gateway
 	}
 	newList := make([]corev1.Service, 0)
 	for _, val := range svcList.Items {
-		if val.Spec.Type == corev1.ServiceTypeLoadBalancer {
+		if val.DeletionTimestamp.IsZero() && val.Spec.Type == corev1.ServiceTypeLoadBalancer {
 			newList = append(newList, val)
 		}
 	}
@@ -465,6 +479,13 @@ func (r *ReconcileService) listEndpoints(ctx context.Context, gatewayName, gatew
 	if err != nil {
 		return nil, err
 	}
+	newList := make([]corev1.Endpoints, 0)
+	for _, val := range epsList.Items {
+		if val.DeletionTimestamp.IsZero() {
+			newList = append(newList, val)
+		}
+	}
+	epsList.Items = newList
 	return &epsList, nil
 }
 
@@ -493,6 +514,7 @@ func (r *ReconcileService) acquiredSpecEndpoints(ctx context.Context, gateway *r
 						raven.LabelCurrentGateway:         gateway.GetName(),
 						raven.LabelCurrentGatewayType:     ravenv1beta1.Proxy,
 						util.LabelCurrentGatewayEndpoints: aep.NodeName,
+						util.LabelExposedGatewayPort:      strconv.Itoa(aep.Port),
 					},
 				},
 				Subsets: []corev1.EndpointSubset{
@@ -520,6 +542,7 @@ func (r *ReconcileService) acquiredSpecEndpoints(ctx context.Context, gateway *r
 						raven.LabelCurrentGateway:         gateway.GetName(),
 						raven.LabelCurrentGatewayType:     ravenv1beta1.Tunnel,
 						util.LabelCurrentGatewayEndpoints: aep.NodeName,
+						util.LabelExposedGatewayPort:      strconv.Itoa(aep.Port),
 					},
 				},
 				Subsets: []corev1.EndpointSubset{
@@ -574,6 +597,7 @@ func acquiredSpecService(gateway *ravenv1beta1.Gateway, gatewayType string, prox
 						raven.LabelCurrentGateway:         gateway.GetName(),
 						raven.LabelCurrentGatewayType:     ravenv1beta1.Proxy,
 						util.LabelCurrentGatewayEndpoints: aep.NodeName,
+						util.LabelExposedGatewayPort:      strconv.Itoa(aep.Port),
 					},
 					Annotations: map[string]string{"svc.openyurt.io/discard": "true"},
 				},
@@ -601,6 +625,7 @@ func acquiredSpecService(gateway *ravenv1beta1.Gateway, gatewayType string, prox
 						raven.LabelCurrentGateway:         gateway.GetName(),
 						raven.LabelCurrentGatewayType:     ravenv1beta1.Tunnel,
 						util.LabelCurrentGatewayEndpoints: aep.NodeName,
+						util.LabelExposedGatewayPort:      strconv.Itoa(aep.Port),
 					},
 					Annotations: map[string]string{"svc.openyurt.io/discard": "true"},
 				},
@@ -632,13 +657,17 @@ func classifyService(current, spec *corev1.ServiceList) (added, updated, deleted
 	getKey := func(svc *corev1.Service) string {
 		epType := svc.Labels[raven.LabelCurrentGatewayType]
 		epName := svc.Labels[util.LabelCurrentGatewayEndpoints]
+		epPort := svc.Labels[util.LabelExposedGatewayPort]
 		if epType == "" {
 			return ""
 		}
 		if epName == "" {
 			return ""
 		}
-		return formatKey(epName, epType)
+		if epPort == "" {
+			return ""
+		}
+		return fmt.Sprintf("%s-%s", formatKey(epName, epType), epPort)
 	}
 
 	r := make(map[string]int)
@@ -675,13 +704,17 @@ func classifyEndpoints(current, spec *corev1.EndpointsList) (added, updated, del
 	getKey := func(ep *corev1.Endpoints) string {
 		epType := ep.Labels[raven.LabelCurrentGatewayType]
 		epName := ep.Labels[util.LabelCurrentGatewayEndpoints]
+		epPort := ep.Labels[util.LabelExposedGatewayPort]
 		if epType == "" {
 			return ""
 		}
 		if epName == "" {
 			return ""
 		}
-		return formatKey(epName, epType)
+		if epPort == "" {
+			return ""
+		}
+		return fmt.Sprintf("%s-%s", formatKey(epName, epType), epPort)
 	}
 
 	r := make(map[string]int)

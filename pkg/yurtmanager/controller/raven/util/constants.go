@@ -22,6 +22,7 @@ const (
 	RavenGlobalConfig              = "raven-cfg"
 	RavenAgentConfig               = "raven-agent-config"
 	LabelCurrentGatewayEndpoints   = "raven.openyurt.io/endpoints-name"
+	LabelExposedGatewayPort        = "raven.openyurt.io/endpoints-exposed-prot"
 	GatewayProxyInternalService    = "x-raven-proxy-internal-svc"
 	GatewayProxyServiceNamePrefix  = "x-raven-proxy-svc"
 	GatewayTunnelServiceNamePrefix = "x-raven-tunnel-svc"
@@ -55,5 +56,5 @@ const (
 	ResourceUseForRavenComponentKey   = "ack.edge.ecm"
 	ResourceUseForRavenComponentValue = "raven-agent-ds"
 	CloudConfigDefaultPath            = "/etc/kubernetes/config/cloud-config.json"
-	CentreGatewayExposedPorts         = "10280,10281,10282"
+	CentreGatewayExposedPorts         = "10280,10281,10282,10283,10284"
 )

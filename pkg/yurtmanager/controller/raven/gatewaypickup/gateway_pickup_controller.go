@@ -356,48 +356,7 @@ func getActiveEndpointsInfo(eps []*ravenv1beta1.Endpoint) (map[string][]string, 
 }
 
 func (r *ReconcileGateway) configEndpoints(ctx context.Context, gw *ravenv1beta1.Gateway) {
-	validator := func(s string) (int, error) {
-		port, err := strconv.Atoi(s)
-		if err != nil {
-			return 0, fmt.Errorf("port %d is invalid, error %s", port, err.Error())
-		}
-		if port < 0 || port > 65535 {
-			return 0, fmt.Errorf("port %d is invalid", port)
-		}
-		return port, nil
-	}
-
-	getPorts := func(s string) map[int]struct{} {
-		ports := make(map[int]struct{})
-		if s == "" {
-			return ports
-		}
-		for _, v := range strings.Split(s, ",") {
-			port, err := validator(strings.TrimSpace(v))
-			if err != nil {
-				klog.Warning(Format("failed to config endpoints port, error %s", err.Error()))
-				continue
-			}
-			ports[port] = struct{}{}
-		}
-		return ports
-	}
-
-	getPort := func(port int, ports map[int]struct{}) (int, error) {
-		if _, ok := ports[port]; ok {
-			delete(ports, port)
-			return port, nil
-		}
-		for k := range ports {
-			delete(ports, k)
-			return k, nil
-		}
-		return port, fmt.Errorf("not find port")
-	}
 	enableProxy, enableTunnel := util.CheckServer(ctx, r.Client)
-	exposedProxyPorts := getPorts(gw.Annotations["proxy-server-exposed-ports"])
-	exposedTunnelPorts := getPorts(gw.Annotations["tunnel-server-exposed-ports"])
-
 	for idx, val := range gw.Status.ActiveEndpoints {
 		if gw.Status.ActiveEndpoints[idx].Config == nil {
 			gw.Status.ActiveEndpoints[idx].Config = make(map[string]string)
@@ -405,18 +364,8 @@ func (r *ReconcileGateway) configEndpoints(ctx context.Context, gw *ravenv1beta1
 		switch val.Type {
 		case ravenv1beta1.Proxy:
 			gw.Status.ActiveEndpoints[idx].Config[util.RavenEnableProxy] = strconv.FormatBool(enableProxy)
-			port, err := getPort(gw.Status.ActiveEndpoints[idx].Port, exposedProxyPorts)
-			if err != nil {
-				continue
-			}
-			gw.Status.ActiveEndpoints[idx].Port = port
 		case ravenv1beta1.Tunnel:
 			gw.Status.ActiveEndpoints[idx].Config[util.RavenEnableTunnel] = strconv.FormatBool(enableTunnel)
-			port, err := getPort(gw.Status.ActiveEndpoints[idx].Port, exposedTunnelPorts)
-			if err != nil {
-				continue
-			}
-			gw.Status.ActiveEndpoints[idx].Port = port
 		default:
 		}
 	}
