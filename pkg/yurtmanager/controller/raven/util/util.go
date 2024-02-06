@@ -23,17 +23,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/raven"
-	"math/rand"
-	"net"
-	"strings"
-
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+	"math/rand"
+	"net"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"strings"
 )
 
 // GetNodeInternalIP returns internal ip of the given `node`.

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -92,18 +93,20 @@ var _ reconcile.Reconciler = &ReconcileGatewayLifeCycle{}
 // ReconcileGatewayLifeCycle reconciles a Gateway object
 type ReconcileGatewayLifeCycle struct {
 	client.Client
-	scheme             *runtime.Scheme
-	recorder           record.EventRecorder
-	centreExposedPorts string
+	scheme                  *runtime.Scheme
+	recorder                record.EventRecorder
+	centreExposedProxyPorts []int
+	centreExposedTunnelPort int
 }
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(c *appconfig.CompletedConfig, mgr manager.Manager) reconcile.Reconciler {
 	return &ReconcileGatewayLifeCycle{
-		Client:             mgr.GetClient(),
-		scheme:             mgr.GetScheme(),
-		recorder:           mgr.GetEventRecorderFor(names.GatewayLifeCycleController),
-		centreExposedPorts: c.ComponentConfig.GatewayLifecycleController.CentreExposedPorts,
+		Client:                  mgr.GetClient(),
+		scheme:                  mgr.GetScheme(),
+		recorder:                mgr.GetEventRecorderFor(names.GatewayLifeCycleController),
+		centreExposedProxyPorts: c.ComponentConfig.GatewayLifecycleController.CentreExposedProxyPorts,
+		centreExposedTunnelPort: c.ComponentConfig.GatewayLifecycleController.CentreExposedTunnelPort,
 	}
 }
 
@@ -201,7 +204,7 @@ func (r *ReconcileGatewayLifeCycle) reconcileCloud(ctx context.Context, np *node
 	}
 	enableProxy, enableTunnel := util.CheckServer(ctx, r.Client)
 	if enableProxy || enableTunnel {
-		err := r.updateCloudGateway(ctx)
+		err := r.ensureCloudGateway(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to update cloud gateway for nodepool %s, error %s", np.GetName(), err.Error())
 		}
@@ -218,7 +221,7 @@ func (r *ReconcileGatewayLifeCycle) reconcileCloud(ctx context.Context, np *node
 	return nil
 }
 
-func (r *ReconcileGatewayLifeCycle) updateCloudGateway(ctx context.Context) error {
+func (r *ReconcileGatewayLifeCycle) ensureCloudGateway(ctx context.Context) error {
 	var cloudGw ravenv1beta1.Gateway
 	gwName := fmt.Sprintf("%s%s", GatewayPrefix, CloudNodePoolName)
 	publicAddr, privateAddr := r.getLoadBalancerIP(ctx)
@@ -226,9 +229,8 @@ func (r *ReconcileGatewayLifeCycle) updateCloudGateway(ctx context.Context) erro
 	err := r.Client.Get(ctx, types.NamespacedName{Name: gwName}, &cloudGw)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			anno := map[string]string{"proxy-server-exposed-ports": r.centreExposedPorts}
 			err = r.Client.Create(ctx, &ravenv1beta1.Gateway{
-				ObjectMeta: metav1.ObjectMeta{Name: gwName, Annotations: anno},
+				ObjectMeta: metav1.ObjectMeta{Name: gwName},
 				Spec: ravenv1beta1.GatewaySpec{
 					ProxyConfig: ravenv1beta1.ProxyConfiguration{
 						Replicas:       len(endpoints) / 2,
@@ -253,19 +255,32 @@ func (r *ReconcileGatewayLifeCycle) updateCloudGateway(ctx context.Context) erro
 		}
 		return fmt.Errorf("failed to create gateway %s, error %s", gwName, err.Error())
 	}
-	cloudGw.Spec.ProxyConfig.Replicas = len(endpoints) / 2
-	cloudGw.Spec.TunnelConfig.Replicas = 1
-	cloudGw.Spec.Endpoints = endpoints
-	err = r.Client.Update(ctx, cloudGw.DeepCopy())
-	if err != nil {
-		return fmt.Errorf("failed to update gateway %s, error %s", gwName, err.Error())
+	update := false
+
+	if cloudGw.Spec.ProxyConfig.Replicas != len(endpoints)/2 {
+		cloudGw.Spec.ProxyConfig.Replicas = len(endpoints) / 2
+		update = true
+	}
+	if cloudGw.Spec.TunnelConfig.Replicas != 1 {
+		cloudGw.Spec.TunnelConfig.Replicas = 1
+		update = true
+	}
+	if !reflect.DeepEqual(cloudGw.Spec.Endpoints, endpoints) {
+		cloudGw.Spec.Endpoints = endpoints
+		update = true
+	}
+
+	if update {
+		err = r.Client.Update(ctx, cloudGw.DeepCopy())
+		if err != nil {
+			return fmt.Errorf("failed to update gateway %s, error %s", gwName, err.Error())
+		}
 	}
 	return nil
 }
 
 func (r *ReconcileGatewayLifeCycle) getCloudGatewayEndpoints(ctx context.Context, publicAddress, privateAddress string) []ravenv1beta1.Endpoint {
 	endpoints := make([]ravenv1beta1.Endpoint, 0)
-	defaultEndpoints := make([]ravenv1beta1.Endpoint, 0)
 	var nodeList corev1.NodeList
 	err := wait.PollImmediate(10*time.Second, time.Minute, func() (done bool, err error) {
 		err = r.Client.List(ctx, &nodeList, &client.ListOptions{
@@ -281,6 +296,8 @@ func (r *ReconcileGatewayLifeCycle) getCloudGatewayEndpoints(ctx context.Context
 	}
 	sort.Slice(nodeList.Items, func(i, j int) bool { return nodeList.Items[i].Name < nodeList.Items[j].Name })
 	num := int(math.Max(float64(len(nodeList.Items))*DefaultEndpointsProportion, 1))
+	var proxyEndpoints, tunnelEndpoints []ravenv1beta1.Endpoint
+	var defaultProxyEndpoints, defaultTunnelEndpoints []ravenv1beta1.Endpoint
 	for i := range nodeList.Items {
 		node := nodeList.Items[i]
 		if _, ok := node.Labels[constants.LabelNodeRoleControlPlane]; ok {
@@ -289,25 +306,37 @@ func (r *ReconcileGatewayLifeCycle) getCloudGatewayEndpoints(ctx context.Context
 		if _, ok := node.Labels[constants.LabelNodeRoleOldControlPlane]; ok {
 			continue
 		}
+		pes, tes := r.generateEndpoint(node.Name, publicAddress, privateAddress, false)
 		if isGatewayEndpoint(&node) {
-			endpoints = append(endpoints, r.generateEndpoints(node.Name, publicAddress, privateAddress, false)...)
-		} else {
-			if num == 0 {
-				break
-			}
-			defaultEndpoints = append(defaultEndpoints, r.generateEndpoints(node.Name, publicAddress, privateAddress, false)...)
-			num--
+			proxyEndpoints = append(proxyEndpoints, pes)
+			tunnelEndpoints = append(tunnelEndpoints, tes)
 		}
+		defaultProxyEndpoints = append(defaultProxyEndpoints, pes)
+		defaultTunnelEndpoints = append(defaultTunnelEndpoints, tes)
 	}
-	if len(endpoints) > 0 {
-		return endpoints
+
+	if len(proxyEndpoints) == 0 && len(tunnelEndpoints) == 0 {
+		if num >= len(defaultProxyEndpoints) {
+			num = len(defaultProxyEndpoints)
+		}
+		proxyEndpoints = defaultProxyEndpoints[:num]
+		tunnelEndpoints = defaultTunnelEndpoints[:num]
 	}
-	return defaultEndpoints
+
+	n := len(r.centreExposedProxyPorts)
+	for idx, pes := range proxyEndpoints {
+		if idx >= n {
+			break
+		}
+		pes.Port = r.centreExposedProxyPorts[idx]
+		endpoints = append(endpoints, pes)
+	}
+	endpoints = append(endpoints, tunnelEndpoints...)
+	return endpoints
 }
 
 func (r *ReconcileGatewayLifeCycle) getEdgeGatewayEndpoints(ctx context.Context, np *nodepoolv1beta1.NodePool) []ravenv1beta1.Endpoint {
 	endpoints := make([]ravenv1beta1.Endpoint, 0)
-	defaultEndpoints := make([]ravenv1beta1.Endpoint, 0)
 	var nodeList corev1.NodeList
 	err := wait.PollImmediate(10*time.Second, time.Minute, func() (done bool, err error) {
 		err = r.Client.List(ctx, &nodeList, &client.ListOptions{
@@ -323,24 +352,34 @@ func (r *ReconcileGatewayLifeCycle) getEdgeGatewayEndpoints(ctx context.Context,
 	}
 	sort.Slice(nodeList.Items, func(i, j int) bool { return nodeList.Items[i].Name < nodeList.Items[j].Name })
 	num := int(math.Max(float64(len(nodeList.Items))*DefaultEndpointsProportion, 1))
+	var proxyEndpoints, tunnelEndpoints []ravenv1beta1.Endpoint
+	var defaultProxyEndpoints, defaultTunnelEndpoints []ravenv1beta1.Endpoint
 	for i := range nodeList.Items {
 		node := nodeList.Items[i]
 		underNat := isUnderNAT(&node)
+		pes, tes := r.generateEndpoint(node.Name, "", "", underNat)
 		if isGatewayEndpoint(&node) {
-			endpoints = append(endpoints, r.generateEndpoints(node.Name, "", "", underNat)...)
-		} else {
-			if num == 0 {
-				break
-			}
-			defaultEndpoints = append(defaultEndpoints, r.generateEndpoints(node.Name, "", "", underNat)...)
-			num--
+			proxyEndpoints = append(proxyEndpoints, pes)
+			tunnelEndpoints = append(tunnelEndpoints, tes)
 		}
-	}
-	if len(endpoints) > 0 {
-		return endpoints
-	}
-	return defaultEndpoints
+		defaultProxyEndpoints = append(defaultProxyEndpoints, pes)
+		defaultTunnelEndpoints = append(defaultTunnelEndpoints, tes)
 
+	}
+	if len(proxyEndpoints) == 0 && len(tunnelEndpoints) == 0 {
+		proxyEndpoints = defaultProxyEndpoints[:num]
+		tunnelEndpoints = defaultTunnelEndpoints[:num]
+	}
+	proxyPort, tunnelPort := r.getTargetPort()
+	for _, pes := range proxyEndpoints {
+		pes.Port = proxyPort
+		endpoints = append(endpoints, pes)
+	}
+	for _, tes := range tunnelEndpoints {
+		tes.Port = tunnelPort
+		endpoints = append(endpoints, tes)
+	}
+	return endpoints
 }
 
 func (r *ReconcileGatewayLifeCycle) clearCloudGateway(ctx context.Context) error {
@@ -379,7 +418,7 @@ func (r *ReconcileGatewayLifeCycle) reconcileEdge(ctx context.Context, np *nodep
 		return r.clearGateway(ctx, np, isSoloMode(np))
 	}
 
-	return r.updateEdgeGateway(ctx, np)
+	return r.ensureEdgeGateway(ctx, np)
 }
 
 func (r *ReconcileGatewayLifeCycle) manageNodesLabelByNodePool(ctx context.Context, np *nodepoolv1beta1.NodePool, gwName string, isClear bool) error {
@@ -437,7 +476,7 @@ func (r *ReconcileGatewayLifeCycle) getLoadBalancerIP(ctx context.Context) (publ
 	return
 }
 
-func (r *ReconcileGatewayLifeCycle) updateEdgeGateway(ctx context.Context, np *nodepoolv1beta1.NodePool) error {
+func (r *ReconcileGatewayLifeCycle) ensureEdgeGateway(ctx context.Context, np *nodepoolv1beta1.NodePool) error {
 	if len(np.Status.Nodes) == 0 {
 		klog.Info(Format("nodepool %s has no node, skip manage it for gateway", np.GetName()))
 		return nil
@@ -517,11 +556,20 @@ func (r *ReconcileGatewayLifeCycle) updatePoolGateways(ctx context.Context, np *
 			return fmt.Errorf("create gateway %s, error %s", gwName, err.Error())
 		}
 	} else {
-		edgeGateway.Spec.ProxyConfig.Replicas = len(endpoints) / 2
-		edgeGateway.Spec.Endpoints = endpoints
-		err = r.Client.Update(ctx, edgeGateway.DeepCopy())
-		if err != nil {
-			return fmt.Errorf("update gateway %s for nodepool %s, error %s", gwName, np.GetName(), err.Error())
+		update := false
+		if edgeGateway.Spec.ProxyConfig.Replicas != len(endpoints)/2 {
+			edgeGateway.Spec.ProxyConfig.Replicas = len(endpoints) / 2
+			update = true
+		}
+		if !reflect.DeepEqual(edgeGateway.Spec.Endpoints, endpoints) {
+			edgeGateway.Spec.Endpoints = endpoints
+			update = true
+		}
+		if update {
+			err = r.Client.Update(ctx, edgeGateway.DeepCopy())
+			if err != nil {
+				return fmt.Errorf("update gateway %s for nodepool %s, error %s", gwName, np.GetName(), err.Error())
+			}
 		}
 	}
 	err = r.manageNodesLabelByNodePool(ctx, np, gwName, false)
@@ -552,6 +600,10 @@ func (r *ReconcileGatewayLifeCycle) generateSoloGateways(ctx context.Context, np
 			return nil, err
 		}
 		underNat := isUnderNAT(&node)
+		proxyPort, tunnelPort := r.getTargetPort()
+		proxyEndpoint, tunnelEndpoint := r.generateEndpoint(name, "", "", underNat)
+		proxyEndpoint.Port = proxyPort
+		tunnelEndpoint.Port = tunnelPort
 		gwSlice = append(gwSlice, ravenv1beta1.Gateway{
 			ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("%s%s", GatewayPrefix, name), Annotations: anno, Labels: label},
 			Spec: ravenv1beta1.GatewaySpec{
@@ -561,7 +613,7 @@ func (r *ReconcileGatewayLifeCycle) generateSoloGateways(ctx context.Context, np
 				TunnelConfig: ravenv1beta1.TunnelConfiguration{
 					Replicas: 1,
 				},
-				Endpoints: r.generateEndpoints(name, "", "", underNat),
+				Endpoints: []ravenv1beta1.Endpoint{proxyEndpoint, tunnelEndpoint},
 			}})
 	}
 	gwList.Items = gwSlice
@@ -676,7 +728,7 @@ func (r *ReconcileGatewayLifeCycle) clearGateway(ctx context.Context, np *nodepo
 	return nil
 }
 
-func (r *ReconcileGatewayLifeCycle) getTargetPort() (proxyPort, tunnelPort int32) {
+func (r *ReconcileGatewayLifeCycle) getTargetPort() (proxyPort, tunnelPort int) {
 	proxyPort = ravenv1beta1.DefaultProxyServerExposedPort
 	tunnelPort = ravenv1beta1.DefaultTunnelServerExposedPort
 	var cm corev1.ConfigMap
@@ -686,37 +738,32 @@ func (r *ReconcileGatewayLifeCycle) getTargetPort() (proxyPort, tunnelPort int32
 	}
 	_, proxyExposedPort, err := net.SplitHostPort(cm.Data[util.ProxyServerExposedPortKey])
 	if err == nil {
-		proxy, _ := strconv.Atoi(proxyExposedPort)
-		proxyPort = int32(proxy)
+		proxyPort, _ = strconv.Atoi(proxyExposedPort)
 	}
 	_, tunnelExposedPort, err := net.SplitHostPort(cm.Data[util.VPNServerExposedPortKey])
 	if err == nil {
-		tunnel, _ := strconv.Atoi(tunnelExposedPort)
-		tunnelPort = int32(tunnel)
+		tunnelPort, _ = strconv.Atoi(tunnelExposedPort)
 	}
 	return
 }
 
-func (r *ReconcileGatewayLifeCycle) generateEndpoints(nodeName, publicIP, privateIP string, underNAT bool) []ravenv1beta1.Endpoint {
-	proxyPort, tunnelPort := r.getTargetPort()
-	endpoints := make([]ravenv1beta1.Endpoint, 0)
-	endpoints = append(endpoints, ravenv1beta1.Endpoint{
+func (r *ReconcileGatewayLifeCycle) generateEndpoint(nodeName, publicIP, privateIP string, underNAT bool) (proxy, tunnel ravenv1beta1.Endpoint) {
+	tunnel = ravenv1beta1.Endpoint{
 		NodeName: nodeName,
 		Type:     ravenv1beta1.Tunnel,
-		Port:     int(tunnelPort),
 		UnderNAT: underNAT,
 		PublicIP: publicIP,
+		Port:     r.centreExposedTunnelPort,
 		Config:   map[string]string{GatewayPrivateIP: privateIP},
-	})
-	endpoints = append(endpoints, ravenv1beta1.Endpoint{
+	}
+	proxy = ravenv1beta1.Endpoint{
 		NodeName: nodeName,
 		Type:     ravenv1beta1.Proxy,
-		Port:     int(proxyPort),
 		UnderNAT: underNAT,
 		PublicIP: publicIP,
 		Config:   map[string]string{GatewayPrivateIP: privateIP},
-	})
-	return endpoints
+	}
+	return
 }
 
 func isEdgeNodePool(np *nodepoolv1beta1.NodePool) bool {

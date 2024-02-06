@@ -17,19 +17,24 @@ limitations under the License.
 package options
 
 import (
+	"fmt"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util"
 	"github.com/spf13/pflag"
+	"strconv"
+	"strings"
 
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/gatewaylifecycle/config"
 )
 
 type GatewayLifecycleControllerOptions struct {
-	*config.GatewayLifecycleControllerConfiguration
+	CentreExposedProxyPorts string
+	CentreExposedTunnelPort int
 }
 
 func NewGatewayLifecycleControllerOptions() *GatewayLifecycleControllerOptions {
 	return &GatewayLifecycleControllerOptions{
-		&config.GatewayLifecycleControllerConfiguration{CentreExposedPorts: util.CentreGatewayExposedPorts},
+		CentreExposedProxyPorts: util.CentreGatewayExposedPorts,
+		CentreExposedTunnelPort: 4500,
 	}
 }
 
@@ -38,7 +43,8 @@ func (g *GatewayLifecycleControllerOptions) AddFlags(fs *pflag.FlagSet) {
 	if g == nil {
 		return
 	}
-	fs.StringVar(&g.CentreExposedPorts, "centre-exposed-ports", g.CentreExposedPorts, "The ports are used by central gateway to exposed.")
+	fs.StringVar(&g.CentreExposedProxyPorts, "centre-exposed-proxy-ports", g.CentreExposedProxyPorts, "The proxy ports are used by central gateway to exposed.")
+	fs.IntVar(&g.CentreExposedTunnelPort, "centre-exposed-tunnel-port", g.CentreExposedTunnelPort, "The tunnel ports are used by central gateway to exposed.")
 
 }
 
@@ -47,7 +53,24 @@ func (g *GatewayLifecycleControllerOptions) ApplyTo(cfg *config.GatewayLifecycle
 	if g == nil {
 		return nil
 	}
-	cfg.CentreExposedPorts = g.CentreExposedPorts
+	exposedProxyPorts := make([]int, 0)
+	proxyPorts := strings.Split(g.CentreExposedProxyPorts, ",")
+	for i := range proxyPorts {
+		p, err := strconv.Atoi(proxyPorts[i])
+		if err != nil {
+			return err
+		}
+		if p > 65535 || p < 1 {
+			return fmt.Errorf("%d is not a compliant port", p)
+		}
+		exposedProxyPorts = append(exposedProxyPorts, p)
+	}
+	cfg.CentreExposedProxyPorts = exposedProxyPorts
+	if g.CentreExposedTunnelPort < 65535 && g.CentreExposedTunnelPort > 0 {
+		cfg.CentreExposedTunnelPort = g.CentreExposedTunnelPort
+	} else {
+		return fmt.Errorf("%d is not a compliant port", g.CentreExposedTunnelPort)
+	}
 	return nil
 }
 
