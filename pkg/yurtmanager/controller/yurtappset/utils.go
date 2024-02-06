@@ -17,10 +17,11 @@ limitations under the License.
 package yurtappset
 
 import (
-	unitv1beta1 "github.com/openyurtio/openyurt/pkg/apis/apps/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
+
+	unitv1beta1 "github.com/openyurtio/openyurt/pkg/apis/apps/v1beta1"
 )
 
 // NewYurtAppSetCondition creates a new YurtAppSet condition.

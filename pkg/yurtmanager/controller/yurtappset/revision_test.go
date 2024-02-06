@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,7 +33,6 @@ import (
 	yurtapps "github.com/openyurtio/openyurt/pkg/apis/apps"
 	"github.com/openyurtio/openyurt/pkg/apis/apps/v1beta1"
 	beta1 "github.com/openyurtio/openyurt/pkg/apis/apps/v1beta1"
-	"github.com/stretchr/testify/assert"
 )
 
 const (

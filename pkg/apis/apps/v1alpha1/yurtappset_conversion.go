@@ -18,10 +18,12 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 
 	"github.com/openyurtio/openyurt/pkg/apis/apps/v1beta1"
+	"github.com/openyurtio/openyurt/pkg/projectinfo"
 )
 
 func (src *YurtAppSet) ConvertTo(dstRaw conversion.Hub) error {
@@ -49,7 +51,7 @@ func (src *YurtAppSet) ConvertTo(dstRaw conversion.Hub) error {
 	pools := make([]string, 0)
 	tweaks := make([]v1beta1.WorkloadTweak, 0)
 	for _, pool := range src.Spec.Topology.Pools {
-		if len(pool.NodeSelectorTerm.MatchExpressions) == 1 && pool.NodeSelectorTerm.MatchExpressions[0].Key == "apps.openyurt.io/nodepool" ||
+		if len(pool.NodeSelectorTerm.MatchExpressions) == 1 && pool.NodeSelectorTerm.MatchExpressions[0].Key == projectinfo.GetNodePoolLabel() ||
 			pool.NodeSelectorTerm.MatchExpressions[0].Operator == corev1.NodeSelectorOpIn {
 			pools = append(pools, pool.NodeSelectorTerm.MatchExpressions[0].Values...)
 			if pool.Replicas != nil {
@@ -70,6 +72,7 @@ func (src *YurtAppSet) ConvertTo(dstRaw conversion.Hub) error {
 	dst.Status.ObservedGeneration = src.Status.ObservedGeneration
 	dst.Status.CollisionCount = src.Status.CollisionCount
 	dst.Status.TotalWorkloads = int32(len(src.Status.PoolReplicas))
+	dst.Status.CurrentRevision = src.Status.CurrentRevision
 	dst.Status.Conditions = make([]v1beta1.YurtAppSetCondition, 0)
 	for _, condition := range src.Status.Conditions {
 		dst.Status.Conditions = append(dst.Status.Conditions,
@@ -100,6 +103,7 @@ func (dst *YurtAppSet) ConvertFrom(srcRaw conversion.Hub) error {
 	dst.ObjectMeta = src.ObjectMeta
 
 	// convert spec
+	dst.Spec.Selector = &metav1.LabelSelector{}
 	if src.Spec.Workload.WorkloadTemplate.DeploymentTemplate != nil {
 		if dst.Spec.WorkloadTemplate.DeploymentTemplate == nil {
 			dst.Spec.WorkloadTemplate.DeploymentTemplate = &DeploymentTemplateSpec{}
@@ -112,6 +116,9 @@ func (dst *YurtAppSet) ConvertFrom(srcRaw conversion.Hub) error {
 			defaultReplicas = 0
 		}
 
+		if src.Spec.Workload.WorkloadTemplate.DeploymentTemplate.Spec.Selector != nil {
+			dst.Spec.WorkloadTemplate.DeploymentTemplate.Spec.Selector.DeepCopyInto(dst.Spec.Selector)
+		}
 		dst.Status.TemplateType = DeploymentTemplateType
 	}
 
@@ -126,6 +133,10 @@ func (dst *YurtAppSet) ConvertFrom(srcRaw conversion.Hub) error {
 		} else {
 			defaultReplicas = 0
 		}
+
+		if src.Spec.Workload.WorkloadTemplate.StatefulSetTemplate.Spec.Selector != nil {
+			dst.Spec.WorkloadTemplate.StatefulSetTemplate.Spec.Selector.DeepCopyInto(dst.Spec.Selector)
+		}
 		dst.Status.TemplateType = StatefulSetTemplateType
 	}
 
@@ -136,7 +147,7 @@ func (dst *YurtAppSet) ConvertFrom(srcRaw conversion.Hub) error {
 			NodeSelectorTerm: corev1.NodeSelectorTerm{
 				MatchExpressions: []corev1.NodeSelectorRequirement{
 					{
-						Key:      "apps.openyurt.io/nodepool",
+						Key:      projectinfo.GetNodePoolLabel(),
 						Operator: corev1.NodeSelectorOpIn,
 						Values:   []string{poolName},
 					},
@@ -161,7 +172,17 @@ func (dst *YurtAppSet) ConvertFrom(srcRaw conversion.Hub) error {
 	// convert status
 	dst.Status.ObservedGeneration = src.Status.ObservedGeneration
 	dst.Status.CollisionCount = src.Status.CollisionCount
+	dst.Status.CurrentRevision = src.Status.CurrentRevision
 	dst.Status.Conditions = make([]YurtAppSetCondition, 0)
+	// this is just an estimate, because the real value can not be obtained from v1beta1 status
+	dst.Status.ReadyReplicas = src.Status.ReadyWorkloads * defaultReplicas
+	dst.Status.Replicas = src.Status.TotalWorkloads * defaultReplicas
+
+	dst.Status.PoolReplicas = make(map[string]int32)
+	for _, pool := range src.Spec.Pools {
+		dst.Status.PoolReplicas[pool] = defaultReplicas
+	}
+
 	for _, condition := range src.Status.Conditions {
 		dst.Status.Conditions = append(dst.Status.Conditions, YurtAppSetCondition{
 			Type:               YurtAppSetConditionType(condition.Type),
