@@ -347,20 +347,22 @@ func (r *ReconcileService) InjectConfig(services []*corev1.Service) error {
 		if svc.Annotations == nil {
 			svc.Annotations = make(map[string]string)
 		}
+		if svc.Labels == nil {
+			svc.Labels = make(map[string]string)
+		}
 		svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-id"] = lb
 		svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-acl-id"] = acl
 		svc.Annotations["service.beta.kubernetes.io/alicloud-loadbalancer-force-override-listeners"] = "true"
 		svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-acl-status"] = "on"
 		svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-acl-type"] = "white"
-		svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-health-check-switch"] = "on"
 		svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-hostname"] = fmt.Sprintf("%s.%s.svc", svc.GetName(), svc.GetNamespace())
 
-		if svc.Annotations[raven.LabelCurrentGatewayType] == ravenv1beta1.Proxy {
+		if svc.Labels[raven.LabelCurrentGatewayType] == ravenv1beta1.Proxy {
+			svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-health-check-switch"] = "on"
 			svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-health-check-interval"] = "5"
 			svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-health-check-connect-timeout"] = "15"
 		} else {
-			svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-health-check-interval"] = "5"
-			svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-health-check-connect-timeout"] = "20"
+			svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-health-check-switch"] = "off"
 		}
 
 		ips := strings.Split(svc.Annotations[util.GatewayProxyPublicServiceExternalIP], ",")
