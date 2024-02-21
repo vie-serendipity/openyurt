@@ -1,6 +1,9 @@
 package base
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,7 +17,10 @@ import (
 	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
 )
 
-const AssumeRoleName = "AliyunCSManagedEdgeRole"
+const (
+	AddonTokenFilePath = "/var/addon/token-config"
+	AssumeRoleName     = "AliyunCSManagedEdgeRole"
+)
 
 type DefaultToken struct {
 	Region          string
@@ -207,4 +213,84 @@ func (vpc *MetaDataRequest) send() (string, error) {
 		return "", err
 	}
 	return string(data), nil
+}
+
+type AddonToken struct {
+	Region string `json:"region,omitempty"`
+}
+
+func (f *AddonToken) NextToken() (*DefaultToken, error) {
+	fileBytes, err := os.ReadFile(AddonTokenFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("read file %s error: %s", AddonTokenFilePath, err.Error())
+	}
+	akInfo := struct {
+		AccessKeyId     string `json:"access.key.id,omitempty"`
+		AccessKeySecret string `json:"access.key.secret,omitempty"`
+		SecurityToken   string `json:"security.token,omitempty"`
+		Expiration      string `json:"expiration,omitempty"`
+		Keyring         string `json:"keyring,omitempty"`
+	}{}
+	if err = json.Unmarshal(fileBytes, &akInfo); err != nil {
+		return nil, fmt.Errorf("unmarshal AddonToken [%s] error: %s", string(fileBytes), err.Error())
+	}
+
+	keyring := akInfo.Keyring
+	ak, err := Decrypt(akInfo.AccessKeyId, []byte(keyring))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode ak, err: %v", err)
+	}
+
+	sk, err := Decrypt(akInfo.AccessKeySecret, []byte(keyring))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode sk, err: %v", err)
+	}
+
+	token, err := Decrypt(akInfo.SecurityToken, []byte(keyring))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode token, err: %v", err)
+	}
+
+	t, err := time.Parse("2006-01-02T15:04:05Z", akInfo.Expiration)
+	if err != nil {
+		log.Error(err, "Expiration parse error")
+	} else {
+		if t.Before(time.Now()) {
+			return nil, fmt.Errorf("invalid token which is expired")
+		}
+	}
+
+	return &DefaultToken{
+		Region:          f.Region,
+		AccessKeyId:     string(ak),
+		AccessKeySecret: string(sk),
+		SecurityToken:   string(token),
+	}, nil
+}
+
+func Decrypt(s string, keyring []byte) ([]byte, error) {
+	cdata, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64 string, err: %s", err.Error())
+	}
+	block, err := aes.NewCipher(keyring)
+	if err != nil {
+		return nil, fmt.Errorf("failed to new cipher, err: %s", err.Error())
+	}
+	blockSize := block.BlockSize()
+
+	iv := cdata[:blockSize]
+	blockMode := cipher.NewCBCDecrypter(block, iv)
+	origData := make([]byte, len(cdata)-blockSize)
+
+	blockMode.CryptBlocks(origData, cdata[blockSize:])
+
+	origData = PKCS5UnPadding(origData)
+	return origData, nil
+}
+
+func PKCS5UnPadding(origData []byte) []byte {
+	length := len(origData)
+	unpadding := int(origData[length-1])
+	return origData[:(length - unpadding)]
 }
