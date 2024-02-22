@@ -461,7 +461,8 @@ func (r *ReconcileELB) removeServiceLabels(svc *v1.Service) error {
 		needUpdated = true
 	}
 
-	delete(updated.Labels, LabelLoadBalancerId)
+	delete(updated.Annotations, LabelLoadBalancerId)
+	delete(updated.Annotations, EipId)
 
 	if needUpdated {
 		err := r.client.Status().Patch(context.TODO(), updated, client.MergeFrom(svc))

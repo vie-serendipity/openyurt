@@ -33,7 +33,7 @@ func (v *VPCProvider) DescribeEipAddresses(ctx context.Context, mdl *ravenmodel.
 		return fmt.Errorf("DescribeEipAddresses response is empty")
 	}
 	if len(resp.EipAddresses.EipAddress) < 1 {
-		return fmt.Errorf("eip %s is not found", mdl.AllocationId)
+		return fmt.Errorf("request id: %s, eip %s is not found", resp.RequestId, mdl.AllocationId)
 	}
 
 	for _, eip := range resp.EipAddresses.EipAddress {

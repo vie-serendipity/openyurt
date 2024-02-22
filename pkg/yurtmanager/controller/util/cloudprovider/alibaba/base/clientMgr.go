@@ -69,6 +69,7 @@ func NewClientMgr(cloudConfigPath string) (*ClientMgr, error) {
 		return nil, fmt.Errorf("initialize alibaba vpc client: %s", err.Error())
 	}
 	vpcli.AppendUserAgent(AgentClusterId, clusterId)
+
 	slbcli, err := slb.NewClientWithOptions(region, clientCfg(), credential)
 	if err != nil {
 		return nil, fmt.Errorf("initialize alibaba slb client: %s", err.Error())

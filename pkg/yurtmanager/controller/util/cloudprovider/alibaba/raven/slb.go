@@ -38,14 +38,16 @@ func (s *SLBProvider) DescribeLoadBalancers(ctx context.Context, mdl *ravenmodel
 	if resp == nil {
 		return fmt.Errorf("DescribeLoadBalancers response is empty")
 	}
+	if len(resp.LoadBalancers.LoadBalancer) < 1 {
+		return fmt.Errorf("request id: %s, slb %s is not found", resp.RequestId, mdl.Name)
+	}
 	for _, lb := range resp.LoadBalancers.LoadBalancer {
-		if lb.VpcId != mdl.VpcId || lb.VSwitchId != mdl.VSwitchId || lb.LoadBalancerName != mdl.Name {
-			continue
+		if lb.VpcId == mdl.VpcId && lb.VSwitchId == mdl.VSwitchId && lb.LoadBalancerName == mdl.Name {
+			mdl.LoadBalancerId = lb.LoadBalancerId
+			mdl.Address = lb.Address
+			mdl.Spec = lb.LoadBalancerSpec
+			break
 		}
-		mdl.LoadBalancerId = lb.LoadBalancerId
-		mdl.Address = lb.Address
-		mdl.Spec = lb.LoadBalancerSpec
-		return nil
 	}
 	return nil
 }
@@ -104,11 +106,6 @@ func (s *SLBProvider) DescribeLoadBalancer(ctx context.Context, mdl *ravenmodel.
 	if resp == nil {
 		return fmt.Errorf("DescribeLoadBalancer is nil")
 	}
-	if resp.LoadBalancerName != mdl.Name {
-		mdl.LoadBalancerId = ""
-		mdl.Address = ""
-		return nil
-	}
 	mdl.Name = resp.LoadBalancerName
 	mdl.Region = resp.RegionId
 	mdl.Spec = resp.LoadBalancerSpec
@@ -130,6 +127,9 @@ func (s *SLBProvider) DescribeAccessControlLists(ctx context.Context, mdl *raven
 	}
 	if resp == nil {
 		return fmt.Errorf("DescribeAccessControlLists response is empty")
+	}
+	if len(resp.Acls.Acl) < 1 {
+		return fmt.Errorf("request id: %s, acl %s is not found", resp.RequestId, mdl.Name)
 	}
 	for _, acl := range resp.Acls.Acl {
 		if acl.AclName == req.AclName {
