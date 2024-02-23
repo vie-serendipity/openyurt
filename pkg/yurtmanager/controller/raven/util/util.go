@@ -188,6 +188,22 @@ func GetResourceHash(model *Model) string {
 	return elb.HashObject(op)
 }
 
+func GetPrevResourceHash(data map[string]string) string {
+	var lbId, lbIp, aclId, eipId, eipIp string
+	if data != nil {
+		lbId = data[LoadBalancerId]
+		lbIp = data[LoadBalancerIP]
+		aclId = data[ACLId]
+		eipId = data[ElasticIPId]
+		eipIp = data[ElasticIPIP]
+	}
+	var op []string
+	op = append(op, lbId, lbIp)
+	op = append(op, aclId)
+	op = append(op, eipId, eipIp)
+	return elb.HashObject(op)
+}
+
 func Retry(
 	backoff *wait.Backoff,
 	fun func(cm *corev1.ConfigMap) error,

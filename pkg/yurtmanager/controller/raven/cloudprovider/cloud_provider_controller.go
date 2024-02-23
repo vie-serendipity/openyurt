@@ -593,7 +593,7 @@ func (r *ReconcileResource) removeLabels(cm *corev1.ConfigMap) error {
 
 func (r *ReconcileResource) updateData(cm *corev1.ConfigMap, model *util.Model) error {
 	currHash := util.GetResourceHash(model)
-	prevHash := cm.Labels[ResourceHash]
+	prevHash := util.GetPrevResourceHash(cm.Data)
 	if currHash != prevHash {
 		var retErr error
 		_ = util.Retry(
