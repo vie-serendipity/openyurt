@@ -21,35 +21,53 @@ import (
 	"strconv"
 	"time"
 
+	listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
 
 	"github.com/openyurtio/openyurt/cmd/yurthub/app/options"
 )
 
 const (
-	SyncNetworkPeriod = 60
+	maxDuration = 60 * time.Second
 )
 
 type NetworkManager struct {
-	ifController    DummyInterfaceController
-	iptablesManager *IptablesManager
-	dummyIfIP       net.IP
-	dummyIfName     string
-	enableIptables  bool
+	ifController         DummyInterfaceController
+	iptablesManager      *IptablesManager
+	dummyIfIP            net.IP
+	dummyIfName          string
+	enableDummyIf        bool
+	enableForwardTraffic bool
 }
 
-func NewNetworkManager(options *options.YurtHubOptions) (*NetworkManager, error) {
-	m := &NetworkManager{
-		ifController:    NewDummyInterfaceController(),
-		iptablesManager: NewIptablesManager(options.HubAgentDummyIfIP, strconv.Itoa(options.YurtHubProxyPort)),
-		dummyIfIP:       net.ParseIP(options.HubAgentDummyIfIP),
-		dummyIfName:     options.HubAgentDummyIfName,
-		enableIptables:  options.EnableIptables,
+func NewNetworkManager(options *options.YurtHubOptions, serviceLister listers.ServiceLister) (*NetworkManager, error) {
+	if !options.EnableForwardTraffic && !options.EnableDummyIf {
+		klog.Infof("both traffic forwarding and dummy interface are not enabled, skip network manager")
+		return nil, nil
 	}
-	// secure port
-	m.iptablesManager.rules = append(m.iptablesManager.rules, makeupIptablesRules(options.HubAgentDummyIfIP, strconv.Itoa(options.YurtHubProxySecurePort))...)
-	if err := m.configureNetwork(); err != nil {
-		return nil, err
+	m := &NetworkManager{
+		dummyIfIP:            net.ParseIP(options.HubAgentDummyIfIP),
+		dummyIfName:          options.HubAgentDummyIfName,
+		enableDummyIf:        options.EnableDummyIf,
+		enableForwardTraffic: options.EnableForwardTraffic,
+	}
+
+	if m.enableDummyIf {
+		m.ifController = NewDummyInterfaceController()
+		err := m.ifController.EnsureDummyInterface(m.dummyIfName, m.dummyIfIP)
+		if err != nil {
+			klog.Errorf("couldn't ensure dummy interface, %v", err)
+			return nil, err
+		}
+		klog.V(2).Infof("create dummy network interface %s(%s)", m.dummyIfName, m.dummyIfIP.String())
+	}
+
+	if m.enableForwardTraffic {
+		secureServerHost := options.YurtHubProxyHost
+		if options.EnableDummyIf {
+			secureServerHost = options.HubAgentDummyIfIP
+		}
+		m.iptablesManager = NewIptablesManager(secureServerHost, strconv.Itoa(options.YurtHubProxySecurePort), serviceLister)
 	}
 
 	return m, nil
@@ -57,49 +75,46 @@ func NewNetworkManager(options *options.YurtHubOptions) (*NetworkManager, error)
 
 func (m *NetworkManager) Run(stopCh <-chan struct{}) {
 	go func() {
-		ticker := time.NewTicker(SyncNetworkPeriod * time.Second)
+		tickerDuration := 1 * time.Second
+		ticker := time.NewTicker(tickerDuration)
 		defer ticker.Stop()
 
 		for {
 			select {
 			case <-stopCh:
-				klog.Infof("exit network manager run goroutine normally")
-				if m.enableIptables {
-					if err := m.iptablesManager.CleanUpIptablesRules(); err != nil {
-						klog.Errorf("could not cleanup iptables, %v", err)
-					}
+				if m.enableDummyIf {
+					klog.Infof("exit network manager run goroutine normally, dummy interface(%s) are left", m.dummyIfName)
 				}
-				err := m.ifController.DeleteDummyInterface(m.dummyIfName)
-				if err != nil {
-					klog.Errorf("could not delete dummy interface %s, %v", m.dummyIfName, err)
-				} else {
-					klog.Infof("remove dummy interface %s successfully", m.dummyIfName)
+
+				if m.enableForwardTraffic {
+					klog.Infof("exit network manager run goroutine normally, iptables are left")
 				}
 				return
 			case <-ticker.C:
-				if err := m.configureNetwork(); err != nil {
-					// do nothing here
-					klog.Warningf("could not configure network, %v", err)
+				if m.enableDummyIf {
+					err := m.ifController.EnsureDummyInterface(m.dummyIfName, m.dummyIfIP)
+					if err != nil {
+						klog.Warningf("couldn't ensure dummy interface, %v", err)
+					}
+				}
+
+				if m.enableForwardTraffic {
+					err := m.iptablesManager.EnsureIptablesRules()
+					if err != nil {
+						klog.Warningf("couldn't ensure iptables for default/kubernetes service, %v", err)
+					}
+				}
+
+				if tickerDuration < maxDuration {
+					tickerDuration = tickerDuration * 2
+					if tickerDuration > maxDuration {
+						tickerDuration = maxDuration
+					}
+
+					ticker.Stop()
+					ticker = time.NewTicker(tickerDuration)
 				}
 			}
 		}
 	}()
-}
-
-func (m *NetworkManager) configureNetwork() error {
-	err := m.ifController.EnsureDummyInterface(m.dummyIfName, m.dummyIfIP)
-	if err != nil {
-		klog.Errorf("ensure dummy interface failed, %v", err)
-		return err
-	}
-
-	if m.enableIptables {
-		err := m.iptablesManager.EnsureIptablesRules()
-		if err != nil {
-			klog.Errorf("ensure iptables for dummy interface failed, %v", err)
-			return err
-		}
-	}
-
-	return nil
 }
