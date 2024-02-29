@@ -55,6 +55,8 @@ func (v *VPCProvider) AllocateEipAddress(ctx context.Context, mdl *ravenmodel.El
 	req.Name = mdl.String()
 	req.RegionId = mdl.Region
 	req.Bandwidth = mdl.Bandwidth
+	req.InternetChargeType = mdl.InternetChargeType
+	req.InstanceChargeType = mdl.InstanceChargeType
 
 	resp, err := v.auth.EIP.AllocateEipAddress(req)
 	if err != nil {
