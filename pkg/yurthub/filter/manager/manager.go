@@ -29,6 +29,7 @@ import (
 	"github.com/openyurtio/openyurt/cmd/yurthub/app/options"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter/discardcloudservice"
+	"github.com/openyurtio/openyurt/pkg/yurthub/filter/forwardkubesvctraffic"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter/imagecustomization"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter/inclusterconfig"
 	"github.com/openyurtio/openyurt/pkg/yurthub/filter/initializer"
@@ -138,6 +139,7 @@ func createObjectFilters(options *options.YurtHubOptions,
 func registerAllFilters(filters *filter.Filters) {
 	servicetopology.Register(filters)
 	masterservice.Register(filters)
+	forwardkubesvctraffic.Register(filters)
 	discardcloudservice.Register(filters)
 	inclusterconfig.Register(filters)
 	nodeportisolation.Register(filters)

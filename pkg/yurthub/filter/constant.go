@@ -21,6 +21,10 @@ const (
 	// in order to pods on edge nodes can access kube-apiserver directly by inClusterConfig.
 	MasterServiceFilterName = "masterservice"
 
+	// ForwardKubeSvcTrafficFilterName filter is used to mutate the default/kubernetes endpointslices
+	// in order to make pods on edge nodes can access kube-apiserver directly by default/kubernetes service.
+	ForwardKubeSvcTrafficFilterName = "forwardkubesvctraffic"
+
 	// ServiceTopologyFilterName filter is used to reassemble endpointslice in order to make the service traffic
 	// under the topology that defined by service.Annotation["openyurt.io/topologyKeys"]
 	ServiceTopologyFilterName = "servicetopology"
@@ -62,13 +66,14 @@ var (
 
 	// SupportedComponentsForFilter is used for specifying which components are supported by filters as default setting.
 	SupportedComponentsForFilter = map[string]string{
-		MasterServiceFilterName:       "kubelet",
-		DiscardCloudServiceFilterName: "kube-proxy",
-		ServiceTopologyFilterName:     "kube-proxy, coredns, nginx-ingress-controller",
-		InClusterConfigFilterName:     "kubelet",
-		NodePortIsolationFilterName:   "kube-proxy",
-		TrimCorednsVolumeFilterName:   "kubelet",
-		MuteTunnelNodesFilterName:     "kubelet",
-		ImageCustomizationFilterName:  "kubelet",
+		MasterServiceFilterName:         "kubelet",
+		ForwardKubeSvcTrafficFilterName: "kube-proxy",
+		DiscardCloudServiceFilterName:   "kube-proxy",
+		ServiceTopologyFilterName:       "kube-proxy, coredns, nginx-ingress-controller",
+		InClusterConfigFilterName:       "kubelet",
+		NodePortIsolationFilterName:     "kube-proxy",
+		TrimCorednsVolumeFilterName:     "kubelet",
+		MuteTunnelNodesFilterName:       "kubelet",
+		ImageCustomizationFilterName:    "kubelet",
 	}
 )
