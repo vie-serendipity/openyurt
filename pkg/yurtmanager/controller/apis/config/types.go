@@ -27,6 +27,7 @@ import (
 	nodebucketconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/nodebucket/config"
 	nodepoolconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/nodepool/config"
 	platformadminconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/platformadmin/config"
+	poolserviceconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/poolservice/config"
 	gatewaylifecycleconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/gatewaylifecycle/config"
 	gatewaypickupconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/gatewaypickup/config"
 	ravencloudproviderconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util/config"
@@ -73,6 +74,8 @@ type YurtManagerConfiguration struct {
 
 	// CloudNodepoolLifeCycleController holds configuration for CloudNodepoolLifeCycleController related features.
 	CloudNodesLabelsController cloudnodeslabels.CloudNodesLabelsControllerConfiguration
+	//  PoolServiceController holds configuration for PoolServiceController related features.
+	PoolServiceController poolserviceconfig.PoolServiceControllerConfiguration
 }
 
 type GenericConfiguration struct {
