@@ -190,9 +190,12 @@ func Complete(options *options.YurtHubOptions) (*YurtHubConfiguration, error) {
 	}
 	cfg.CertManager = certMgr
 
-	if networkMgr, err := network.NewNetworkManager(options, sharedFactory.Core().V1().Services().Lister()); err != nil {
-		return nil, err
-	} else {
+	if options.EnableDummyIf {
+		klog.V(2).Infof("create dummy network interface %s(%s) and init iptables manager", options.HubAgentDummyIfName, options.HubAgentDummyIfIP)
+		networkMgr, err := network.NewNetworkManager(options)
+		if err != nil {
+			return nil, fmt.Errorf("could not create network manager, %w", err)
+		}
 		cfg.NetworkMgr = networkMgr
 	}
 
