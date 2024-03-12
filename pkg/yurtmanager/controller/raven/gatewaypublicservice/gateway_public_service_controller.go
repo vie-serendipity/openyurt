@@ -341,6 +341,10 @@ func (r *ReconcileService) InjectConfig(services []*corev1.Service) error {
 	if acl == "" {
 		return errors.New("failed to find acl id, waiting to buy it")
 	}
+	eip := cm.Data[util.ElasticIPIP]
+	if eip == "" {
+		return errors.New("failed to find eip address, waiting to buy it")
+	}
 
 	for i := 0; i < len(services); i++ {
 		svc := services[i]
@@ -355,7 +359,7 @@ func (r *ReconcileService) InjectConfig(services []*corev1.Service) error {
 		svc.Annotations["service.beta.kubernetes.io/alicloud-loadbalancer-force-override-listeners"] = "true"
 		svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-acl-status"] = "on"
 		svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-acl-type"] = "white"
-		svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-hostname"] = fmt.Sprintf("%s.%s.svc", svc.GetName(), svc.GetNamespace())
+		svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-hostname"] = fmt.Sprintf("eip-%s", eip)
 
 		if svc.Labels[raven.LabelCurrentGatewayType] == ravenv1beta1.Proxy {
 			svc.Annotations["service.beta.kubernetes.io/alibaba-cloud-loadbalancer-health-check-switch"] = "on"

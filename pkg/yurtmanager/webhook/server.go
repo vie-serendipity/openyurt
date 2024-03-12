@@ -32,6 +32,7 @@ import (
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller"
 	v1beta1gateway "github.com/openyurtio/openyurt/pkg/yurtmanager/webhook/gateway/v1beta1"
 	v1node "github.com/openyurtio/openyurt/pkg/yurtmanager/webhook/node/v1"
+	v1alpha1nnc "github.com/openyurtio/openyurt/pkg/yurtmanager/webhook/nodenetworkconfiguration/v1alpha1"
 	v1beta1nodepool "github.com/openyurtio/openyurt/pkg/yurtmanager/webhook/nodepool/v1beta1"
 	v1alpha1platformadmin "github.com/openyurtio/openyurt/pkg/yurtmanager/webhook/platformadmin/v1alpha1"
 	v1alpha2platformadmin "github.com/openyurtio/openyurt/pkg/yurtmanager/webhook/platformadmin/v1alpha2"
@@ -77,6 +78,7 @@ func init() {
 	addControllerWebhook(names.UnitedDeploymentController, &v1alpha1uniteddeployment.UnitedDeploymentHandler{})
 
 	independentWebhooks[v1node.WebhookName] = &v1node.NodeHandler{}
+	independentWebhooks[v1alpha1nnc.WebhookName] = &v1alpha1nnc.NodeNetworkConfigurationHandler{}
 }
 
 // Note !!! @kadisi
