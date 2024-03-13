@@ -121,7 +121,7 @@ func NewYurtHubOptions() *YurtHubOptions {
 		DiskCachePath:             disk.CacheBaseDir,
 		AccessServerThroughHub:    true,
 		EnableResourceFilter:      true,
-		DisabledResourceFilters:   []string{filter.InClusterConfigFilterName, filter.MasterServiceFilterName},
+		DisabledResourceFilters:   []string{filter.InClusterConfigFilterName},
 		WorkingMode:               string(util.WorkingModeEdge),
 		KubeletHealthGracePeriod:  time.Second * 40,
 		EnableNodePool:            true,
