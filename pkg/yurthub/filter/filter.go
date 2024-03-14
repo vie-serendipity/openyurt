@@ -294,6 +294,7 @@ func (chain filterChain) Filter(obj runtime.Object, stopCh <-chan struct{}) runt
 	for i := range chain {
 		obj = chain[i].Filter(obj, stopCh)
 		if yurtutil.IsNil(obj) {
+			klog.Infof("filter %s has skipped an object", chain[i].Name())
 			break
 		}
 	}
