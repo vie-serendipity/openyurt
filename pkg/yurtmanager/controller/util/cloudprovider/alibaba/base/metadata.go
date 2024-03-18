@@ -1,10 +1,10 @@
 package base
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
@@ -22,17 +22,6 @@ func NewCfgMeta() (*MetaData, error) {
 	if CloudCFG == nil {
 		return &MetaData{}, errors.New("cloud config error")
 	}
-	key, err := base64.StdEncoding.DecodeString(CloudCFG.AccessID())
-	if err != nil {
-		return &MetaData{}, errors.New("access id is empty")
-	}
-	keyId := string(key)
-
-	secret, err := base64.StdEncoding.DecodeString(CloudCFG.AccessSecret())
-	if err != nil {
-		return &MetaData{}, errors.New("access secret is empty")
-	}
-	keySecret := string(secret)
 
 	if CloudCFG.VpcID() == "" {
 		return &MetaData{}, errors.New("vpc id is empty")
@@ -56,33 +45,30 @@ func NewCfgMeta() (*MetaData, error) {
 		return &MetaData{}, errors.New(fmt.Sprintf("vswitch %s is incorrect", vswitchId))
 	}
 	return &MetaData{
-		UID:             CloudCFG.UID(),
-		AccessKeyID:     keyId,
-		AccessKeySecret: keySecret,
-		ClusterID:       CloudCFG.ClusterID(),
-		VpcID:           CloudCFG.VpcID(),
-		VswitchID:       id,
-		Region:          CloudCFG.Region(),
+		UID:       CloudCFG.UID(),
+		ClusterID: CloudCFG.ClusterID(),
+		VpcID:     CloudCFG.VpcID(),
+		VswitchID: id,
+		Region:    CloudCFG.Region(),
 	}, nil
 }
+
 func NewMetaData() (prvd.IMetaData, error) {
-	if CloudCFG.Global.AccessKeyID != "" && CloudCFG.Global.AccessKeySecret != "" {
-		return NewCfgMeta()
+	if os.Getenv("ALIBABACLOUD_TYPE") == "Private" {
+		return NewBaseMetaData(nil), nil
 	}
-	return NewBaseMetaData(nil), nil
+	return NewCfgMeta()
 }
 
 // render meta data from cloud config file
 var _ prvd.IMetaData = &MetaData{}
 
 type MetaData struct {
-	UID             string
-	AccessKeyID     string
-	AccessKeySecret string
-	Region          string
-	ClusterID       string
-	VpcID           string
-	VswitchID       string
+	UID       string
+	Region    string
+	ClusterID string
+	VpcID     string
+	VswitchID string
 }
 
 func (m *MetaData) GetVpcID() (string, error) {
@@ -113,20 +99,6 @@ func (m *MetaData) GetUID() (string, error) {
 	return m.UID, nil
 }
 
-func (m *MetaData) GetAccessID() (string, error) {
-	if m.AccessKeyID == "" {
-		return "", errors.New("access key id is empty, can not get")
-	}
-	return m.AccessKeyID, nil
-}
-
-func (m *MetaData) GetAccessSecret() (string, error) {
-	if m.AccessKeySecret == "" {
-		return "", errors.New("access key secret is empty, can not get")
-	}
-	return m.AccessKeySecret, nil
-}
-
 func (m *MetaData) GetClusterID() (string, error) {
 	if m.ClusterID == "" {
 		return "", errors.New("cluster id is empty, can not get")
@@ -144,8 +116,6 @@ func (m *MetaData) RamRoleToken(role string) (prvd.RoleAuth, error) {
 
 func (m *MetaData) LoadCloudCFG() {
 	m.UID = CloudCFG.UID()
-	m.AccessKeyID = CloudCFG.AccessID()
-	m.AccessKeySecret = CloudCFG.AccessSecret()
 	m.ClusterID = CloudCFG.ClusterID()
 	m.VpcID = CloudCFG.VpcID()
 	m.VswitchID = CloudCFG.VswitchID()

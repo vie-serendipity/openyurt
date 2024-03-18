@@ -31,8 +31,6 @@ type IMetaData interface {
 	GetVpcID() (string, error)
 	GetVswitchID() (string, error)
 	GetUID() (string, error)
-	GetAccessID() (string, error)
-	GetAccessSecret() (string, error)
 	RoleName() (string, error)
 	RamRoleToken(role string) (RoleAuth, error)
 }

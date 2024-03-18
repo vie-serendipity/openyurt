@@ -145,30 +145,6 @@ func (mgr *ClientMgr) GetTokenAuth() (TokenAuth, error) {
 		log.Info("use addon token mode to get token")
 		return &AddonToken{Region: mgr.Region}, nil
 	}
-
-	if CloudCFG.Global.AccessKeyID != "" && CloudCFG.Global.AccessKeySecret != "" {
-		if mgr.Meta == nil {
-			return nil, fmt.Errorf("can not get token meta data is empty")
-		}
-		uid, err := mgr.Meta.GetUID()
-		if err != nil {
-			return nil, fmt.Errorf("can not determin uid")
-		}
-		ak, err := mgr.Meta.GetAccessID()
-		if err != nil {
-			return nil, fmt.Errorf("can not determin access key id")
-		}
-		sk, err := mgr.Meta.GetAccessSecret()
-		if err != nil {
-			return nil, fmt.Errorf("can not determin access key secret")
-		}
-		region, err := mgr.Meta.GetRegion()
-		if err != nil {
-			return nil, fmt.Errorf("can not determin region")
-		}
-		return &MetaToken{UID: uid, AccessKeyID: ak, AccessKeySecret: sk, Region: region}, nil
-	}
-
 	return &RamRoleToken{mgr.Meta}, nil
 }
 
