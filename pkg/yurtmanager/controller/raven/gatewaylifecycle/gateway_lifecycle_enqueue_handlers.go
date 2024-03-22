@@ -18,7 +18,12 @@ package gatewaylifecycle
 
 import (
 	"context"
+	"fmt"
+	discovery "k8s.io/api/discovery/v1"
+
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 	"reflect"
@@ -26,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
 	nodepoolv1beta1 "github.com/openyurtio/openyurt/pkg/apis/apps/v1beta1"
+	ravenv1beta1 "github.com/openyurtio/openyurt/pkg/apis/raven/v1beta1"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util"
 )
 
@@ -103,7 +109,7 @@ func (h *EnqueueRequestForRavenConfigEvent) Create(e event.CreateEvent, q workqu
 	}
 
 	for _, np := range nodePoolList.Items {
-		klog.V(2).Infof(Format("enqueue nodepools %s for onfigmap %s/%s create event",
+		klog.V(2).Infof(Format("enqueue nodepools %s for configmap %s/%s create event",
 			np.GetName(), cm.GetNamespace(), cm.GetName()))
 		util.AddNodePoolToWorkQueue(np.GetName(), q)
 	}
@@ -161,7 +167,7 @@ func (h *EnqueueRequestForRavenConfigEvent) Delete(e event.DeleteEvent, q workqu
 	}
 
 	for _, np := range nodePoolList.Items {
-		klog.V(2).Infof(Format("enqueue nodepools %s for onfigmap %s/%s delete event",
+		klog.V(2).Infof(Format("enqueue nodepools %s for configmap %s/%s delete event",
 			np.GetName(), cm.GetNamespace(), cm.GetName()))
 		util.AddNodePoolToWorkQueue(np.GetName(), q)
 	}
@@ -192,12 +198,14 @@ func (h *EnqueueRequestForNodeEvent) Update(e event.UpdateEvent, q workqueue.Rat
 	if isUnderNAT(newNode) != isUnderNAT(oldNode) {
 		np := newNode.Labels[NodePoolKey]
 		if np != "" {
+			klog.V(2).Infof(Format("enqueue nodepools %s for node %s update event", np, newNode.GetName()))
 			util.AddNodePoolToWorkQueue(np, q)
 		}
 	}
 	if isGatewayEndpoint(newNode) != isGatewayEndpoint(oldNode) {
 		np := newNode.Labels[NodePoolKey]
 		if np != "" {
+			klog.V(2).Infof(Format("enqueue nodepools %s for node %s update event", np, newNode.GetName()))
 			util.AddNodePoolToWorkQueue(np, q)
 		}
 	}
@@ -207,4 +215,67 @@ func (h *EnqueueRequestForNodeEvent) Delete(e event.DeleteEvent, q workqueue.Rat
 }
 
 func (h *EnqueueRequestForNodeEvent) Generic(e event.GenericEvent, q workqueue.RateLimitingInterface) {
+}
+
+type EnqueueGatewayForEndpointSlice struct {
+	client client.Client
+}
+
+func (h *EnqueueGatewayForEndpointSlice) Create(e event.CreateEvent, q workqueue.RateLimitingInterface) {
+	eps, ok := e.Object.(*discovery.EndpointSlice)
+	if !ok {
+		klog.Error(Format("fail to assert runtime Object to discovery.EndpointSlice"))
+		return
+	}
+	h.addNodePoolForEndpointSliceEvents(eps, q)
+	return
+}
+
+func (h *EnqueueGatewayForEndpointSlice) Update(e event.UpdateEvent, q workqueue.RateLimitingInterface) {
+	eps, ok := e.ObjectNew.(*discovery.EndpointSlice)
+	if !ok {
+		klog.Error(Format("fail to assert runtime Object to discovery.EndpointSlice"))
+		return
+	}
+	h.addNodePoolForEndpointSliceEvents(eps, q)
+	return
+}
+func (h *EnqueueGatewayForEndpointSlice) Delete(e event.DeleteEvent, q workqueue.RateLimitingInterface) {
+	eps, ok := e.Object.(*discovery.EndpointSlice)
+	if !ok {
+		klog.Error(Format("fail to assert runtime Object to discovery.EndpointSlice"))
+		return
+	}
+	h.addNodePoolForEndpointSliceEvents(eps, q)
+	return
+}
+func (h *EnqueueGatewayForEndpointSlice) Generic(e event.GenericEvent, q workqueue.RateLimitingInterface) {
+	return
+}
+
+func (h *EnqueueGatewayForEndpointSlice) addNodePoolForEndpointSliceEvents(eps *discovery.EndpointSlice, q workqueue.RateLimitingInterface) {
+	var gw ravenv1beta1.Gateway
+	err := h.client.Get(context.TODO(), types.NamespacedName{Name: fmt.Sprintf("%s%s", GatewayPrefix, CloudNodePoolName)}, &gw)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return
+		}
+		klog.Error(Format("fail to get gateway gw-cloud error: %s", err.Error()))
+		return
+	}
+	for _, ep := range gw.Status.ActiveEndpoints {
+		if ep.Type == ravenv1beta1.Tunnel {
+			var node corev1.Node
+			err := h.client.Get(context.TODO(), types.NamespacedName{Name: ep.NodeName}, &node)
+			if err != nil {
+				klog.Error(Format("fail to get node %s, error: %s", node.Name, err.Error()))
+			}
+			npName := node.Labels[NodePoolKey]
+			if npName != "" {
+				klog.V(2).Infof(Format("enqueue nodepools %s for endpointslice %s/%s update event", npName, eps.GetNamespace(), eps.GetName()))
+				util.AddNodePoolToWorkQueue(node.Labels[NodePoolKey], q)
+			}
+			break
+		}
+	}
 }
