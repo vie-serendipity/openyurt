@@ -61,7 +61,7 @@ func YurtManagerControllerAliases() map[string]string {
 		"gatewayinternalservice":        GatewayInternalServiceController,
 		"gatewaypublicservice":          GatewayPublicServiceController,
 		"gatewaydns":                    GatewayDNSController,
-		"gatewaylifycycle":              GatewayLifeCycleController,
+		"gatewaylifecycle":              GatewayLifeCycleController,
 		"nodelifecycle":                 NodeLifeCycleController,
 		"cloudprovider":                 RavenCloudProviderController,
 		"aclentry":                      RavenACLEntryController,
