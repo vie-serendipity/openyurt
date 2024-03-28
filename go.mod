@@ -3,6 +3,7 @@ module github.com/openyurtio/openyurt
 go 1.18
 
 require (
+	github.com/EvilSuperstars/go-cidrman v0.0.0-20190607145828-28e79e32899a
 	github.com/aliyun/alibaba-cloud-sdk-go v1.62.156
 	github.com/davecgh/go-spew v1.1.1
 	github.com/edgexfoundry/go-mod-core-contracts/v2 v2.3.0

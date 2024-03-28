@@ -26,6 +26,7 @@ const (
 	GatewayProxyInternalService    = "x-raven-proxy-internal-svc"
 	GatewayProxyServiceNamePrefix  = "x-raven-proxy-svc"
 	GatewayTunnelServiceNamePrefix = "x-raven-tunnel-svc"
+	ExtraAllowedSourceCIDRs        = "raven.openyurt.io/extra-allowed-source-cidrs"
 
 	RavenProxyNodesConfig      = "edge-tunnel-nodes"
 	ProxyNodesKey              = "tunnel-nodes"
@@ -53,8 +54,5 @@ const (
 	GatewayProxyPublicServiceExternalIP      = "raven.openyurt.io/public-service-external-ip"
 	GatewayProxyPublicServiceExternalDNSName = "raven.openyurt.io/public-service-external-dns-name"
 
-	ResourceUseForRavenComponentKey   = "ack.edge.ecm"
-	ResourceUseForRavenComponentValue = "raven-agent-ds"
-	CloudConfigDefaultPath            = "/etc/kubernetes/config/cloud-config.json"
-	CentreGatewayExposedPorts         = "10280,10281,10282,10283,10284"
+	CentreGatewayExposedPorts = "10280,10281,10282,10283,10284"
 )
