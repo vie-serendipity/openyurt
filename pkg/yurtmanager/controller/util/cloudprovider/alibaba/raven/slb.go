@@ -74,6 +74,7 @@ func (s *SLBProvider) CreateLoadBalancer(ctx context.Context, mdl *ravenmodel.Lo
 	req.AddressType = mdl.AddressType
 	req.VpcId = mdl.VpcId
 	req.VSwitchId = mdl.VSwitchId
+	req.InstanceChargeType = mdl.InstanceChargeType
 	resp, err := s.auth.SLB.CreateLoadBalancer(req)
 	if err != nil {
 		return CLBSDKError("CreateLoadBalancer", err)
@@ -110,6 +111,8 @@ func (s *SLBProvider) DescribeLoadBalancer(ctx context.Context, mdl *ravenmodel.
 	mdl.Region = resp.RegionId
 	mdl.Spec = resp.LoadBalancerSpec
 	mdl.Status = resp.LoadBalancerStatus
+	mdl.InstanceChargeType = resp.InstanceChargeType
+	mdl.InternetChargeType = resp.InternetChargeType
 	mdl.VpcId = resp.VpcId
 	mdl.VSwitchId = resp.VSwitchId
 	mdl.Address = resp.Address
