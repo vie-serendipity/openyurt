@@ -322,6 +322,7 @@ func (r *ReconcileResource) buildLocalModel(reqCtx *util.RequestContext) (*util.
 	localModel := util.NewModel(nameKey, r.providerAttribute.Region)
 	localModel.SLBModel.VpcId = r.providerAttribute.VpcId
 	localModel.SLBModel.VSwitchId = r.providerAttribute.VswitchId
+	localModel.SLBModel.InstanceChargeType = "PayByCLCU"
 	localModel.SLBModel.Spec = "slb.s2.medium"
 	localModel.SLBModel.AddressType = "intranet"
 	localModel.EIPModel.Bandwidth = "100"

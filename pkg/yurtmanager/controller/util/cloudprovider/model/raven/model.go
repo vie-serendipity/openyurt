@@ -109,16 +109,18 @@ type ElasticIPAttribute struct {
 }
 
 type LoadBalancerAttribute struct {
-	NamedKey       `json:"namedKey"`
-	LoadBalancerId string `json:"loadBalancerId"`
-	Name           string `json:"name"`
-	Region         string `json:"region"`
-	Spec           string `json:"spec"`
-	Status         string `json:"status"`
-	Address        string `json:"address"`
-	AddressType    string `json:"addressType"`
-	VpcId          string `json:"vpcId"`
-	VSwitchId      string `json:"VSwitchId"`
+	NamedKey           `json:"namedKey"`
+	LoadBalancerId     string `json:"loadBalancerId"`
+	Name               string `json:"name"`
+	Region             string `json:"region"`
+	Spec               string `json:"spec"`
+	InstanceChargeType string `json:"instanceChargeType"`
+	InternetChargeType string `json:"internetChargeType"`
+	Status             string `json:"status"`
+	Address            string `json:"address"`
+	AddressType        string `json:"addressType"`
+	VpcId              string `json:"vpcId"`
+	VSwitchId          string `json:"switchId"`
 }
 
 type AccessControlListAttribute struct {
