@@ -343,7 +343,7 @@ func (r *ReconcileGatewayLifeCycle) getCloudGatewayEndpoints(ctx context.Context
 		if _, ok := node.Labels[constants.LabelNodeRoleOldControlPlane]; ok {
 			continue
 		}
-		if node.GetDeletionGracePeriodSeconds() != nil || node.GetDeletionGracePeriodSeconds() != nil {
+		if node.GetDeletionTimestamp() != nil || node.GetDeletionGracePeriodSeconds() != nil {
 			continue
 		}
 		pes, tes := r.generateEndpoint(node.Name, publicAddress, privateAddress, false)
@@ -396,7 +396,7 @@ func (r *ReconcileGatewayLifeCycle) getEdgeGatewayEndpoints(ctx context.Context,
 	var defaultProxyEndpoints, defaultTunnelEndpoints []ravenv1beta1.Endpoint
 	for i := range nodeList.Items {
 		node := nodeList.Items[i]
-		if node.GetDeletionGracePeriodSeconds() != nil || node.GetDeletionGracePeriodSeconds() != nil {
+		if node.GetDeletionTimestamp() != nil || node.GetDeletionGracePeriodSeconds() != nil {
 			continue
 		}
 		underNat := isUnderNAT(&node)
