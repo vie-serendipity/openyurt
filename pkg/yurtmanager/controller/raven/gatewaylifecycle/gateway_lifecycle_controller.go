@@ -73,12 +73,13 @@ const (
 
 	DefaultEndpointsProportion = 0.3
 
+	AllowRavenConnect  = "alibabacloud.com/allow-raven-tunnel-connection"
+	RejectRavenConnect = "alibabacloud.com/reject-raven-tunnel-connection"
+
 	// not public
-	SpecifiedGateway              = "alibabacloud.com/belong-to-gateway"
-	GatewayExcludeNodePool        = "alibabacloud.com/gateway-exclude-nodepool"
-	AddressConflict               = "alibabacloud.com/address-conflict"
-	SoloNodePoolEnableRavenTunnel = "alibabacloud.com/enable-raven-tunnel"
-	UnderNAT                      = "alibabacloud.com/under-nat"
+	SpecifiedGateway = "alibabacloud.com/belong-to-gateway"
+	AddressConflict  = "alibabacloud.com/address-conflict"
+	UnderNAT         = "alibabacloud.com/under-nat"
 )
 
 func Format(format string, args ...interface{}) string {
@@ -184,7 +185,7 @@ func (r *ReconcileGatewayLifeCycle) Reconcile(ctx context.Context, req reconcile
 		np = nodepoolv1beta1.NodePool{ObjectMeta: metav1.ObjectMeta{Name: req.Name}}
 	}
 
-	if isExclude(&np) {
+	if rejectRavenTunnelConnect(&np) {
 		klog.Info(Format("ignore nodepool %s, skip reconcile it", np.GetName()))
 		return reconcile.Result{}, nil
 	}
@@ -212,7 +213,7 @@ func (r *ReconcileGatewayLifeCycle) needDeleteGateway(ctx context.Context, np *n
 		return true
 	}
 
-	if isSoloMode(np) && !soloNodePoolEnableTunnel(np) {
+	if isSoloMode(np) && !allowRavenTunnelConnect(np) {
 		return true
 	}
 	return false
@@ -342,6 +343,9 @@ func (r *ReconcileGatewayLifeCycle) getCloudGatewayEndpoints(ctx context.Context
 		if _, ok := node.Labels[constants.LabelNodeRoleOldControlPlane]; ok {
 			continue
 		}
+		if node.GetDeletionGracePeriodSeconds() != nil || node.GetDeletionGracePeriodSeconds() != nil {
+			continue
+		}
 		pes, tes := r.generateEndpoint(node.Name, publicAddress, privateAddress, false)
 		if isGatewayEndpoint(&node) {
 			proxyEndpoints = append(proxyEndpoints, pes)
@@ -392,6 +396,9 @@ func (r *ReconcileGatewayLifeCycle) getEdgeGatewayEndpoints(ctx context.Context,
 	var defaultProxyEndpoints, defaultTunnelEndpoints []ravenv1beta1.Endpoint
 	for i := range nodeList.Items {
 		node := nodeList.Items[i]
+		if node.GetDeletionGracePeriodSeconds() != nil || node.GetDeletionGracePeriodSeconds() != nil {
+			continue
+		}
 		underNat := isUnderNAT(&node)
 		pes, tes := r.generateEndpoint(node.Name, "", "", underNat)
 		if isGatewayEndpoint(&node) {
@@ -548,7 +555,7 @@ func (r *ReconcileGatewayLifeCycle) ensureEdgeGateway(ctx context.Context, np *n
 	}
 
 	// The gateway cannot be created for a solo node pool
-	if isSoloMode(np) && soloNodePoolEnableTunnel(np) {
+	if isSoloMode(np) && allowRavenTunnelConnect(np) {
 		err := r.updateSoloGateways(ctx, np)
 		if err != nil {
 			return fmt.Errorf("failed to update edge solo gateway for nodepool %s, error %s", np.GetName(), err.Error())
@@ -853,10 +860,6 @@ func isSpecified(np *nodepoolv1beta1.NodePool) (string, bool) {
 	return gwName, ok
 }
 
-func isExclude(np *nodepoolv1beta1.NodePool) bool {
-	return strings.ToLower(np.Annotations[GatewayExcludeNodePool]) == "true"
-}
-
 func isGatewayEndpoint(node *corev1.Node) bool {
 	ret, err := strconv.ParseBool(node.Labels[GatewayEndpoint])
 	if err != nil {
@@ -873,6 +876,10 @@ func isUnderNAT(node *corev1.Node) bool {
 	return ret
 }
 
-func soloNodePoolEnableTunnel(np *nodepoolv1beta1.NodePool) bool {
-	return strings.ToLower(np.Annotations[SoloNodePoolEnableRavenTunnel]) == "true"
+func allowRavenTunnelConnect(np *nodepoolv1beta1.NodePool) bool {
+	return strings.ToLower(np.Annotations[AllowRavenConnect]) == "true"
+}
+
+func rejectRavenTunnelConnect(np *nodepoolv1beta1.NodePool) bool {
+	return strings.ToLower(np.Annotations[RejectRavenConnect]) == "true"
 }
