@@ -213,7 +213,7 @@ func (r *ReconcileGatewayLifeCycle) needDeleteGateway(ctx context.Context, np *n
 		return true
 	}
 
-	if isSoloMode(np) && !allowRavenTunnelConnect(np) {
+	if isSoloMode(np) && !allowRavenTunnelConnect(np) && getInterconnectionMode(np) != DedicatedLine {
 		return true
 	}
 	return false
@@ -848,7 +848,14 @@ func isPoolMode(np *nodepoolv1beta1.NodePool) bool {
 }
 
 func getInterconnectionMode(np *nodepoolv1beta1.NodePool) string {
-	return strings.ToLower(np.Annotations[InterconnectionModeAnnotationKey])
+	var mode string
+	if np.Annotations != nil {
+		mode = np.Annotations[InterconnectionModeAnnotationKey]
+	}
+	if mode == "" && np.Spec.Labels != nil {
+		mode = np.Spec.Labels[InterconnectionModeAnnotationKey]
+	}
+	return strings.ToLower(mode)
 }
 
 func isAddressConflict(np *nodepoolv1beta1.NodePool) bool {
