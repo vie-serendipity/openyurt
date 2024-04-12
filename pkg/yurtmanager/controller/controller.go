@@ -33,6 +33,7 @@ import (
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/csrapprover"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/daemonpodupdater"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/loadbalancer/elb"
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/loadbalancerset/loadbalancerset"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/nodebucket"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/nodelifecycle"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/nodepool"
@@ -105,6 +106,7 @@ func NewControllerInitializers() map[string]InitFunc {
 	register(names.NodeBucketController, nodebucket.Add)
 	register(names.EnsLoadBalancerController, elb.Add)
 	register(names.CloudNodesLabelsController, cloudnodeslabels.Add)
+	register(names.LoadBalancerSetController, loadbalancerset.Add)
 
 	return controllers
 }

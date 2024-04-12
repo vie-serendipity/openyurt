@@ -15,3 +15,8 @@ limitations under the License.
 */
 
 package v1alpha1
+
+// SetDefaultsPoolService set default values for PoolService.
+func SetDefaultsPoolService(obj *PoolService) {
+	// example for set default value for PoolService
+}

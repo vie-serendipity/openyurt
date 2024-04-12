@@ -24,6 +24,7 @@ import (
 
 	cloudnodepoollifecycleconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/cloudnodepoollifecycle/config"
 	cloudnodeslabels "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/cloudnodeslabels/config"
+	loadbalancersetconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/loadbalancerset/loadbalancerset/config"
 	nodebucketconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/nodebucket/config"
 	nodepoolconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/nodepool/config"
 	platformadminconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/platformadmin/config"
@@ -73,6 +74,8 @@ type YurtManagerConfiguration struct {
 
 	// CloudNodepoolLifeCycleController holds configuration for CloudNodepoolLifeCycleController related features.
 	CloudNodesLabelsController cloudnodeslabels.CloudNodesLabelsControllerConfiguration
+	//  LoadBalancerSetController holds configuration for LoadBalancerSetController related features.
+	LoadBalancerSetController loadbalancersetconfig.LoadBalancerSetControllerConfiguration
 }
 
 type GenericConfiguration struct {

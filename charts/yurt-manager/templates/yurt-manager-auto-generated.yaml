@@ -499,6 +499,26 @@ rules:
   - patch
   - update
 - apiGroups:
+  - network.openyurt.io
+  resources:
+  - poolservices
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - network.openyurt.io
+  resources:
+  - poolservices/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - raven.openyurt.io
   resources:
   - gateways
