@@ -35,17 +35,8 @@ func (mgr *EIPManager) BuildLocalModel(reqCtx *RequestContext, lModel *elbmodel.
 }
 
 func setEIPFromDefaultConfig(reqCtx *RequestContext, mdl *elbmodel.EdgeLoadBalancer) error {
-	mdl.EipAttribute.Name = GetDefaultLoadBalancerName(reqCtx)
-	description := elbmodel.NamedKey{
-		Prefix:      elbmodel.DEFAULT_PREFIX,
-		CID:         GetCID(reqCtx),
-		Namespace:   reqCtx.Service.Namespace,
-		ServiceName: reqCtx.Service.Name,
-	}
-	mdl.EipAttribute.Description = description.String()
-	if mdl.LoadBalancerAttribute.EnsRegionId == "" {
-		return fmt.Errorf("eip lacks ens region id")
-	}
+	mdl.EipAttribute.Name = GetDefaultLoadBalancerName(mdl)
+	mdl.EipAttribute.Description = mdl.NamedKey.String()
 	mdl.EipAttribute.EnsRegionId = mdl.LoadBalancerAttribute.EnsRegionId
 	mdl.EipAttribute.Bandwidth = elbmodel.EipDefaultBandwidth
 	mdl.EipAttribute.InstanceChargeType = elbmodel.EipDefaultInstanceChargeType
@@ -54,6 +45,9 @@ func setEIPFromDefaultConfig(reqCtx *RequestContext, mdl *elbmodel.EdgeLoadBalan
 }
 
 func setEipFromAnnotation(reqCtx *RequestContext, mdl *elbmodel.EdgeLoadBalancer) error {
+	if reqCtx.AnnoCtx.Get(EnsEipId) != "" {
+		mdl.EipAttribute.AllocationId = reqCtx.AnnoCtx.Get(EnsEipId)
+	}
 	if reqCtx.AnnoCtx.Get(EipBandwidth) != "" {
 		bandwidth, err := strconv.Atoi(reqCtx.AnnoCtx.Get(EipBandwidth))
 		if err != nil {
@@ -79,9 +73,17 @@ func setEipFromAnnotation(reqCtx *RequestContext, mdl *elbmodel.EdgeLoadBalancer
 }
 
 func (mgr *EIPManager) BuildRemoteModel(reqCtx *RequestContext, rModel *elbmodel.EdgeLoadBalancer) error {
-	rModel.EipAttribute.Name = GetDefaultLoadBalancerName(reqCtx)
+	rModel.EipAttribute.Name = GetDefaultLoadBalancerName(rModel)
+	description := elbmodel.NamedKey{
+		Prefix:      elbmodel.DEFAULT_PREFIX,
+		CID:         reqCtx.ClusterId,
+		Namespace:   reqCtx.Service.Namespace,
+		ServiceName: reqCtx.Service.Name,
+		NodePool:    reqCtx.PoolAttribute.NodePoolID,
+	}
 	rModel.EipAttribute.EnsRegionId = rModel.LoadBalancerAttribute.EnsRegionId
-	if rModel.LoadBalancerAttribute.IsUserManaged {
+	rModel.EipAttribute.Description = description.String()
+	if rModel.IsUserManaged() {
 		if rModel.GetLoadBalancerId() != "" {
 			err := mgr.cloud.DescribeEnsEipByInstanceId(reqCtx.Ctx, rModel.GetLoadBalancerId(), rModel)
 			if err != nil && !elb.IsNotFound(err) {
@@ -89,7 +91,7 @@ func (mgr *EIPManager) BuildRemoteModel(reqCtx *RequestContext, rModel *elbmodel
 			}
 		}
 	} else {
-		err := mgr.cloud.DescribeEnsEipByName(reqCtx.Ctx, GetDefaultLoadBalancerName(reqCtx), rModel)
+		err := mgr.cloud.DescribeEnsEipByName(reqCtx.Ctx, GetDefaultLoadBalancerName(rModel), rModel)
 		if err != nil && !elb.IsNotFound(err) {
 			return err
 		}

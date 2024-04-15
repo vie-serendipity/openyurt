@@ -69,6 +69,7 @@ func (e ELBProvider) DescribeNetwork(ctx context.Context, mdl *elbmodel.EdgeLoad
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.NetworkId = mdl.GetNetworkId()
+	req.EnsRegionId = mdl.GetRegionId()
 	resp, err := e.auth.ELB.DescribeNetworks(req)
 	if err != nil {
 		return SDKError("DescribeNetworks", err)

@@ -66,9 +66,16 @@ type EdgeListenerAttribute struct {
 	IsUserManaged             bool
 }
 
+func (l *EdgeListenerAttribute) ListenKey() string {
+	if l.NamedKey.Prefix == "" {
+		l.NamedKey.Prefix = DEFAULT_PREFIX
+	}
+	return fmt.Sprintf("%s/%d/%s/%s/%s/%s", l.NamedKey.Prefix, l.ListenerPort, l.ListenerProtocol, l.NamedKey.ServiceName, l.NamedKey.Namespace, l.NamedKey.CID)
+}
+
 func LoadListenerNamedKey(key string) (*ListenerNamedKey, error) {
 	metas := strings.Split(key, "/")
-	if len(metas) != 5 || metas[0] != DEFAULT_PREFIX {
+	if len(metas) != 6 || metas[0] != DEFAULT_PREFIX {
 		return nil, fmt.Errorf("NamedKey Format Error: k8s.${port}.${protocol}.${service}.${namespace}.${clusterid} format is expected. Got [%s]", key)
 	}
 	port, err := strconv.Atoi(metas[1])
@@ -77,9 +84,9 @@ func LoadListenerNamedKey(key string) (*ListenerNamedKey, error) {
 	}
 	return &ListenerNamedKey{
 		NamedKey: NamedKey{
-			CID:         metas[4],
-			Namespace:   metas[3],
-			ServiceName: metas[2],
+			CID:         metas[5],
+			Namespace:   metas[4],
+			ServiceName: metas[3],
 			Prefix:      metas[0],
 		},
 		Port: int32(port),

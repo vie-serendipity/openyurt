@@ -80,7 +80,6 @@ func (e *ELBProvider) ModifyEipAttribute(ctx context.Context, eipId string, mdl 
 	req.ReadTimeout = readTimeout
 	req.AllocationId = eipId
 	req.Bandwidth = requests.NewInteger(mdl.EipAttribute.Bandwidth)
-	req.Description = mdl.EipAttribute.Description
 	_, err := e.auth.ELB.ModifyEnsEipAddressAttribute(req)
 	if err != nil {
 		return SDKError("ModifyEnsEipAddressAttribute", err)

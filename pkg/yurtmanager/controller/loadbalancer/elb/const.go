@@ -7,14 +7,14 @@ const (
 
 	EnsNetworkId = "alibabacloud.com/ens-network-id"
 	EnsRegionId  = "alibabacloud.com/ens-region-id"
-
 	EnsVSwitchId = "alibabacloud.com/ens-vswitch-id"
 
 	EnsNodeId           = "alibabacloud.com/ens-instance-id"
-	LabelServiceHash    = "service.openyurt.io/hash"
-	LabelLoadBalancerId = "service.openyurt.io/loadbalancer-id"
-	EipId               = "service.openyurt.io/eip-id"
-	BaseBackendWeight   = "base"
+	LabelServiceHash    = "service.beta.kubernetes.io/hash"
+	LabelLoadBalancerId = "service.alibabacloud.com/loadbalancer-id"
+	EipId               = "service.alibabacloud.com/eip-id"
+
+	BaseBackendWeight = "base"
 )
 
 // Status
@@ -44,9 +44,4 @@ const (
 	InstanceNotFound     = "find no"
 	StatusAberrant       = "aberrant"
 	ENSBatchAddMaxNumber = 19
-)
-
-const (
-	BatchSize     = 5
-	MaxRetryError = 5
 )

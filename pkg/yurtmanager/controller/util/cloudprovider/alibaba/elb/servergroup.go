@@ -2,10 +2,10 @@ package elb
 
 import (
 	"context"
-	elbmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/elb"
 	"strconv"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ens"
+	elbmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/elb"
 )
 
 func (e *ELBProvider) FindBackendFromLoadBalancer(ctx context.Context, lbId string, sg *elbmodel.EdgeServerGroup) error {

@@ -18,9 +18,10 @@ type EdgeLoadBalancerAttribute struct {
 	CreateTime         string
 	AddressIPVersion   string
 	PayType            string
-	AddressType        string
-	IsUserManaged      bool
-	IsReUse            bool
+
+	AddressType   string
+	IsUserManaged bool
+	IsShared      bool
 }
 
 // Default Config
@@ -51,13 +52,14 @@ type NamedKey struct {
 	CID         string
 	Namespace   string
 	ServiceName string
+	NodePool    string
 }
 
 func (n *NamedKey) Key() string {
 	if n.Prefix == "" {
 		n.Prefix = DEFAULT_PREFIX
 	}
-	return fmt.Sprintf("%s/%s/%s/%s", n.Prefix, n.ServiceName, n.Namespace, n.CID)
+	return fmt.Sprintf("%s/%s/%s/%s/%s", n.Prefix, n.ServiceName, n.Namespace, n.NodePool, n.CID)
 }
 
 func (n *NamedKey) String() string {
@@ -67,13 +69,21 @@ func (n *NamedKey) String() string {
 	return n.Key()
 }
 
+func (n *NamedKey) ListenKey() string {
+	if n.Prefix == "" {
+		n.Prefix = DEFAULT_PREFIX
+	}
+	return fmt.Sprintf("%s/%s/%s/%s", n.Prefix, n.ServiceName, n.Namespace, n.CID)
+}
+
 func LoadNamedKey(key string) (*NamedKey, error) {
 	metas := strings.Split(key, "/")
-	if len(metas) != 4 || metas[0] != DEFAULT_PREFIX {
-		return nil, fmt.Errorf("NamedKey Format Error: k8s.${port}.${protocol}.${service}.${namespace}.${clusterid} format is expected. Got [%s]", key)
+	if len(metas) != 5 || metas[0] != DEFAULT_PREFIX {
+		return nil, fmt.Errorf("NamedKey Format Error: k8s.${port}.${protocol}.${service}.${namespace}.${nodepool}.${clusterid} format is expected. Got [%s]", key)
 	}
 	return &NamedKey{
-		CID:         metas[3],
+		CID:         metas[4],
+		NodePool:    metas[3],
 		Namespace:   metas[2],
 		ServiceName: metas[1],
 		Prefix:      metas[0],
@@ -83,6 +93,7 @@ func LoadNamedKey(key string) (*NamedKey, error) {
 // EdgeLoadBalancer represents a AlibabaCloud ENS LoadBalancer.
 type EdgeLoadBalancer struct {
 	NamespacedName        types.NamespacedName
+	NamedKey              NamedKey
 	LoadBalancerAttribute EdgeLoadBalancerAttribute
 	EipAttribute          EdgeEipAttribute
 	ServerGroup           EdgeServerGroup
@@ -124,11 +135,25 @@ func (l *EdgeLoadBalancer) GetVSwitchId() string {
 	return l.LoadBalancerAttribute.VSwitchId
 }
 
-func (l *EdgeLoadBalancer) IsReUsed() bool {
+func (l *EdgeLoadBalancer) GetRegionId() string {
+	if l == nil {
+		return ""
+	}
+	return l.LoadBalancerAttribute.EnsRegionId
+}
+
+func (l *EdgeLoadBalancer) IsShared() bool {
 	if l == nil {
 		return false
 	}
-	return l.LoadBalancerAttribute.IsReUse
+	return l.LoadBalancerAttribute.IsShared
+}
+
+func (l *EdgeLoadBalancer) IsUserManaged() bool {
+	if l == nil {
+		return false
+	}
+	return l.LoadBalancerAttribute.IsUserManaged
 }
 
 func (l *EdgeLoadBalancer) GetEIPId() string {
@@ -150,96 +175,4 @@ func (l *EdgeLoadBalancer) GetAddressType() string {
 		return ""
 	}
 	return l.LoadBalancerAttribute.AddressType
-}
-
-type ActionType string
-
-const (
-	Create = ActionType("Create")
-	Update = ActionType("Update")
-	Delete = ActionType("Delete")
-)
-
-type PoolIdentity struct {
-	name         string
-	network      string
-	vswitch      string
-	region       string
-	loadbalancer string
-	eip          string
-	address      string
-	action       ActionType
-	err          error
-}
-
-func NewIdentity(name, network, vswitch, region string, action ActionType) *PoolIdentity {
-	return &PoolIdentity{name: name, network: network, vswitch: vswitch, region: region, action: action}
-}
-
-func (i *PoolIdentity) GetName() string {
-	return i.name
-}
-
-func (i *PoolIdentity) SetLoadBalancer(lb string) {
-	i.loadbalancer = lb
-}
-
-func (i *PoolIdentity) GetLoadBalancer() string {
-	return i.loadbalancer
-}
-
-func (i *PoolIdentity) SetEIP(eip string) {
-	i.eip = eip
-}
-
-func (i *PoolIdentity) GetEIP() string {
-	return i.eip
-}
-
-func (i *PoolIdentity) SetAddress(addr string) {
-	i.address = addr
-}
-
-func (i *PoolIdentity) GetAddress() string {
-	return i.address
-}
-
-func (i *PoolIdentity) GetNetwork() string {
-	return i.network
-}
-
-func (i *PoolIdentity) SetNetwork(nw string) {
-	i.network = nw
-}
-
-func (i *PoolIdentity) GetVSwitch() string {
-	return i.vswitch
-}
-
-func (i *PoolIdentity) SetVSwitch(vs string) {
-	i.vswitch = vs
-}
-
-func (i *PoolIdentity) GetRegion() string {
-	return i.region
-}
-
-func (i *PoolIdentity) SetRegion(region string) {
-	i.region = region
-}
-
-func (i *PoolIdentity) GetAction() ActionType {
-	return i.action
-}
-
-func (i *PoolIdentity) SetAction(action ActionType) {
-	i.action = action
-}
-
-func (i *PoolIdentity) SetError(err error) {
-	i.err = err
-}
-
-func (i *PoolIdentity) GetError() error {
-	return i.err
 }
