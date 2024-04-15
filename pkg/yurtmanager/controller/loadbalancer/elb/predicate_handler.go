@@ -44,7 +44,7 @@ func (p *PredicationForPoolServiceEvent) Update(evt event.UpdateEvent) bool {
 			klog.Info("Update Event: ", "pool service ", Key(newPs), fmt.Sprintf("UIDChanged: %v - %v", oldPs.UID, newPs.UID))
 			return true
 		}
-		if !reflect.DeepEqual(newPs.GetDeletionTimestamp().IsZero(), oldPs.GetDeletionTimestamp().IsZero()) {
+		if newPs.GetDeletionTimestamp().IsZero() != oldPs.GetDeletionTimestamp().IsZero() {
 			klog.Info("Update Event: ", "pool service ", Key(newPs), fmt.Sprintf("DeleteTimestampChanged: %v - %v", oldPs.DeletionTimestamp.IsZero(), newPs.DeletionTimestamp.IsZero()))
 			return true
 		}
