@@ -21,6 +21,7 @@ import (
 	componentbaseconfig "k8s.io/component-base/config"
 	"k8s.io/kube-controller-manager/config/v1alpha1"
 
+	autonomyconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/autonomy/config"
 	csrapproverconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/csrapprover/config"
 	daemonpodupdaterconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/daemonpodupdater/config"
 	loadbalancersetconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/loadbalancerset/loadbalancerset/config"
@@ -85,6 +86,9 @@ type YurtManagerConfiguration struct {
 
 	//  LoadBalancerSetController holds configuration for LoadBalancerSetController related features.
 	LoadBalancerSetController loadbalancersetconfig.LoadBalancerSetControllerConfiguration
+
+	// AutonomyController holds configuration for AutonomyController related features.
+	AutonomyController autonomyconfig.AutonomyControllerConfiguration
 }
 
 type GenericConfiguration struct {
