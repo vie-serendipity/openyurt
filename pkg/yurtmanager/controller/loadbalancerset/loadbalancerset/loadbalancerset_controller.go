@@ -489,19 +489,21 @@ func (r *ReconcileLoadBalancerSet) syncService(svc *corev1.Service) error {
 		return errors.Wrapf(err, "failed to get current pool services for service %s/%s", svc.Namespace, svc.Name)
 	}
 
+	aggregatedLabels := aggregatePoolServicesLabels(poolServices)
 	aggregatedAnnotations := aggregatePoolServicesAnnotations(poolServices)
 	aggregatedLbStatus := aggregateLbStatus(poolServices)
 
-	return r.compareAndUpdateService(svc, aggregatedAnnotations, aggregatedLbStatus)
+	return r.compareAndUpdateService(svc, aggregatedLabels, aggregatedAnnotations, aggregatedLbStatus)
 }
 
-func (r *ReconcileLoadBalancerSet) compareAndUpdateService(svc *corev1.Service, annotations map[string]string, lbStatus corev1.LoadBalancerStatus) error {
+func (r *ReconcileLoadBalancerSet) compareAndUpdateService(svc *corev1.Service, labels, annotations map[string]string, lbStatus corev1.LoadBalancerStatus) error {
 	isUpdatedAnnotations := compareAndUpdateServiceAnnotations(svc, annotations)
 	isUpdatedLbStatus := compareAndUpdateServiceLbStatus(svc, lbStatus)
+	isUpdatedLabels := compareAndUpdateServiceLabels(svc, labels)
 
-	if !isUpdatedLbStatus && !isUpdatedAnnotations {
+	if !isUpdatedLbStatus && !isUpdatedAnnotations && !isUpdatedLabels {
 		return nil
 	}
 
-	return r.Update(context.Background(), svc)
+	return r.Status().Update(context.Background(), svc)
 }

@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	mockAnnotationLbId = network.AggregateAnnotationsKeyPrefix + "/lb-id"
+	mockAnnotationLbId = aggregateKeyPrefix + "lb-id"
 )
 
 func TestServicePredicate(t *testing.T) {
@@ -163,6 +163,15 @@ func TestServicePredicate(t *testing.T) {
 		got := f.Update(event.UpdateEvent{ObjectOld: svc1, ObjectNew: svc2})
 		assertBool(t, true, got)
 	})
+
+	t.Run("modify service status", func(t *testing.T) {
+		svc1 := newService(v1.NamespaceDefault, mockServiceName)
+		svc2 := newService(v1.NamespaceDefault, mockServiceName)
+		svc2.Status.LoadBalancer.Ingress = []v1.LoadBalancerIngress{{IP: "1.2.3.4"}}
+
+		got := f.Update(event.UpdateEvent{ObjectOld: svc1, ObjectNew: svc2})
+		assertBool(t, true, got)
+	})
 }
 
 func assertBool(t testing.TB, expected, got bool) {
@@ -177,7 +186,7 @@ func TestPoolServicePredicated(t *testing.T) {
 	f := NewPoolServicePredicated()
 
 	t.Run("create/delete/update/generic pool service not managed and service name", func(t *testing.T) {
-		ps := newPoolService(v1.NamespaceDefault, "np123", nil, nil)
+		ps := newPoolService(v1.NamespaceDefault, "np123", nil, nil, nil)
 		delete(ps.Labels, labelManageBy)
 		delete(ps.Labels, network.LabelServiceName)
 
@@ -188,7 +197,7 @@ func TestPoolServicePredicated(t *testing.T) {
 	})
 
 	t.Run("create/delete/update/generic pool service not managed", func(t *testing.T) {
-		ps := newPoolService(v1.NamespaceDefault, "np123", nil, nil)
+		ps := newPoolService(v1.NamespaceDefault, "np123", nil, nil, nil)
 		delete(ps.Labels, labelManageBy)
 
 		assertBool(t, false, f.Create(event.CreateEvent{Object: ps}))
@@ -198,7 +207,7 @@ func TestPoolServicePredicated(t *testing.T) {
 	})
 
 	t.Run("create/delete/update/generic pool service not service name", func(t *testing.T) {
-		ps := newPoolService(v1.NamespaceDefault, "np123", nil, nil)
+		ps := newPoolService(v1.NamespaceDefault, "np123", nil, nil, nil)
 		delete(ps.Labels, network.LabelServiceName)
 
 		assertBool(t, false, f.Create(event.CreateEvent{Object: ps}))
@@ -209,7 +218,7 @@ func TestPoolServicePredicated(t *testing.T) {
 	})
 
 	t.Run("create/delete/update/generic pool service", func(t *testing.T) {
-		ps := newPoolService(v1.NamespaceDefault, "np123", nil, nil)
+		ps := newPoolService(v1.NamespaceDefault, "np123", nil, nil, nil)
 
 		assertBool(t, true, f.Create(event.CreateEvent{Object: ps}))
 		assertBool(t, true, f.Update(event.UpdateEvent{ObjectOld: ps, ObjectNew: ps}))
@@ -219,8 +228,8 @@ func TestPoolServicePredicated(t *testing.T) {
 	})
 
 	t.Run("create/delete/update/generic pool service not service name", func(t *testing.T) {
-		ps1 := newPoolService(v1.NamespaceDefault, "np123", nil, nil)
-		ps2 := newPoolService(v1.NamespaceDefault, "np123", nil, nil)
+		ps1 := newPoolService(v1.NamespaceDefault, "np123", nil, nil, nil)
+		ps2 := newPoolService(v1.NamespaceDefault, "np123", nil, nil, nil)
 		delete(ps2.Labels, network.LabelServiceName)
 		delete(ps2.Labels, labelManageBy)
 

@@ -116,6 +116,10 @@ func isServiceChange(oldSvc, newSvc *v1.Service) bool {
 		return true
 	}
 
+	if isStatusChange(oldSvc, newSvc) {
+		return true
+	}
+
 	return false
 }
 
@@ -124,7 +128,7 @@ func isDeleteTimeChange(oldSvc, newSvc *v1.Service) bool {
 }
 
 func isNodePoolSelectorChange(oldAnnotations, newAnnotations map[string]string) bool {
-	return !annotationValueIsEqual(oldAnnotations, newAnnotations, network.AnnotationNodePoolSelector)
+	return !mapValueIsEqual(oldAnnotations, newAnnotations, network.AnnotationNodePoolSelector)
 }
 
 func isServiceTypeChange(oldSvc, newSvc *v1.Service) bool {
@@ -140,6 +144,10 @@ func isAggregateAnnotationsChange(oldSvc, newSvc *v1.Service) bool {
 	newAggregateAnnotations := filterIgnoredKeys(newSvc.Annotations)
 
 	return !reflect.DeepEqual(oldAggregateAnnotations, newAggregateAnnotations)
+}
+
+func isStatusChange(oldSvc, newSvc *v1.Service) bool {
+	return !reflect.DeepEqual(oldSvc.Status, newSvc.Status)
 }
 
 func NewPoolServicePredicated() predicate.Predicate {
