@@ -27,8 +27,8 @@ type ServerGroupManager struct {
 	cloud      prvd.Provider
 }
 
-func (mgr *ServerGroupManager) BuildLocalModel(reqCtx *RequestContext, poolId string, lModel *elb.EdgeLoadBalancer) error {
-	candidates, err := NewEdgeEndpoints(reqCtx, mgr.kubeClient, poolId)
+func (mgr *ServerGroupManager) BuildLocalModel(reqCtx *RequestContext, lModel *elb.EdgeLoadBalancer) error {
+	candidates, err := NewEdgeEndpoints(reqCtx, mgr.kubeClient)
 	if err != nil {
 		return fmt.Errorf("build edge endpoints error: %s", err.Error())
 	}
@@ -75,13 +75,13 @@ func (mgr *ServerGroupManager) buildLocalServerGroup(reqCtx *RequestContext, can
 
 	switch candidates.TrafficPolicy {
 	case LocalTrafficPolicy:
-		klog.InfoS("local mode, build backends for loadbalancer", "service", Key(reqCtx.Service))
+		klog.InfoS("local mode, build backends for loadbalancer", "poolservice", Key(reqCtx.PoolService))
 		ret.Backends, err = mgr.buildLocalBackends(reqCtx, candidates)
 		if err != nil {
 			return *ret, fmt.Errorf("build local backends error: %s", err.Error())
 		}
 	case ClusterTrafficPolicy:
-		klog.InfoS("cluster mode, build backends for loadbalancer", "service", Key(reqCtx.Service))
+		klog.InfoS("cluster mode, build backends for loadbalancer", "poolservice", Key(reqCtx.PoolService))
 		ret.Backends, err = mgr.buildClusterBackends(reqCtx, candidates)
 		if err != nil {
 			return *ret, fmt.Errorf("build cluster backends error: %s", err.Error())
@@ -106,6 +106,9 @@ func (mgr *ServerGroupManager) buildLocalBackends(reqCtx *RequestContext, candid
 func (mgr *ServerGroupManager) buildClusterBackends(reqCtx *RequestContext, candidates *EdgeEnsEndpoint) ([]elb.EdgeBackendAttribute, error) {
 	ret := make([]elb.EdgeBackendAttribute, 0)
 	weightMap := splitBackendWeight(reqCtx)
+	if !existsEndpoints(reqCtx, candidates) {
+		return ret, nil
+	}
 	for _, node := range candidates.Nodes {
 		if node.Name == "" || candidates.Ens[node.Name] == "" {
 			klog.Warningf("[%s], Invalid node without ens id", Key(reqCtx.Service))
@@ -119,6 +122,24 @@ func (mgr *ServerGroupManager) buildClusterBackends(reqCtx *RequestContext, cand
 		})
 	}
 	return ret, nil
+}
+
+func existsEndpoints(reqCtx *RequestContext, candidates *EdgeEnsEndpoint) bool {
+	for _, es := range candidates.EndpointSlices {
+		for _, ep := range es.Endpoints {
+			if ep.Conditions.Ready == nil || !*ep.Conditions.Ready {
+				continue
+			}
+			if *ep.NodeName == "" {
+				klog.Warningf("[%s], Invalid endpoints without node name and ens id", Key(reqCtx.Service))
+				continue
+			}
+			if candidates.Ens[*ep.NodeName] != "" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (mgr *ServerGroupManager) batchAddServerGroup(reqCtx *RequestContext, lbId string, sg *elb.EdgeServerGroup) error {

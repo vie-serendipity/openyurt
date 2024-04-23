@@ -55,7 +55,7 @@ func (mgr *ListenerManager) buildListenerFromServicePort(reqCtx *RequestContext,
 		NamedKey: &elb.ListenerNamedKey{
 			NamedKey: elb.NamedKey{
 				Prefix:      elb.DEFAULT_PREFIX,
-				CID:         GetCID(reqCtx),
+				CID:         reqCtx.ClusterId,
 				Namespace:   reqCtx.Service.Namespace,
 				ServiceName: reqCtx.Service.Name,
 			},
@@ -108,7 +108,7 @@ func (mgr *ListenerManager) buildListenerFromCloud(reqCtx *RequestContext, lbId 
 		nameKey, err := elb.LoadListenerNamedKey(ls.Description)
 		if err != nil {
 			ls.IsUserManaged = true
-			klog.InfoS("listener description [%s], not expected format. skip user managed port", ls.Description, "service", Key(reqCtx.Service))
+			klog.InfoS(fmt.Sprintf("listener description [%s], not expected format. skip user managed port", ls.Description), "service", Key(reqCtx.Service))
 		} else {
 			ls.IsUserManaged = false
 		}
@@ -218,7 +218,7 @@ func setListenerFromDefaultConfig(listener *elb.EdgeListenerAttribute) error {
 	listener.Scheduler = elb.ListenerDefaultScheduler
 	listener.HealthThreshold = elb.ListenerDefaultHealthThreshold
 	listener.UnhealthyThreshold = elb.ListenerDefaultUnhealthyThreshold
-	listener.Description = listener.NamedKey.Key()
+	listener.Description = listener.ListenKey()
 	switch listener.ListenerProtocol {
 	case elb.ProtocolTCP:
 		listener.PersistenceTimeout = elb.ListenerDefaultPersistenceTimeout
@@ -361,7 +361,7 @@ func getListeners(reqCtx *RequestContext, localModel, remoteModel *elb.EdgeLoadB
 			add = append(add, local)
 			continue
 		}
-		if localModel.IsReUsed() && listenerIsChanged(&local, &remoteModel.Listeners.BackListener[idx]) {
+		if localModel.IsShared() && listenerIsChanged(&local, &remoteModel.Listeners.BackListener[idx]) {
 			update = append(update, local)
 		}
 	}

@@ -34,9 +34,10 @@ type ClientMgr struct {
 	Region string
 	Meta   prvd.IMetaData
 
-	SLB *slb.Client
-	EIP *vpc.Client
-	ELB *ens.Client
+	SLB    *slb.Client
+	EIP    *vpc.Client
+	ELB    *ens.Client
+	SLBSet map[string]*slb.Client
 }
 
 func NewClientMgr(cloudConfigPath string) (*ClientMgr, error) {

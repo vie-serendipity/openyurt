@@ -17,7 +17,7 @@ const (
 )
 
 type IModelBuilder interface {
-	Build(reqCtx *RequestContext, identity *elbmodel.PoolIdentity) (*elbmodel.EdgeLoadBalancer, error)
+	Build(reqCtx *RequestContext) (*elbmodel.EdgeLoadBalancer, error)
 }
 
 type ModelBuilder struct {
@@ -46,14 +46,14 @@ func (builder *ModelBuilder) Instance(modelType ModelType) IModelBuilder {
 	return &localModel{builder}
 }
 
-func (builder *ModelBuilder) BuildModel(reqCtx *RequestContext, modelType ModelType, identity *elbmodel.PoolIdentity) (*elbmodel.EdgeLoadBalancer, error) {
-	return builder.Instance(modelType).Build(reqCtx, identity)
+func (builder *ModelBuilder) BuildModel(reqCtx *RequestContext, modelType ModelType) (*elbmodel.EdgeLoadBalancer, error) {
+	return builder.Instance(modelType).Build(reqCtx)
 }
 
 type localModel struct{ *ModelBuilder }
 
-func (l *localModel) Build(reqCtx *RequestContext, pool *elbmodel.PoolIdentity) (*elbmodel.EdgeLoadBalancer, error) {
-	mdl, err := l.ELBMgr.BuildLocalModel(reqCtx, pool)
+func (l *localModel) Build(reqCtx *RequestContext) (*elbmodel.EdgeLoadBalancer, error) {
+	mdl, err := l.ELBMgr.BuildLocalModel(reqCtx)
 	if err != nil {
 		return mdl, fmt.Errorf("build elb attribute error: %s", err.Error())
 	}
@@ -62,11 +62,7 @@ func (l *localModel) Build(reqCtx *RequestContext, pool *elbmodel.PoolIdentity) 
 		return mdl, fmt.Errorf("build eip attribute error: %s", err.Error())
 	}
 
-	if pool.GetAction() == elbmodel.Delete {
-		return mdl, nil
-	}
-
-	if err = l.SGMgr.BuildLocalModel(reqCtx, pool.GetName(), mdl); err != nil {
+	if err = l.SGMgr.BuildLocalModel(reqCtx, mdl); err != nil {
 		return mdl, fmt.Errorf("build server group error: %s", err.Error())
 	}
 
@@ -78,8 +74,8 @@ func (l *localModel) Build(reqCtx *RequestContext, pool *elbmodel.PoolIdentity) 
 
 type remoteModel struct{ *ModelBuilder }
 
-func (r *remoteModel) Build(reqCtx *RequestContext, identity *elbmodel.PoolIdentity) (*elbmodel.EdgeLoadBalancer, error) {
-	mdl, err := r.ELBMgr.BuildRemoteModel(reqCtx, identity)
+func (r *remoteModel) Build(reqCtx *RequestContext) (*elbmodel.EdgeLoadBalancer, error) {
+	mdl, err := r.ELBMgr.BuildRemoteModel(reqCtx)
 	if err != nil {
 		return mdl, fmt.Errorf("build elb attribute error: %s", err.Error())
 	}

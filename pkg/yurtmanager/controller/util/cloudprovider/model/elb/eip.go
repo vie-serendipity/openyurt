@@ -1,7 +1,7 @@
 package elb
 
 const (
-	EipDefaultBandwidth          = 20
+	EipDefaultBandwidth          = 5
 	EipDefaultInstanceChargeType = "PostPaid"
 	EipDefaultInternetChargeType = "95BandwidthByMonth"
 )

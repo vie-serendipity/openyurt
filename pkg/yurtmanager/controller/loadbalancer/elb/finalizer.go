@@ -3,23 +3,27 @@ package elb
 import (
 	"context"
 	"fmt"
-	corev1 "k8s.io/api/core/v1"
+
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/finalizer"
+
+	networkv1alpha1 "github.com/openyurtio/openyurt/pkg/apis/network/v1alpha1"
 )
 
 const (
-	FailedAddFinalizer    = "FailedAddFinalizer"
-	FailedRemoveFinalizer = "FailedRemoveFinalizer"
-	FailedAddHash         = "FailedAddHash"
-	FailedRemoveHash      = "FailedRemoveHash"
-	FailedUpdateStatus    = "FailedUpdateStatus"
-	UnAvailableBackends   = "UnAvailableLoadBalancer"
-	SkipSyncBackends      = "SkipSyncBackends"
-	FailedSyncLB          = "SyncLoadBalancerFailed"
-	SucceedCleanLB        = "CleanLoadBalancer"
-	FailedCleanLB         = "CleanLoadBalancerFailed"
-	SucceedSyncLB         = "EnsuredLoadBalancer"
+	FailedAddFinalizer       = "FailedAddFinalizer"
+	FailedRemoveFinalizer    = "FailedRemoveFinalizer"
+	FailedAddHash            = "FailedAddHash"
+	FailedRemoveHash         = "FailedRemoveHash"
+	FailedUpdateStatus       = "FailedUpdateStatus"
+	UnAvailableBackends      = "UnAvailableLoadBalancer"
+	SkipSyncBackends         = "SkipSyncBackends"
+	FailedSyncLB             = "SyncLoadBalancerFailed"
+	FailedValidateAnnotation = "ValidateAnnotationFailed"
+	SucceedCleanLB           = "CleanLoadBalancer"
+	FailedCleanLB            = "CleanLoadBalancerFailed"
+	SucceedSyncLB            = "EnsuredLoadBalancer"
+	WaitedSyncLBId           = "WaitBindLoadBalancer"
 )
 
 type LoadBalancerServiceFinalizer struct {
@@ -34,10 +38,10 @@ func NewLoadBalancerServiceFinalizer(cli client.Client) *LoadBalancerServiceFina
 
 func (l LoadBalancerServiceFinalizer) Finalize(ctx context.Context, object client.Object) (finalizer.Result, error) {
 	var res finalizer.Result
-	_, ok := object.(*corev1.Service)
+	_, ok := object.(*networkv1alpha1.PoolService)
 	if !ok {
 		res.Updated = false
-		return res, fmt.Errorf("object is not corev1.service")
+		return res, fmt.Errorf("object is not networkv1alpha1.poolservice")
 	}
 	res.Updated = true
 	return res, nil

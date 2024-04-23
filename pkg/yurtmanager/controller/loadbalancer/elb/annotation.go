@@ -2,35 +2,33 @@ package elb
 
 import (
 	"fmt"
-
-	v1 "k8s.io/api/core/v1"
+	"strconv"
+	"strings"
 
 	elbmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/elb"
 )
 
 const (
-	AnnotationPrefix             = "service.openyurt.io/"
-	AnnotationLoadBalancerPrefix = "elb-"
+	AnnotationPrefix = "service.beta.kubernetes.io/alibaba-cloud"
+
+	AnnotationLoadBalancerPrefix = "loadbalancer-"
 	AnnotationEIPPrefix          = "eip-"
-
-	NodePoolSelector          = "nodepool-labelselector"
-	NodePoolLabelSelectorTerm = "nodepool-labelselector-term"
-
-	ListenerOverride = AnnotationLoadBalancerPrefix + "force-override-listeners"
-	BackendOverride  = AnnotationLoadBalancerPrefix + "force-override-servers"
-	AddressType      = AnnotationLoadBalancerPrefix + "address-type"
+	ListenerOverride             = AnnotationLoadBalancerPrefix + "force-override-listeners"
+	AddressType                  = AnnotationLoadBalancerPrefix + "address-type"
 )
 
 const (
 	VSwitch        = AnnotationLoadBalancerPrefix + "vswitch-id"
-	LoadBalancerId = AnnotationLoadBalancerPrefix + "loadbalancer-id"
+	LoadBalancerId = AnnotationLoadBalancerPrefix + "id"
+	ManagedByUser  = AnnotationLoadBalancerPrefix + "managed-by-user"
 	Spec           = AnnotationLoadBalancerPrefix + "spec"
 	IPVersion      = AnnotationLoadBalancerPrefix + "ip-version"
 	PayType        = AnnotationLoadBalancerPrefix + "pay-type"
 
+	EnsEipId                   = AnnotationLoadBalancerPrefix + AnnotationEIPPrefix + "id"
 	EipBandwidth               = AnnotationLoadBalancerPrefix + AnnotationEIPPrefix + "bandwidth"
-	EipInternetChargeType      = AnnotationLoadBalancerPrefix + AnnotationEIPPrefix + "internet-chargetype"
-	EipInstanceChargeType      = AnnotationLoadBalancerPrefix + AnnotationEIPPrefix + "instance-chargetype"
+	EipInternetChargeType      = AnnotationLoadBalancerPrefix + AnnotationEIPPrefix + "internet-charge-type"
+	EipInstanceChargeType      = AnnotationLoadBalancerPrefix + AnnotationEIPPrefix + "instance-charge-type"
 	EipInternetProviderService = AnnotationLoadBalancerPrefix + AnnotationEIPPrefix + "isp"
 
 	EdgeServerWeight    = AnnotationLoadBalancerPrefix + "backend-weight"
@@ -55,7 +53,7 @@ var DefaultValue = map[string]string{
 }
 
 func composite(p, k string) string {
-	return fmt.Sprintf("%s%s", p, k)
+	return fmt.Sprintf("%s-%s", p, k)
 }
 
 func Annotation(k string) string {
@@ -66,18 +64,29 @@ type AnnotationContext struct {
 	anno map[string]string
 }
 
-func NewAnnotationContext(svc *v1.Service) *AnnotationContext {
+func NewAnnotationContext(basicAnno, additionalAnno map[string]string) *AnnotationContext {
 	annoCtx := &AnnotationContext{anno: make(map[string]string)}
-	if svc == nil {
-		return annoCtx
+	if basicAnno != nil {
+		for k, v := range basicAnno {
+			if strings.HasPrefix(k, AnnotationPrefix) {
+				annoCtx.anno[k] = v
+			}
+		}
 	}
-	for k, v := range svc.Annotations {
-		annoCtx.anno[k] = v
+	if additionalAnno != nil {
+		for k, v := range additionalAnno {
+			if strings.HasPrefix(k, AnnotationPrefix) {
+				annoCtx.anno[k] = v
+			}
+		}
 	}
 	return annoCtx
 }
 
 func (n *AnnotationContext) Get(k string) string {
+	if n.anno == nil {
+		return ""
+	}
 	key := composite(AnnotationPrefix, k)
 	v, ok := n.anno[key]
 	if ok {
@@ -93,6 +102,16 @@ func (n *AnnotationContext) Has(k string) bool {
 		return true
 	}
 	return false
+}
+
+func (n *AnnotationContext) IsManageByUser() bool {
+	managedByUser, _ := strconv.ParseBool(n.Get(ManagedByUser))
+	return managedByUser
+}
+
+func (n *AnnotationContext) IsShared() bool {
+	listenerOverride, _ := strconv.ParseBool(n.Get(ListenerOverride))
+	return listenerOverride
 }
 
 func (n *AnnotationContext) GetDefaultValue(k string) string {

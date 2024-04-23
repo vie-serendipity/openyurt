@@ -61,7 +61,7 @@ type EdgeEnsEndpoint struct {
 }
 
 // NewEdgeEndpoints Collect nodes that meet the conditions as the back end of the ELB Service
-func NewEdgeEndpoints(reqCtx *RequestContext, kubeClient client.Client, nodepool string) (edgeBackend *EdgeEnsEndpoint, err error) {
+func NewEdgeEndpoints(reqCtx *RequestContext, kubeClient client.Client) (edgeBackend *EdgeEnsEndpoint, err error) {
 	edgeBackend = new(EdgeEnsEndpoint)
 	edgeBackend.setTrafficPolicy(reqCtx)
 	edgeBackend.setAddressIpVersion(reqCtx)
@@ -69,7 +69,7 @@ func NewEdgeEndpoints(reqCtx *RequestContext, kubeClient client.Client, nodepool
 		return edgeBackend, fmt.Errorf("the backend of elb can not adopt IPv6 address")
 	}
 
-	edgeBackend.Nodes, err = getEdgeENSNodes(reqCtx, kubeClient, nodepool)
+	edgeBackend.Nodes, err = getEdgeENSNodes(reqCtx, kubeClient)
 	if err != nil {
 		return nil, fmt.Errorf("get nodes error: %s", err.Error())
 	}
@@ -78,7 +78,7 @@ func NewEdgeEndpoints(reqCtx *RequestContext, kubeClient client.Client, nodepool
 	if err != nil {
 		return nil, fmt.Errorf("get endpointslice error: %s", err.Error())
 	}
-	klog.InfoS("backend details", "endpointslices", LogEndpointSliceList(edgeBackend.EndpointSlices), "service", Key(reqCtx.Service))
+	klog.InfoS("backend details", "endpointslices", LogEndpointSliceList(edgeBackend.EndpointSlices), "poolservice", Key(reqCtx.PoolService))
 
 	return edgeBackend, nil
 }
@@ -122,7 +122,7 @@ func getEndpointByEndpointSlice(reqCtx *RequestContext, kubeClient client.Client
 	return ret, nil
 }
 
-func getEdgeENSNodes(reqCtx *RequestContext, kubeClient client.Client, nodepool string) ([]v1.Node, error) {
+func getEdgeENSNodes(reqCtx *RequestContext, kubeClient client.Client) ([]v1.Node, error) {
 	matchLabels := make(map[string]string)
 	if reqCtx.AnnoCtx.Get(BackendLabel) != "" {
 		var err error
@@ -132,7 +132,7 @@ func getEdgeENSNodes(reqCtx *RequestContext, kubeClient client.Client, nodepool 
 		}
 	}
 	matchLabels[EdgeNodeLabel] = EdgeNodeValue
-	matchLabels[NodePoolLabel] = nodepool
+	matchLabels[NodePoolLabel] = reqCtx.PoolAttribute.NodePoolID
 	selector := labels.SelectorFromSet(matchLabels)
 	req, err := labels.NewRequirement(ENSLabel, selection.Exists, []string{})
 	if err == nil {
@@ -179,7 +179,7 @@ func shouldSkipNode(reqCtx *RequestContext, node *v1.Node) bool {
 	// It's safe because these nodes will be filtered in build backends func
 
 	if isNodeExcludeFromEdgeLoadBalancer(node) {
-		klog.Info("[%s] node %s is exclude node, skip adding it to lb", Key(reqCtx.Service), node.Name)
+		klog.Infof("[%s] node %s is exclude node, skip adding it to lb", Key(reqCtx.Service), node.Name)
 		return true
 	}
 

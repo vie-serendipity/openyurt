@@ -133,7 +133,7 @@ func (e *ELBProvider) DescribeEdgeLoadBalancerByName(ctx context.Context, lbName
 	req.ConnectTimeout = connectionTimeout
 	req.ReadTimeout = readTimeout
 	req.NetworkId = mdl.GetNetworkId()
-	req.EnsRegionId = mdl.LoadBalancerAttribute.EnsRegionId
+	req.EnsRegionId = mdl.GetRegionId()
 	resp, err := e.auth.ELB.DescribeLoadBalancers(req)
 	if err != nil {
 		return SDKError("DescribeLoadBalancers", err)
@@ -190,5 +190,4 @@ func loadElbRespName(resp ens.LoadBalancer, mdl *elbmodel.EdgeLoadBalancer) {
 	mdl.LoadBalancerAttribute.AddressIPVersion = resp.AddressIPVersion
 	mdl.LoadBalancerAttribute.LoadBalancerStatus = resp.LoadBalancerStatus
 	mdl.LoadBalancerAttribute.CreateTime = resp.CreateTime
-	mdl.LoadBalancerAttribute.IsUserManaged = false
 }

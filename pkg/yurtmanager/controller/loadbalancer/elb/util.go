@@ -19,31 +19,40 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/yaml"
+
+	networkv1alpha1 "github.com/openyurtio/openyurt/pkg/apis/network/v1alpha1"
+	elbmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/elb"
 )
 
-type RequestContext struct {
-	Ctx       context.Context
-	ClusterId string
-	Service   *v1.Service
-	AnnoCtx   *AnnotationContext
-	Recorder  record.EventRecorder
+type PoolAttribute struct {
+	NodePoolID string `json:"NodePoolID"`
+	VpcId      string `json:"VpcId"`
+	VSwitchId  string `json:"VSwitchId"`
+	RegionId   string `json:"RegionId"`
 }
 
-func GetDefaultLoadBalancerName(reqCtx *RequestContext) string {
-	if reqCtx.Service == nil {
-		return ""
-	}
-	ret := "a" + string(reqCtx.Service.UID)
-	ret = strings.Replace(ret, "-", "", -1)
-	//AWS requires that the name of a load balancer is shorter than 32 bytes.
-	if len(ret) > 32 {
-		ret = ret[:32]
+func (p *PoolAttribute) VPC() string { return p.VpcId }
+
+func (p *PoolAttribute) VSwitch() string { return p.VSwitchId }
+
+func (p *PoolAttribute) Region() string { return p.RegionId }
+
+type RequestContext struct {
+	Ctx           context.Context
+	ClusterId     string
+	PoolService   *networkv1alpha1.PoolService
+	PoolAttribute *PoolAttribute
+	Service       *v1.Service
+	AnnoCtx       *AnnotationContext
+	Recorder      record.EventRecorder
+}
+
+func GetDefaultLoadBalancerName(model *elbmodel.EdgeLoadBalancer) string {
+	ret := model.NamedKey.String()
+	if len(ret) > 80 {
+		ret = ret[:80]
 	}
 	return ret
-}
-
-func GetCID(reqCtx *RequestContext) string {
-	return reqCtx.ClusterId
 }
 
 func NamespacedName(obj metav1.Object) types.NamespacedName {
@@ -148,25 +157,25 @@ func LogEndpointSliceList(esList []discovery.EndpointSlice) string {
 	if esList == nil {
 		return "endpointSliceList is nil"
 	}
-	var epAddrList []string
+	var epAddrAndNodeList []string
 	for _, es := range esList {
 		for _, ep := range es.Endpoints {
 			if ep.Conditions.Ready != nil && !*ep.Conditions.Ready {
 				continue
 			}
-			epAddrList = append(epAddrList, ep.Addresses...)
+			epAddrAndNodeList = append(epAddrAndNodeList, fmt.Sprintf("%s:%s", *ep.NodeName, ep.Addresses))
 		}
 	}
 
-	return strings.Join(epAddrList, ",")
+	return strings.Join(epAddrAndNodeList, ",")
 }
 
 const TRY_AGAIN = "try again"
 
 func Retry(
 	backoff *wait.Backoff,
-	fun func(svc *v1.Service) error,
-	svc *v1.Service,
+	fun func(ps *networkv1alpha1.PoolService) error,
+	ps *networkv1alpha1.PoolService,
 ) error {
 	if backoff == nil {
 		backoff = &wait.Backoff{
@@ -179,7 +188,7 @@ func Retry(
 	return wait.ExponentialBackoff(
 		*backoff,
 		func() (bool, error) {
-			err := fun(svc)
+			err := fun(ps)
 			if err != nil &&
 				strings.Contains(err.Error(), TRY_AGAIN) {
 				klog.Errorf("retry with error: %s", err.Error())
@@ -193,11 +202,11 @@ func Retry(
 	)
 }
 
-func GetServiceHash(svc *v1.Service) string {
+func GetServiceHash(svc *v1.Service, anno map[string]string) string {
 	var op []interface{}
 	// ServiceSpec
-	op = append(op, svc.Spec.Ports, svc.Spec.Type, svc.Spec.ExternalTrafficPolicy, svc.Spec.LoadBalancerClass)
-	op = append(op, svc.Annotations, svc.DeletionTimestamp)
+	op = append(op, svc.Spec.Ports, svc.Spec.Type, svc.Spec.ExternalTrafficPolicy, svc.Spec.LoadBalancerClass, svc.DeletionTimestamp)
+	op = append(op, anno)
 	return HashObject(op)
 }
 
@@ -318,4 +327,19 @@ func Unmarshal(str string) (*NodePoolAffinity, error) {
 		return nil, err
 	}
 	return &nodePoolAffinity, nil
+}
+
+func IsENSNode(node *v1.Node) bool {
+	if id, isENS := node.Labels[EnsNodeId]; isENS && id != "" {
+		return true
+	}
+	return false
+}
+
+func IsELBService(service *v1.Service) bool {
+	return service.Spec.Type == v1.ServiceTypeLoadBalancer && service.Spec.LoadBalancerClass != nil && *service.Spec.LoadBalancerClass == ELBClass
+}
+
+func IsELBPoolService(poolService *networkv1alpha1.PoolService) bool {
+	return *poolService.Spec.LoadBalancerClass == ELBClass
 }
