@@ -102,14 +102,16 @@ func (o *GenericOptions) ApplyTo(cfg *config.GenericConfiguration, controllerAli
 	cfg.WorkingNamespace = o.WorkingNamespace
 	cfg.Kubeconfig = o.Kubeconfig
 	cfg.Cloudconfig = o.Cloudconfig
+	cfg.ENSServiceRegion = o.ENSServiceRegion
 
 	if len(cfg.Cloudconfig) != 0 {
 		var err error
-		cfg.CloudProvider, err = alibaba.NewAlibabaCloud(cfg.Cloudconfig)
+		cfg.CloudProvider, err = alibaba.NewAlibabaCloud(cfg.Cloudconfig, cfg.ENSServiceRegion)
 		if err != nil {
 			klog.Infof("could not build alibaba provider, %v", err)
 			return err
 		}
+
 		klog.Infof("successfully build alibaba provider")
 	}
 
@@ -150,5 +152,6 @@ func (o *GenericOptions) AddFlags(fs *pflag.FlagSet, allControllers, disabledByD
 		"'*' disables all independent webhooks, 'foo' disables the independent webhook named 'foo'.")
 	fs.StringVar(&o.Kubeconfig, "kubeconfig", o.Kubeconfig, "Path to kubeconfig file with authorization and master location information")
 	fs.StringVar(&o.Cloudconfig, "cloud-config", o.Cloudconfig, "Path to cloud provider configuration file with authorization.")
+	fs.StringVar(&o.ENSServiceRegion, "ens-service-region", o.ENSServiceRegion, "Region to ens provider service.")
 	features.DefaultMutableFeatureGate.AddFlag(fs)
 }

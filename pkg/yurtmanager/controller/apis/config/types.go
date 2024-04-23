@@ -89,6 +89,7 @@ type GenericConfiguration struct {
 	WorkingNamespace string
 	Kubeconfig       string
 	Cloudconfig      string
+	ENSServiceRegion string
 	CloudProvider    prvd.Provider
 	// Controllers is the list of controllers to enable or disable
 	// '*' means "all enabled by default controllers"
