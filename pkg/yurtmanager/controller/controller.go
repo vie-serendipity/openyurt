@@ -45,6 +45,7 @@ import (
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/gatewaylifecycle"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/gatewaypickup"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/gatewaypublicservice"
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/route"
 	servicetopologyendpoints "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/servicetopology/endpoints"
 	servicetopologyendpointslice "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/servicetopology/endpointslice"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/uniteddeployment"
@@ -107,6 +108,7 @@ func NewControllerInitializers() map[string]InitFunc {
 	register(names.EnsLoadBalancerController, elb.Add)
 	register(names.CloudNodesLabelsController, cloudnodeslabels.Add)
 	register(names.LoadBalancerSetController, loadbalancerset.Add)
+	register(names.EdgeRouteController, route.Add)
 
 	return controllers
 }

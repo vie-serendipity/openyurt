@@ -12,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/finalizer"
 
-	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/raven"
+	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/alibabacloud"
 	ravenmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/raven"
 )
 
@@ -37,7 +37,7 @@ func (r *ReconcileResource) CleanupSLB(ctx context.Context, model *ravenmodel.Lo
 		return nil
 	}
 	err := r.provider.DeleteLoadBalancer(ctx, model)
-	if err != nil && !raven.IsNotFound(err) {
+	if err != nil && !alibabacloud.IsNotFound(err) {
 		return err
 	}
 	klog.Infoln(Format("successfully delete slb: %s", model.LoadBalancerId))
@@ -52,7 +52,7 @@ func (r *ReconcileResource) CleanupACL(ctx context.Context, model *ravenmodel.Ac
 		return nil
 	}
 	err := r.provider.DeleteAccessControlList(ctx, model)
-	if err != nil && !raven.IsNotFound(err) {
+	if err != nil && !alibabacloud.IsNotFound(err) {
 		return err
 	}
 	klog.Infoln(Format("successfully delete acl: %s", model.AccessControlListId))
@@ -69,7 +69,7 @@ func (r *ReconcileResource) CleanupEIP(ctx context.Context, model *ravenmodel.El
 	waitErr := wait.PollImmediate(5*time.Second, 30*time.Second, func() (done bool, err error) {
 		err = r.provider.DescribeEipAddresses(ctx, model)
 		if err != nil {
-			if raven.IsNotFound(err) {
+			if alibabacloud.IsNotFound(err) {
 				return true, nil
 			}
 			klog.Error(Format("describe eip error %s", err.Error()))
@@ -78,7 +78,7 @@ func (r *ReconcileResource) CleanupEIP(ctx context.Context, model *ravenmodel.El
 		if model.Status == "InUse" && model.InstanceId != "" {
 			err = r.provider.UnassociateEipAddress(ctx, model)
 			if err != nil {
-				if raven.IsNotFound(err) {
+				if alibabacloud.IsNotFound(err) {
 					return true, nil
 				}
 				klog.Error(Format("unassociate eip error %s", err.Error()))

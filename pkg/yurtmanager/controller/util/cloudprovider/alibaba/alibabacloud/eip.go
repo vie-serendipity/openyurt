@@ -1,4 +1,4 @@
-package raven
+package alibabacloud
 
 import (
 	"context"
@@ -25,7 +25,7 @@ func (v *VPCProvider) DescribeEipAddresses(ctx context.Context, mdl *ravenmodel.
 	req := vpc.CreateDescribeEipAddressesRequest()
 	req.AllocationId = mdl.AllocationId
 	req.EipName = mdl.Name
-	resp, err := v.auth.EIP.DescribeEipAddresses(req)
+	resp, err := v.auth.VPC.DescribeEipAddresses(req)
 	if err != nil {
 		return EIPSDKError("DescribeEipAddresses", err)
 	}
@@ -58,7 +58,7 @@ func (v *VPCProvider) AllocateEipAddress(ctx context.Context, mdl *ravenmodel.El
 	req.InternetChargeType = mdl.InternetChargeType
 	req.InstanceChargeType = mdl.InstanceChargeType
 
-	resp, err := v.auth.EIP.AllocateEipAddress(req)
+	resp, err := v.auth.VPC.AllocateEipAddress(req)
 	if err != nil {
 		return EIPSDKError("AllocateEipAddress", err)
 	}
@@ -75,7 +75,7 @@ func (v *VPCProvider) AssociateEipAddress(ctx context.Context, mdl *ravenmodel.E
 	req.InstanceType = "SlbInstance"
 	req.AllocationId = mdl.AllocationId
 	req.InstanceId = instanceId
-	_, err := v.auth.EIP.AssociateEipAddress(req)
+	_, err := v.auth.VPC.AssociateEipAddress(req)
 	if err != nil {
 		return EIPSDKError("AssociateEipAddress", err)
 	}
@@ -87,7 +87,7 @@ func (v *VPCProvider) UnassociateEipAddress(ctx context.Context, mdl *ravenmodel
 	req.InstanceType = "SlbInstance"
 	req.AllocationId = mdl.AllocationId
 	req.InstanceId = mdl.InstanceId
-	_, err := v.auth.EIP.UnassociateEipAddress(req)
+	_, err := v.auth.VPC.UnassociateEipAddress(req)
 	if err != nil {
 		return EIPSDKError("UnassociateEipAddress", err)
 	}
@@ -97,7 +97,7 @@ func (v *VPCProvider) UnassociateEipAddress(ctx context.Context, mdl *ravenmodel
 func (v *VPCProvider) ReleaseEipAddress(ctx context.Context, mdl *ravenmodel.ElasticIPAttribute) error {
 	req := vpc.CreateReleaseEipAddressRequest()
 	req.AllocationId = mdl.AllocationId
-	_, err := v.auth.EIP.ReleaseEipAddress(req)
+	_, err := v.auth.VPC.ReleaseEipAddress(req)
 	if err != nil {
 		return EIPSDKError("ReleaseEipAddress", err)
 	}

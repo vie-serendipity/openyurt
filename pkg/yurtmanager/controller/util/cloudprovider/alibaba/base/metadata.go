@@ -64,11 +64,16 @@ func NewMetaData() (prvd.IMetaData, error) {
 var _ prvd.IMetaData = &MetaData{}
 
 type MetaData struct {
-	UID       string
-	Region    string
-	ClusterID string
-	VpcID     string
-	VswitchID string
+	UID           string
+	Region        string
+	ClusterID     string
+	VpcID         string
+	VswitchID     string
+	RouteTablesID string
+}
+
+func (m *MetaData) GetRouteTables() (string, error) {
+	return "", nil
 }
 
 func (m *MetaData) GetVpcID() (string, error) {
@@ -106,6 +111,13 @@ func (m *MetaData) GetClusterID() (string, error) {
 	return m.ClusterID, nil
 }
 
+func (m *MetaData) GetRouteTablesID() (string, error) {
+	if m.RouteTablesID == "" {
+		return "", errors.New("route tables id is empty, can not get")
+	}
+	return m.RouteTablesID, nil
+}
+
 func (m *MetaData) RoleName() (string, error) {
 	return "", nil
 }
@@ -120,6 +132,7 @@ func (m *MetaData) LoadCloudCFG() {
 	m.VpcID = CloudCFG.VpcID()
 	m.VswitchID = CloudCFG.VswitchID()
 	m.Region = CloudCFG.Region()
+	m.RouteTablesID = CloudCFG.RouteTablesId()
 }
 
 // render meta data from cloud config file
@@ -127,6 +140,10 @@ var _ prvd.IMetaData = &BaseMetaData{}
 
 type BaseMetaData struct {
 	client *http.Client
+}
+
+func (m *BaseMetaData) GetRouteTables() (string, error) {
+	return "", nil
 }
 
 func (m *BaseMetaData) GetClusterID() (string, error) {
