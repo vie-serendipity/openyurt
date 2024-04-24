@@ -175,6 +175,7 @@ func (r *ReconcileRoute) reconcile(ctx context.Context) error {
 		klog.Error(Format("can not find vpc route tables, skip reconcile it, error %s", err.Error()))
 		return err
 	}
+	klog.Infof(Format("has found route vpc route tables %s", tables))
 	gatewayNodes, err := r.findGatewayNodes(ctx)
 	if err != nil {
 		klog.Error(Format("can not find gateway node in cloud, error %s", err.Error()))
@@ -364,7 +365,6 @@ func (r *ReconcileRoute) getRouteTables(ctx context.Context) ([]string, error) {
 	if len(tables) == 0 {
 		return nil, fmt.Errorf("no route tables found by vpc id [%s]", vpcId)
 	}
-	klog.Infof("find route tables %s", tables)
 	return tables, nil
 }
 
