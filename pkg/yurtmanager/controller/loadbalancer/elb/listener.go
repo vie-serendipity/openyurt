@@ -31,6 +31,41 @@ func (mgr *ListenerManager) BuildLocalModel(reqCtx *RequestContext, lModel *elb.
 		}
 		lModel.Listeners.BackListener = append(lModel.Listeners.BackListener, listener)
 	}
+	return mgr.addExternalProtoPorts(reqCtx, lModel)
+}
+
+func (mgr *ListenerManager) addExternalProtoPorts(reqCtx *RequestContext, lModel *elb.EdgeLoadBalancer) error {
+	exposedPorts := make(map[string]struct{})
+	extraProtocolPorts := make([]v1.ServicePort, 0)
+	for _, listen := range lModel.Listeners.BackListener {
+		exposedPorts[fmt.Sprintf("%s:%d", listen.ListenerProtocol, listen.ListenerPort)] = struct{}{}
+	}
+	if reqCtx.AnnoCtx.Get(ProtocolPort) != "" {
+		protocolPorts, err := GetProtocolPort(reqCtx.AnnoCtx.Get(ProtocolPort))
+		if err != nil {
+			return fmt.Errorf("add extra proto ports error %s", err.Error())
+		}
+		for _, v := range protocolPorts {
+			if _, ok := exposedPorts[v.String()]; ok {
+				continue
+			}
+			switch v.Protocol {
+			case ProtocolTCP:
+				extraProtocolPorts = append(extraProtocolPorts, v1.ServicePort{Protocol: v1.ProtocolTCP, Port: int32(v.Port), NodePort: int32(v.Port)})
+			case ProtocolUDP:
+				extraProtocolPorts = append(extraProtocolPorts, v1.ServicePort{Protocol: v1.ProtocolUDP, Port: int32(v.Port), NodePort: int32(v.Port)})
+			default:
+
+			}
+		}
+	}
+	for _, port := range extraProtocolPorts {
+		listener, err := mgr.buildListenerFromServicePort(reqCtx, port)
+		if err != nil {
+			return fmt.Errorf("build local listener from servicePort %d error: %s", port.Port, err.Error())
+		}
+		lModel.Listeners.BackListener = append(lModel.Listeners.BackListener, listener)
+	}
 	return nil
 }
 
@@ -50,7 +85,7 @@ func (mgr *ListenerManager) BuildRemoteModel(reqCtx *RequestContext, mdl *elb.Ed
 }
 
 func (mgr *ListenerManager) buildListenerFromServicePort(reqCtx *RequestContext, port v1.ServicePort) (elb.EdgeListenerAttribute, error) {
-
+	listenPort := port.NodePort
 	listener := elb.EdgeListenerAttribute{
 		NamedKey: &elb.ListenerNamedKey{
 			NamedKey: elb.NamedKey{
@@ -59,9 +94,9 @@ func (mgr *ListenerManager) buildListenerFromServicePort(reqCtx *RequestContext,
 				Namespace:   reqCtx.Service.Namespace,
 				ServiceName: reqCtx.Service.Name,
 			},
-			Port: port.NodePort,
+			Port: listenPort,
 		},
-		ListenerPort:     int(port.NodePort),
+		ListenerPort:     int(listenPort),
 		ListenerProtocol: strings.ToLower(string(port.Protocol)),
 		IsUserManaged:    false,
 	}
@@ -415,4 +450,40 @@ func listenerIsChanged(local, remote *elb.EdgeListenerAttribute) bool {
 		}
 	}
 	return false
+}
+
+type ProtocolPorts struct {
+	Protocol string
+	Port     int
+}
+
+func (p *ProtocolPorts) String() string {
+	return fmt.Sprintf("%s:%d", p.Protocol, p.Port)
+}
+
+func GetProtocolPort(anno string) (protocolPorts []ProtocolPorts, err error) {
+	anno = strings.ToLower(anno)
+	if anno == "" {
+		err = fmt.Errorf("annotation protocol:port is empty")
+		return
+	}
+	var port int
+	for _, v := range strings.Split(anno, ",") {
+		pp := strings.Split(v, ":")
+		if len(pp) != 2 {
+			err = fmt.Errorf("port and protocol format must be like 'https:443' with colon separated. got=[%+v]", pp)
+			return
+		}
+		if pp[0] != ProtocolHttp && pp[0] != ProtocolHttps && pp[0] != ProtocolTCP && pp[0] != ProtocolUDP {
+			err = fmt.Errorf("port protocol format must be either [http|https|tcp|udp], protocol not supported wit [%s]", pp[0])
+			return
+		}
+		port, err = strconv.Atoi(pp[1])
+		if err != nil {
+			err = fmt.Errorf("port format must be 32-bit decimal number， port not supported wit [%s]", pp[1])
+			return
+		}
+		protocolPorts = append(protocolPorts, ProtocolPorts{Protocol: pp[0], Port: port})
+	}
+	return
 }
