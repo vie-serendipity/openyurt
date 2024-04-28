@@ -36,6 +36,7 @@ const (
 	ExcludeBackendLabel = AnnotationLoadBalancerPrefix + "exclude-from-edge-load-balancer"
 	RemoveUnscheduled   = AnnotationLoadBalancerPrefix + "remove-unscheduled-backend"
 
+	ProtocolPort              = AnnotationLoadBalancerPrefix + "protocol-port"
 	Scheduler                 = AnnotationLoadBalancerPrefix + "scheduler"                    // Scheduler slb scheduler
 	HealthCheckConnectPort    = AnnotationLoadBalancerPrefix + "health-check-connect-port"    // HealthCheckConnectPort health check connect port
 	HealthyThreshold          = AnnotationLoadBalancerPrefix + "healthy-threshold"            // HealthyThreshold health check healthy thresh hold

@@ -38,6 +38,11 @@ const (
 	ListenerStarting    = "Starting"
 	ListenerConfiguring = "Configuring"
 	ListenerStopping    = "Stopping"
+
+	ProtocolTCP   = "tcp"
+	ProtocolUDP   = "udp"
+	ProtocolHttp  = "http"
+	ProtocolHttps = "https"
 )
 
 const (

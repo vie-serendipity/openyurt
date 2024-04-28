@@ -10,8 +10,8 @@ import (
 	metrics "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/metrics"
 )
 
-func NewAlibabaCloud(path string) (prvd.Provider, error) {
-	mgr, err := base.NewClientMgr(path)
+func NewAlibabaCloud(path string, ensServiceRegion string) (prvd.Provider, error) {
+	mgr, err := base.NewClientMgr(path, ensServiceRegion)
 	if err != nil {
 		return nil, fmt.Errorf("initialize alibaba cloud client auth: %s", err.Error())
 	}

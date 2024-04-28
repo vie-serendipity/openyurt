@@ -29,18 +29,28 @@ const (
 
 var log = klogr.New().WithName("clientMgr")
 
+var ENSAccessPoints = map[string]struct{}{
+	"cn-beijing":     {},
+	"cn-zhangjiakou": {},
+	"cn-wulanchabu":  {},
+	"cn-hangzhou":    {},
+	"cn-shanghai":    {},
+	"cn-heyuan":      {},
+	"cn-chengdu":     {},
+}
+
 type ClientMgr struct {
 	stop   <-chan struct{}
 	Region string
 	Meta   prvd.IMetaData
 
-	SLB    *slb.Client
-	EIP    *vpc.Client
-	ELB    *ens.Client
-	SLBSet map[string]*slb.Client
+	SLB       *slb.Client
+	EIP       *vpc.Client
+	ELB       *ens.Client
+	ENSRegion string
 }
 
-func NewClientMgr(cloudConfigPath string) (*ClientMgr, error) {
+func NewClientMgr(cloudConfigPath, ensRegion string) (*ClientMgr, error) {
 
 	if err := CloudCFG.LoadCloudCFG(cloudConfigPath); err != nil {
 		return nil, fmt.Errorf("load cloud config %s, error: %s", cloudConfigPath, err.Error())
@@ -77,19 +87,28 @@ func NewClientMgr(cloudConfigPath string) (*ClientMgr, error) {
 	}
 	slbcli.AppendUserAgent(AgentClusterId, clusterId)
 
-	elbcli, err := ens.NewClientWithOptions("cn-hangzhou", clientCfg(), credential)
+	if ensRegion == "" {
+		if _, ok := ENSAccessPoints[region]; ok {
+			ensRegion = region
+		} else {
+			ensRegion = "cn-hangzhou"
+		}
+	}
+
+	elbcli, err := ens.NewClientWithOptions(ensRegion, clientCfg(), credential)
 	if err != nil {
 		return nil, fmt.Errorf("initialize alibaba elb client: %s", err.Error())
 	}
 	elbcli.AppendUserAgent(AgentClusterId, clusterId)
 
 	auth := &ClientMgr{
-		Meta:   meta,
-		SLB:    slbcli,
-		EIP:    vpcli,
-		ELB:    elbcli,
-		Region: region,
-		stop:   make(<-chan struct{}, 1)}
+		Meta:      meta,
+		SLB:       slbcli,
+		EIP:       vpcli,
+		ELB:       elbcli,
+		ENSRegion: ensRegion,
+		Region:    region,
+		stop:      make(<-chan struct{}, 1)}
 
 	err = auth.Start(RefreshToken)
 	if err != nil {
@@ -167,7 +186,7 @@ func RefreshToken(mgr *ClientMgr, token *DefaultToken) error {
 		return fmt.Errorf("init slb sts token config: %s", err.Error())
 	}
 
-	err = mgr.ELB.InitWithOptions(token.Region, clientCfg(), credential)
+	err = mgr.ELB.InitWithOptions(mgr.ENSRegion, clientCfg(), credential)
 	if err != nil {
 		return fmt.Errorf("init elb sts token config: %s", err.Error())
 	}
