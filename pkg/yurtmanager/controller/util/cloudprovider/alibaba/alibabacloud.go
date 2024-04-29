@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
+	alibabcloud "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/alibabacloud"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/base"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/elb"
-	raven2 "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/raven"
 	metrics "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/metrics"
 )
 
@@ -23,8 +23,8 @@ func NewAlibabaCloud(path string, ensServiceRegion string) (prvd.Provider, error
 
 	return AlibabaCloud{
 		IMetaData:   mgr.Meta,
-		SLBProvider: raven2.NewLBProvider(mgr),
-		VPCProvider: raven2.NewVPCProvider(mgr),
+		SLBProvider: alibabcloud.NewLBProvider(mgr),
+		VPCProvider: alibabcloud.NewVPCProvider(mgr),
 		ELBProvider: elb.NewELBProvider(mgr),
 	}, nil
 }
@@ -33,7 +33,7 @@ var _ prvd.Provider = AlibabaCloud{}
 
 type AlibabaCloud struct {
 	prvd.IMetaData
-	*raven2.SLBProvider
-	*raven2.VPCProvider
+	*alibabcloud.SLBProvider
+	*alibabcloud.VPCProvider
 	*elb.ELBProvider
 }

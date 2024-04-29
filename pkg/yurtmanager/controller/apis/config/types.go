@@ -17,7 +17,6 @@ limitations under the License.
 package config
 
 import (
-	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	componentbaseconfig "k8s.io/component-base/config"
 	"k8s.io/kube-controller-manager/config/v1alpha1"
@@ -31,7 +30,9 @@ import (
 	gatewaylifecycleconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/gatewaylifecycle/config"
 	gatewaypickupconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/gatewaypickup/config"
 	ravencloudproviderconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util/config"
+	edgerouteconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/route/config"
 	uniteddeploymentconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/uniteddeployment/config"
+	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
 	yurtappsetconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/yurtappset/config"
 	yurtstaticsetconfig "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/yurtstaticset/config"
 )
@@ -74,8 +75,12 @@ type YurtManagerConfiguration struct {
 
 	// CloudNodepoolLifeCycleController holds configuration for CloudNodepoolLifeCycleController related features.
 	CloudNodesLabelsController cloudnodeslabels.CloudNodesLabelsControllerConfiguration
+
 	//  LoadBalancerSetController holds configuration for LoadBalancerSetController related features.
 	LoadBalancerSetController loadbalancersetconfig.LoadBalancerSetControllerConfiguration
+
+	// EdgeRouteController holds configuration for  EdgeRouteController related features.
+	EdgeRouteController edgerouteconfig.RouteControllerConfiguration
 }
 
 type GenericConfiguration struct {

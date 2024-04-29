@@ -45,7 +45,7 @@ import (
 	"github.com/openyurtio/openyurt/cmd/yurt-manager/names"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/raven/util"
 	prvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider"
-	ravenprvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/raven"
+	ravenprvd "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/alibaba/alibabacloud"
 	ravenmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/raven"
 )
 

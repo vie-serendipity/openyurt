@@ -315,7 +315,7 @@ func (r *ReconcileELB) cleanupLoadBalancerResources(req *RequestContext) error {
 
 		if err := r.removePoolServiceLables(req); err != nil {
 			r.record.Event(req.PoolService, v1.EventTypeWarning, FailedRemoveHash,
-				fmt.Sprintf("Error removing service label: %s", err.Error()))
+				fmt.Sprintf("Error removing poolservice label: %s", err.Error()))
 			return fmt.Errorf("%s failed to remove pool service labels, error: %s", Key(req.PoolService), err.Error())
 		}
 
@@ -353,7 +353,7 @@ func (r *ReconcileELB) reconcileLoadBalancerResources(req *RequestContext) error
 	// 3. add labels for service
 	if err := r.addPoolServiceLables(req); err != nil {
 		r.record.Event(req.PoolService, v1.EventTypeWarning, FailedAddHash,
-			fmt.Sprintf("Error adding service label: %s", err.Error()))
+			fmt.Sprintf("Error adding poolservice label: %s", err.Error()))
 		return fmt.Errorf("%s failed to add pool service labels, error: %s", Key(req.Service), err.Error())
 	}
 

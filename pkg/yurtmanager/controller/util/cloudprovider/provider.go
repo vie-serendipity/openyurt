@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/elb"
 	ravenmodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/raven"
+	routemodel "github.com/openyurtio/openyurt/pkg/yurtmanager/controller/util/cloudprovider/model/route"
 	"time"
 )
 
@@ -14,6 +15,7 @@ type Provider interface {
 	ILoadBalancer
 	ITagResource
 	IEnsLoadBalancer
+	IRouteTables
 }
 
 type RoleAuth struct {
@@ -31,6 +33,7 @@ type IMetaData interface {
 	GetVpcID() (string, error)
 	GetVswitchID() (string, error)
 	GetUID() (string, error)
+	GetRouteTables() (string, error)
 	RoleName() (string, error)
 	RamRoleToken(role string) (RoleAuth, error)
 }
@@ -49,6 +52,13 @@ type IAccessControlList interface {
 	RemoveAccessControlListEntry(ctx context.Context, mdl *ravenmodel.AccessControlListAttribute, entry string) error
 	DescribeAccessControlListAttribute(ctx context.Context, mdl *ravenmodel.AccessControlListAttribute) error
 	DescribeAccessControlLists(ctx context.Context, mdl *ravenmodel.AccessControlListAttribute) error
+}
+
+type IRouteTables interface {
+	CreateRoute(ctx context.Context, tableId string, mdl *routemodel.Route) error
+	DeleteRoute(ctx context.Context, routeEntryId, nextHotId string) error
+	FindRoute(ctx context.Context, tableId, destinationCIDR string) ([]*routemodel.Route, error)
+	ListRouteTables(ctx context.Context, vpcId string) ([]string, error)
 }
 
 type IElasticIP interface {

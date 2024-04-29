@@ -42,6 +42,7 @@ const (
 	EnsLoadBalancerController              = "ens-loadbalancer-controller"
 	CloudNodesLabelsController             = "cloud-nodes-labels-controller"
 	LoadBalancerSetController              = "load-balancer-set-controller"
+	EdgeRouteController                    = "edge-route-controller"
 )
 
 func YurtManagerControllerAliases() map[string]string {
@@ -72,5 +73,6 @@ func YurtManagerControllerAliases() map[string]string {
 		"ensloadbalancer":               EnsLoadBalancerController,
 		"cloudnodeslabels":              CloudNodesLabelsController,
 		"loadbalancerset":               LoadBalancerSetController,
+		"edgeroute":                     EdgeRouteController,
 	}
 }

@@ -45,7 +45,7 @@ type ClientMgr struct {
 	Meta   prvd.IMetaData
 
 	SLB       *slb.Client
-	EIP       *vpc.Client
+	VPC       *vpc.Client
 	ELB       *ens.Client
 	ENSRegion string
 }
@@ -104,7 +104,7 @@ func NewClientMgr(cloudConfigPath, ensRegion string) (*ClientMgr, error) {
 	auth := &ClientMgr{
 		Meta:      meta,
 		SLB:       slbcli,
-		EIP:       vpcli,
+		VPC:       vpcli,
 		ELB:       elbcli,
 		ENSRegion: ensRegion,
 		Region:    region,
@@ -176,7 +176,7 @@ func RefreshToken(mgr *ClientMgr, token *DefaultToken) error {
 		AccessKeyStsToken: token.SecurityToken,
 	}
 
-	err := mgr.EIP.InitWithOptions(token.Region, clientCfg(), credential)
+	err := mgr.VPC.InitWithOptions(token.Region, clientCfg(), credential)
 	if err != nil {
 		return fmt.Errorf("init vpc sts token config: %s", err.Error())
 	}
@@ -209,7 +209,7 @@ func clientCfg() *sdk.Config {
 
 func setCustomizedEndpoint(mgr *ClientMgr) {
 	if vpcEndpoint, err := parseURL(os.Getenv("VPC_ENDPOINT")); err == nil && vpcEndpoint != "" {
-		mgr.EIP.Domain = vpcEndpoint
+		mgr.VPC.Domain = vpcEndpoint
 	}
 	if slbEndpoint, err := parseURL(os.Getenv("SLB_ENDPOINT")); err == nil && slbEndpoint != "" {
 		mgr.SLB.Domain = slbEndpoint

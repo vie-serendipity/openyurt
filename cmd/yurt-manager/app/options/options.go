@@ -37,6 +37,7 @@ type YurtManagerOptions struct {
 	RavenCloudProviderController *CloudProviderControllerOptions
 	NodeBucketController         *NodeBucketControllerOptions
 	LoadBalancerSetController    *LoadBalancerSetControllerOptions
+	EdgeRouteController          *RouteControllerOptions
 }
 
 // NewYurtManagerOptions creates a new YurtManagerOptions with a default config.
@@ -55,6 +56,7 @@ func NewYurtManagerOptions() (*YurtManagerOptions, error) {
 		RavenCloudProviderController: NewCloudProviderControllerOptions(),
 		NodeBucketController:         NewNodeBucketControllerOptions(),
 		LoadBalancerSetController:    NewLoadBalancerSetControllerOptions(),
+		EdgeRouteController:          NewRouteControllerOptions(),
 	}
 
 	return &s, nil
@@ -72,6 +74,7 @@ func (y *YurtManagerOptions) Flags(allControllers, disabledByDefaultControllers 
 	y.RavenCloudProviderController.AddFlags(fss.FlagSet("cloudresource controller"))
 	y.NodeBucketController.AddFlags(fss.FlagSet("nodebucket controller"))
 	y.LoadBalancerSetController.AddFlags(fss.FlagSet("loadbalancerset controller"))
+	y.EdgeRouteController.AddFlags(fss.FlagSet("edgeroute controller"))
 	return fss
 }
 
@@ -88,6 +91,7 @@ func (y *YurtManagerOptions) Validate(allControllers []string, controllerAliases
 	errs = append(errs, y.RavenCloudProviderController.Validate()...)
 	errs = append(errs, y.NodeBucketController.Validate()...)
 	errs = append(errs, y.LoadBalancerSetController.Validate()...)
+	errs = append(errs, y.EdgeRouteController.Validate()...)
 	return utilerrors.NewAggregate(errs)
 }
 
@@ -121,6 +125,9 @@ func (y *YurtManagerOptions) ApplyTo(c *config.Config, controllerAliases map[str
 		return err
 	}
 	if err := y.LoadBalancerSetController.ApplyTo(&c.ComponentConfig.LoadBalancerSetController); err != nil {
+		return err
+	}
+	if err := y.EdgeRouteController.ApplyTo(&c.ComponentConfig.EdgeRouteController); err != nil {
 		return err
 	}
 	return nil

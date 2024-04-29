@@ -52,3 +52,5 @@ func (cc *CloudConfig) VpcID() string {
 func (cc *CloudConfig) VswitchID() string {
 	return cc.Global.VswitchID
 }
+
+func (cc *CloudConfig) RouteTablesId() string { return cc.Global.RouteTableIDS }
