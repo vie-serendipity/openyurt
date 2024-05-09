@@ -3,6 +3,7 @@ package elb
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -22,6 +23,7 @@ const (
 	EdgeNodeValue   = "true"
 	ENSLabel        = "alibabacloud.com/ens-instance-id"
 	LabelNodeTypeVK = "virtual-kubelet"
+	NodeAutonomy    = "node.beta.alibabacloud.com/autonomy"
 )
 
 type TrafficPolicy string
@@ -190,6 +192,9 @@ func shouldSkipNode(reqCtx *RequestContext, node *v1.Node) bool {
 			return true
 		}
 	}
+	if isNodeNotReady(reqCtx, node) && !isAutonomy(node) {
+		return true
+	}
 
 	// ignore vk node condition check.
 	// Even if the vk node is NotReady, it still can be added to lb. Because the eci pod that actually joins the lb, not a vk node
@@ -197,11 +202,14 @@ func shouldSkipNode(reqCtx *RequestContext, node *v1.Node) bool {
 		return true
 	}
 
+	return false
+}
+
+func isNodeNotReady(reqCtx *RequestContext, node *v1.Node) bool {
 	// If we have no info, don't accept
 	if len(node.Status.Conditions) == 0 {
 		return true
 	}
-
 	for _, cond := range node.Status.Conditions {
 		// We consider the node for load balancing only when its NodeReady
 		// condition status is ConditionTrue
@@ -212,7 +220,21 @@ func shouldSkipNode(reqCtx *RequestContext, node *v1.Node) bool {
 			return true
 		}
 	}
+	return false
+}
 
+func isAutonomy(node *v1.Node) bool {
+	if node == nil {
+		return false
+	}
+	if node.Annotations == nil {
+		return false
+	}
+	val, ok := node.Annotations[NodeAutonomy]
+	if ok {
+		auto, _ := strconv.ParseBool(val)
+		return auto
+	}
 	return false
 }
 
